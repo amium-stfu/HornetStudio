@@ -581,6 +581,7 @@ public partial class FolderEditorControl : UserControl
             CreateWidgetSelectionItem(ControlKind.SqlLoggerControl, "SqlLogger", "SQL logger with runtime recording controls.", "SqlLoggerControl.md", "SqlLoggerControl.help.md"),
             CreateWidgetSelectionItem(ControlKind.ChartControl, "RealtimeChart", "Live chart for numeric signal history.", "ChartControl.md", "ChartControl.help.md"),
             CreateWidgetSelectionItem(ControlKind.CameraControl, "Camera", "Camera stream widget with snapshot support.", "CameraControl.md", "CameraControl.help.md"),
+            CreateWidgetSelectionItem(ControlKind.BrokerWidget, "BrokerWidget", "MQTT ItemBroker connection and attach widget.", "BrokerWidget.md", "BrokerWidget.help.md"),
             CreateWidgetSelectionItem(ControlKind.ApplicationExplorer, "ApplicationExplorer", "Application launcher and runtime overview.", "ApplicationExplorer.md", "ApplicationExplorer.help.md"),
             CreateWidgetSelectionItem(ControlKind.CustomSignals, "CustomSignals", "Calculated and manual custom signal definitions.", "CustomSignals.md", "CustomSignals.help.md"),
             CreateWidgetSelectionItem(ControlKind.EnhancedSignals, "EnhancedSignals", "Extended signal processing and mapping widget.", "EnhancedSignals.md", "EnhancedSignals.help.md")
@@ -1110,6 +1111,13 @@ public partial class FolderEditorControl : UserControl
                 item.ShowFooter = true;
                 break;
 
+            case ControlKind.BrokerWidget:
+                item.ControlCaption = "Broker";
+                item.BodyCaption = "MQTT ItemBroker";
+                item.Footer = "127.0.0.1:1883 | hornet";
+                item.ShowFooter = true;
+                break;
+
             case ControlKind.ApplicationExplorer:
                 item.ControlCaption = "Application explorer";
                 item.BodyCaption = "Utilities";
@@ -1152,6 +1160,7 @@ public partial class FolderEditorControl : UserControl
             ControlKind.CsvLoggerControl or ControlKind.SqlLoggerControl => 320,
             ControlKind.CameraControl => 340,
             ControlKind.UdlClientControl => 420,
+            ControlKind.BrokerWidget => 420,
             ControlKind.ApplicationExplorer => 420,
             ControlKind.CustomSignals or ControlKind.EnhancedSignals => 420,
             _ => 260
@@ -1177,6 +1186,7 @@ public partial class FolderEditorControl : UserControl
             ControlKind.CsvLoggerControl or ControlKind.SqlLoggerControl => 150,
             ControlKind.CameraControl => 220,
             ControlKind.UdlClientControl => 190,
+            ControlKind.BrokerWidget => 190,
             ControlKind.ApplicationExplorer => 220,
             ControlKind.CustomSignals or ControlKind.EnhancedSignals => 240,
             _ => 120

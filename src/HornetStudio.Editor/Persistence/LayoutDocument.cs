@@ -191,6 +191,24 @@ public sealed class FolderItemDocument
 
     public string UdlModuleExposureDefinitions { get; init; } = string.Empty;
 
+    public string BrokerHost { get; init; } = "127.0.0.1";
+
+    public int BrokerPort { get; init; } = 1883;
+
+    public string BrokerBaseTopic { get; init; } = "hornet";
+
+    public string BrokerClientId { get; init; } = "hornet-studio";
+
+    public string BrokerMode { get; init; } = BrokerWidgetModes.External;
+
+    public bool BrokerAutoConnect { get; init; }
+
+    public string BrokerAttachedItemPaths { get; init; } = string.Empty;
+
+    public string BrokerPublishedItemPaths { get; init; } = string.Empty;
+
+    public string ItemExposures { get; init; } = string.Empty;
+
     public string CsvDirectory { get; init; } = string.Empty;
 
     public string CsvFilename { get; init; } = string.Empty;

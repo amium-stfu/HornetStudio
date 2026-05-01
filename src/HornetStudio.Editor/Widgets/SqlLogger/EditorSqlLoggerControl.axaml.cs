@@ -190,7 +190,7 @@ public partial class EditorSqlLoggerControl : EditorTemplateWidget
         snapshot.Params["Kind"].Value = "LoggerRuntime";
         snapshot.Params["Text"].Value = title;
         snapshot.Params["Title"].Value = title;
-        HostRegistries.Data.UpsertSnapshot(snapshot.Path!, snapshot, pruneMissingMembers: true);
+        HostRegistries.Data.UpsertSnapshot(snapshot.Path!, snapshot, DataRegistryItemMetadata.WidgetStatus(), pruneMissingMembers: true);
     }
 
     private void RemovePublishedRuntimeItems()
@@ -328,7 +328,7 @@ public partial class EditorSqlLoggerControl : EditorTemplateWidget
 
     private static bool ReadRuntimeBoolean(string path, bool fallback)
     {
-        if (string.IsNullOrWhiteSpace(path) || !HostRegistries.Data.TryGet(path, out var item) || item is null)
+        if (string.IsNullOrWhiteSpace(path) || !HostRegistries.Data.TryResolve(path, out var item) || item is null)
         {
             return fallback;
         }
@@ -346,7 +346,7 @@ public partial class EditorSqlLoggerControl : EditorTemplateWidget
 
     private static string ReadRuntimeString(string path)
     {
-        if (string.IsNullOrWhiteSpace(path) || !HostRegistries.Data.TryGet(path, out var item) || item is null)
+        if (string.IsNullOrWhiteSpace(path) || !HostRegistries.Data.TryResolve(path, out var item) || item is null)
         {
             return string.Empty;
         }

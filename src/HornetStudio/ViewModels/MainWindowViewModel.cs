@@ -2043,6 +2043,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
         var isWidgetList = kind == ControlKind.WidgetList;
         var isChartControl = kind == ControlKind.ChartControl;
         var isCircleDisplay = kind == ControlKind.CircleDisplay;
+        var isBrokerWidget = kind == ControlKind.BrokerWidget;
         var item = new FolderItemModel
         {
             Kind = kind,
@@ -2052,8 +2053,8 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
             Footer = isButton ? "Action" : type,
             X = node.X ?? defaultX,
             Y = node.Y ?? defaultY,
-            Width = node.Width ?? (isButton ? 320 : (kind == ControlKind.LogControl ? 420 : (isChartControl ? 520 : (isCircleDisplay ? 280 : 260)))),
-            Height = node.Height ?? (isButton ? 96 : (kind == ControlKind.LogControl ? 260 : (isChartControl ? 260 : (isWidgetList ? 220 : (isCircleDisplay ? 280 : 84))))),
+            Width = node.Width ?? (isButton ? 320 : (kind == ControlKind.LogControl ? 420 : (isChartControl ? 520 : (isBrokerWidget ? 420 : (isCircleDisplay ? 280 : 260))))),
+            Height = node.Height ?? (isButton ? 96 : (kind == ControlKind.LogControl ? 260 : (isChartControl ? 260 : (isWidgetList ? 220 : (isBrokerWidget ? 190 : (isCircleDisplay ? 280 : 84)))))),
             IsAutoHeight = isWidgetList,
             UiNodeType = string.IsNullOrWhiteSpace(type) ? GetDefaultUiType(kind) : type,
             UiProperties = CloneJsonObject(node.Properties)
@@ -2128,6 +2129,13 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
         if (string.Equals(type, "UdlClientControl", StringComparison.OrdinalIgnoreCase) || string.Equals(type, "UdlClient", StringComparison.OrdinalIgnoreCase))
         {
             return ControlKind.UdlClientControl;
+        }
+
+        if (string.Equals(type, "BrokerWidget", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(type, "BrokerClientControl", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(type, "ItemBroker", StringComparison.OrdinalIgnoreCase))
+        {
+            return ControlKind.BrokerWidget;
         }
 
         if (string.Equals(type, "CsvLoggerControl", StringComparison.OrdinalIgnoreCase) || string.Equals(type, "CsvLogger", StringComparison.OrdinalIgnoreCase))

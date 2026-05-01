@@ -512,6 +512,7 @@ public sealed partial class WidgetSelectionDialogWindow : Window, INotifyPropert
                     PageIsActive = true
                 },
                 ControlKind.UdlClientControl => CreatePlaceholderPreview(item, "UDL client preview"),
+                ControlKind.BrokerWidget => CreatePlaceholderPreview(item, "MQTT ItemBroker preview"),
                 ControlKind.CsvLoggerControl => CreatePlaceholderPreview(item, "CSV logger preview"),
                 ControlKind.SqlLoggerControl => CreatePlaceholderPreview(item, "SQL logger preview"),
                 ControlKind.CameraControl => CreatePlaceholderPreview(item, "Camera preview"),

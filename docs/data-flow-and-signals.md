@@ -19,7 +19,10 @@ Dieses Dokument beschreibt den Datenfluss im Host, wie Messwerte aktualisiert we
   - Wichtige Methoden:
     - `UpsertSnapshot(string key, Item snapshot, bool pruneMissingMembers = false)`
     - `UpdateValue(string key, object? value, ulong? timestamp = null)`
+    - `UpdateParameter(string key, string parameterName, object? value, ulong? timestamp = null)`
+    - `TryUpdateUserParameter(string key, string parameterName, object? value, ulong? timestamp = null)`
     - `TryGet(string key, out Item? value)`
+    - `TryResolve(string path, out Item? item)`
   - Events:
     - `ItemChanged` – fired bei Änderungen eines Items (Snapshot, Value, Parameter).
     - `RegistryChanged` – fired bei Hinzufügen/Entfernen von Roots.
@@ -36,6 +39,31 @@ Dieses Dokument beschreibt den Datenfluss im Host, wie Messwerte aktualisiert we
 4. Alle Abonnenten (z.B. `SignalRegistry`) können darauf reagieren.
 
 Damit gibt es genau **eine Wahrheit** für den aktuellen Messwert: das `Item` in der `DataRegistry`.
+
+**Kanonische Pfadauflösung**
+
+`IDataRegistry.TryResolve(...)` ist der zentrale Resolver für Root- und Descendant-Items. `TryGet(...)` bleibt ein direkter Root-Key-Zugriff. Alle finalen Host-Item-Lookups sollen `TryResolve(...)` verwenden.
+
+Resolver-Regeln:
+
+1. Exakter Root-Key gewinnt zuerst.
+2. Danach folgt ein normalisierter exakter Vergleich.
+3. Danach gewinnt der längste passende Root-Prefix.
+4. Der Restpfad wird als Child-Pfad traversiert.
+5. `.`, `/` und `\` sind gleichwertige Hierarchie-Separatoren.
+6. Pfadvergleiche sind case-insensitiv; die originale `Item.Path`-Schreibweise bleibt für Anzeige und Metadaten erhalten.
+
+`Value`, `Unit`, `Format`, `Kind`, `Writable`, `WritePath`, `WriteMode` und vergleichbare Metadaten bleiben Parameter in `Item.Params`. Sie werden nicht als Child-Items modelliert.
+
+**Geschuetzte Systemparameter**
+
+`HostRegistryParameterPolicy` definiert zentral, welche Registry-Parameter nicht in benutzerseitigen Parameter-Pickern erscheinen und nicht ueber user- oder remote-getriebene Parameter-Schreibpfade ueberschrieben werden duerfen. Der erste geschuetzte Satz ist bewusst klein: `Writable`, `IsWritable`, `WritePath`, `BrokerPath`, `LocalPath`, `Active`, `PublishMode` und `PublishIntervalMs`.
+
+Normale Item- und Signal-Widgets zeigen im Eigenschaftsdialog nur noch die `Uri`; die bisher persistierte `Parameter`/`TargetParameterPath`-Eigenschaft bleibt fuer Layout-Kompatibilitaet erhalten. Neue oder ungueltige Auswahlen fallen auf `Value` zurueck, insbesondere wenn alte Layouts geschuetzte Systemparameter referenzieren.
+
+Interne Runtime-Pfade duerfen weiterhin `UpdateParameter(...)` verwenden, um Systemmetadaten zu pflegen. UI-, Layout-, YAML- oder Remote-Schreibpfade muessen fuer Parameterwrites `TryUpdateUserParameter(...)` nutzen. `Value` ist nicht geschuetzt und bleibt fuer normale Wertschreibungen erlaubt.
+
+Fuer zukuenftige MQTT-Anbindungen gilt dieselbe Struktur: ein Topic wird auf `Item.Path + Parameter` abgebildet, z.B. `Runtime.Mqtt.Device01.Read` mit `Params["Value"]` und optional `Params["Unit"]`. Transportdetails duerfen keine zweite Pfadlogik neben `TryResolve(...)` einfuehren.
 
 ## 2. Signalschicht (ISignal, SignalDescriptor)
 
@@ -91,7 +119,7 @@ Im Host gibt es eine konkrete Implementierung, die auf `DataRegistry` aufsetzt.
 
 Bei `TryGetBySourcePath(sourcePath, out signal)` passiert:
 
-1. `DataRegistry.TryGet(sourcePath, out Item? item)` – das Item wird über den Pfad geholt.
+1. `DataRegistry.TryResolve(sourcePath, out Item? item)` – das Item wird über den zentralen Resolver geholt.
 2. Aus dem Item werden Metadaten gelesen:
    - `name = item.Name ?? sourcePath`
    - `unit = item.Params["Unit"].Value?.ToString()` (falls vorhanden)
@@ -144,10 +172,7 @@ Auflösung:
    - Berücksichtigt Projektroot-Präfixe (z.B. `UdlBook/...`).
    - Berücksichtigt Seiten-/Folderkontext.
 2. Für jeden Kandidatenpfad:
-   - `TryGetMatchingRegistryItem(candidatePath, out item)` versucht eine direkte Zuordnung zu einem Registry-Key.
-   - Falls kein direkter Treffer:
-     - Sucht einen passenden Root-Key in `HostRegistries.Data.GetAllKeys()`.
-     - Wenn `candidatePath` ein Descendant dieses Keys ist, wird der relative Pfad aufgelöst.
+   - `HostRegistries.Data.TryResolve(candidatePath, out item)` löst Root- und Descendant-Items zentral auf.
 3. Ergibt insgesamt ein `Item`, das den Wert und Metadaten enthält.
 
 ### 5.2. Vom Item zum Signal
@@ -187,8 +212,7 @@ Der RealtimeChart arbeitet aktuell noch **Item-basiert**, nutzt aber dieselben T
 Für jede Serie wird in `TryResolveSeriesItem(targetPath, pageName, out Item? item)` derselbe Mechanismus wie oben verwendet:
 
 1. `TargetPathHelper.EnumerateResolutionCandidates(targetPath, pageName)` erzeugt Kandidatenpfade.
-2. `TryGetMatchingRegistryItem(...)` sucht ein passendes Root-Item in `HostRegistries.Data`.
-3. Wenn nötig, wird über relative Pfade der Kindknoten gesucht.
+2. `HostRegistries.Data.TryResolve(...)` löst den ersten passenden Kandidaten zentral auf.
 
 Ergebnis: Ein `Item`, dessen `Value` im Chart verwendet wird.
 
@@ -275,7 +299,7 @@ Unter dem veröffentlichten Filtermodul wird ein `Kalman`-Zweig publiziert. Dort
 - Unter `Statistics.Params` stehen die aktiven Publish-Flags sowie `RetentionWindowMs`, `StdDevWindowMs` und `IntegralDivisorMs` fuer Diagnose und Nachvollziehbarkeit zur Verfuegung.
 - `Statistics.Reset` ist ein Bool-Trigger. Ein Schreibzugriff mit `true` setzt nur die Statistik lokal zurueck, ohne die gemeinsame Sample-Historie der restlichen Filterpfade zu loeschen, und springt danach automatisch wieder auf `false`.
 
-Der Teach-Mode wird ueber `Project.<Folder>.EnhancedSignals.<SignalName>.Kalman.Request` gesteuert:
+Der Teach-Mode wird ueber `Studio.<Folder>.EnhancedSignals.<SignalName>.Kalman.Request` gesteuert:
 
 - `StartTeach`
 - `StopTeach`

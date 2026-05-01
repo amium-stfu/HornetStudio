@@ -109,7 +109,7 @@ public sealed class UiFolderContext : IDisposable
                 return;
             }
 
-            if (!HostRegistries.Data.TryGet(_targetPath, out var target) || target is null)
+            if (!HostRegistries.Data.TryResolve(_targetPath, out var target) || target is null)
             {
                 return;
             }
@@ -120,7 +120,7 @@ public sealed class UiFolderContext : IDisposable
                 if (!string.Equals(e.Item.Path, _source.Path, StringComparison.Ordinal))
                 {
                     var treeSnapshot = _source.Clone().Repath(_targetPath);
-                    HostRegistries.Data.UpsertSnapshot(_targetPath, treeSnapshot, pruneMissingMembers: true);
+                    HostRegistries.Data.UpsertSnapshot(_targetPath, treeSnapshot, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
                     return;
                 }
 
@@ -140,7 +140,7 @@ public sealed class UiFolderContext : IDisposable
                 }
 
                 var snapshot = _source.Clone().Repath(_targetPath);
-                HostRegistries.Data.UpsertSnapshot(_targetPath, snapshot, pruneMissingMembers: true);
+                HostRegistries.Data.UpsertSnapshot(_targetPath, snapshot, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
             }
             finally
             {

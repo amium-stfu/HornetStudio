@@ -12,6 +12,7 @@
   <ItemGroup>
     <ProjectReference Include="..\HornetStudio.Contracts\HornetStudio.Contracts.csproj" />
     <ProjectReference Include="..\Amium.Item\Amium.Item.csproj" />
+    <ProjectReference Include="..\Amium.ItemBroker.Mqtt.Client\Amium.ItemBroker.Mqtt.Client.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -42,6 +43,7 @@
     <Compile Include="EnhancedSignalRuntime.cs" />
     <Compile Include="EnhancedSignalRuntimeManager.cs" />
     <Compile Include="HostUdlClient.cs" />
+    <Compile Include="HostItemBrokerClient.cs" />
     <Compile Include="CanHubRegistry.cs" />
     <Compile Include="UiPublisher.cs" />
     <Compile Include="UiFolderContext.cs" />

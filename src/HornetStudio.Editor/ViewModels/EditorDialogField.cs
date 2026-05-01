@@ -250,6 +250,8 @@ public sealed class EditorDialogField : ObservableObject
 
     public bool IsUdlModuleExposureList => PropertyType == EditorPropertyType.UdlModuleExposureList;
 
+    public bool IsExposureList => IsUdlModuleExposureList;
+
     public bool IsPythonScriptCreator => string.Equals(Key, "PythonScriptPath", StringComparison.Ordinal);
 
     public bool IsPythonTemplateSelector => string.Equals(Key, "PythonScriptPath", StringComparison.Ordinal);
@@ -279,6 +281,10 @@ public sealed class EditorDialogField : ObservableObject
 
     private bool IsCsvSignalAttachList => IsAttachItemList && string.Equals(Key, "CsvSignalPaths", StringComparison.Ordinal);
 
+    private bool IsBrokerAttachList => IsAttachItemList && string.Equals(Key, "BrokerAttachedItemPaths", StringComparison.Ordinal);
+
+    private bool IsBrokerPublishList => IsAttachItemList && string.Equals(Key, "BrokerPublishedItemPaths", StringComparison.Ordinal);
+
     public string StructuredEditorSummary => PropertyType switch
     {
         EditorPropertyType.TargetTree => string.IsNullOrWhiteSpace(Value)
@@ -287,9 +293,11 @@ public sealed class EditorDialogField : ObservableObject
         EditorPropertyType.ChartSeriesList => ChartSeriesEntries.Count == 0
             ? "No series configured"
             : $"{ChartSeriesEntries.Count} series configured",
-        EditorPropertyType.AttachItemList => Options.Count == 0
+        EditorPropertyType.AttachItemList => AttachItemEntries.Count(static row => !row.IsGroup && !row.IsRemoved) == 0
             ? "No items available"
-            : $"{AttachItemEntries.Count(static row => row.IsAttached)} of {Options.Count} items attached",
+            : IsBrokerPublishList
+                ? $"{AttachItemEntries.Count(static row => row.IsAttached)} of {AttachItemEntries.Count(static row => !row.IsGroup && !row.IsRemoved)} items selected"
+                : $"{AttachItemEntries.Count(static row => row.IsAttached)} of {AttachItemEntries.Count(static row => !row.IsGroup && !row.IsRemoved)} items attached",
         EditorPropertyType.InteractionRuleList => InteractionRuleEntries.Count == 0
             ? "Default left click opens value editor"
             : $"{InteractionRuleEntries.Count} rules configured",
@@ -334,7 +342,7 @@ public sealed class EditorDialogField : ObservableObject
 
         var baseOptions = Options.Count > 0
             ? Options.Distinct(StringComparer.OrdinalIgnoreCase)
-            : HostRegistries.Data.GetAllKeys();
+            : HostRegistries.Data.GetKeysByCapability(DataRegistryItemCapabilities.Display);
 
         foreach (var raw in baseOptions
                      .Where(static option => !string.IsNullOrWhiteSpace(option))
@@ -396,7 +404,7 @@ public sealed class EditorDialogField : ObservableObject
         }
 
         RefreshInteractionRuleOptions(
-            HostRegistries.Data.GetAllKeys().OrderBy(key => key, StringComparer.OrdinalIgnoreCase),
+            HostRegistries.Data.GetKeysByCapability(DataRegistryItemCapabilities.Display).OrderBy(key => key, StringComparer.OrdinalIgnoreCase),
             []);
     }
 
@@ -916,7 +924,13 @@ public sealed class EditorDialogField : ObservableObject
         {
             RelativePath = row.RelativePath,
             IsAttached = row.IsAttached,
-            IntervalMs = row.IntervalMs
+            IntervalMs = row.IntervalMs,
+            DisplayName = row.DisplayName,
+            DisplaySource = row.DisplaySource,
+            Level = row.Level,
+            IsGroup = row.IsGroup,
+            IsMissing = row.IsMissing,
+            IsRemoved = row.IsRemoved
         }).ToList();
 
     public void ApplyAttachItemEntries(IEnumerable<AttachItemEditorRow> rows)
@@ -938,7 +952,13 @@ public sealed class EditorDialogField : ObservableObject
             {
                 RelativePath = row.RelativePath,
                 IsAttached = row.IsAttached,
-                IntervalMs = row.IntervalMs
+                IntervalMs = row.IntervalMs,
+                DisplayName = row.DisplayName,
+                DisplaySource = row.DisplaySource,
+                Level = row.Level,
+                IsGroup = row.IsGroup,
+                IsMissing = row.IsMissing,
+                IsRemoved = row.IsRemoved
             };
 
             copy.PropertyChanged += OnAttachItemRowPropertyChanged;
@@ -961,6 +981,14 @@ public sealed class EditorDialogField : ObservableObject
         if (IsCsvSignalAttachList)
         {
             RebuildCsvSignalAttachEntries();
+        }
+        else if (IsBrokerAttachList)
+        {
+            RebuildBrokerAttachEntries();
+        }
+        else if (IsBrokerPublishList)
+        {
+            RebuildBrokerPublishEntries();
         }
         else
         {
@@ -989,6 +1017,7 @@ public sealed class EditorDialogField : ObservableObject
     private void OnAttachItemRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName != nameof(AttachItemEditorRow.IsAttached)
+            && e.PropertyName != nameof(AttachItemEditorRow.IsRemoved)
             && (!IsCsvSignalAttachList || e.PropertyName != nameof(AttachItemEditorRow.IntervalMs)))
         {
             return;
@@ -1006,10 +1035,34 @@ public sealed class EditorDialogField : ObservableObject
             return Value;
         }
 
+        if (IsBrokerPublishList)
+        {
+            var existingDefinitions = BrokerPublishedItemDefinitionCodec.ParseDefinitions(Value);
+            var selectedRootPaths = AttachItemEntries
+                .Where(static row => row.IsAttached && !row.IsGroup && !row.IsRemoved)
+                .Select(static row => TargetPathHelper.NormalizeConfiguredTargetPath(row.RelativePath))
+                .Where(static path => !string.IsNullOrWhiteSpace(path))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            var selectedRootSet = selectedRootPaths.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var existingForSelectedRoots = existingDefinitions
+                .Where(definition => selectedRootSet.Contains(definition.LocalRootPath)
+                    || selectedRootSet.Contains(definition.LocalPath))
+                .ToArray();
+            var existingRootSet = existingForSelectedRoots
+                .Select(static definition => definition.LocalRootPath)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var newRootDefinitions = selectedRootPaths
+                .Where(path => !existingRootSet.Contains(path))
+                .Select(BrokerPublishedItemDefinitionCodec.CreateDefault);
+            var definitions = existingForSelectedRoots.Concat(newRootDefinitions);
+            return BrokerPublishedItemDefinitionCodec.SerializeDefinitions(definitions);
+        }
+
         if (!IsCsvSignalAttachList)
         {
             return string.Join(Environment.NewLine, AttachItemEntries
-                .Where(static row => row.IsAttached)
+                .Where(static row => row.IsAttached && !row.IsGroup && !row.IsRemoved)
                 .Select(static row => row.RelativePath));
         }
 
@@ -1114,5 +1167,132 @@ public sealed class EditorDialogField : ObservableObject
             AttachItemEntries.Add(row);
         }
     }
-}
 
+    private void RebuildBrokerAttachEntries()
+    {
+        var livePaths = Options
+            .Select(static path => TargetPathHelper.ToBrokerReceivedAttachIdentity(path))
+            .Where(static path => !string.IsNullOrWhiteSpace(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var selectedPaths = Value
+            .Replace("\r", string.Empty)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(static path => TargetPathHelper.ToBrokerReceivedAttachIdentity(path))
+            .Where(static path => !string.IsNullOrWhiteSpace(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var allLeafPaths = livePaths
+            .Concat(selectedPaths)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(path => GetBrokerDisplayParts(path).Source, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(path => GetBrokerDisplayParts(path).Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        foreach (var path in allLeafPaths)
+        {
+            var displayParts = GetBrokerDisplayParts(path);
+            if (string.IsNullOrWhiteSpace(displayParts.Name))
+            {
+                continue;
+            }
+
+            var row = new AttachItemEditorRow
+            {
+                RelativePath = path,
+                DisplayName = displayParts.Name,
+                DisplaySource = displayParts.Source,
+                IsAttached = selectedPaths.Contains(path),
+                IsMissing = !livePaths.Contains(path),
+                IntervalMs = 1000
+            };
+
+            row.PropertyChanged += OnAttachItemRowPropertyChanged;
+            AttachItemEntries.Add(row);
+        }
+    }
+
+    private void RebuildBrokerPublishEntries()
+    {
+        var livePaths = Options
+            .Select(TargetPathHelper.NormalizeConfiguredTargetPath)
+            .Where(static path => !string.IsNullOrWhiteSpace(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var definitions = BrokerPublishedItemDefinitionCodec.ParseDefinitions(Value);
+        var selectedPaths = definitions
+            .Select(static definition => definition.LocalRootPath)
+            .Where(static path => !string.IsNullOrWhiteSpace(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var allPaths = livePaths
+            .Concat(selectedPaths)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(path => GetBrokerPublishDisplayParts(path).Source, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(path => GetBrokerPublishDisplayParts(path).Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static path => path, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        foreach (var path in allPaths)
+        {
+            var displayParts = GetBrokerPublishDisplayParts(path);
+            if (string.IsNullOrWhiteSpace(displayParts.Name))
+            {
+                continue;
+            }
+
+            var row = new AttachItemEditorRow
+            {
+                RelativePath = path,
+                DisplayName = displayParts.Name,
+                DisplaySource = displayParts.Source,
+                IsAttached = selectedPaths.Contains(path),
+                IsMissing = !livePaths.Contains(path),
+                IntervalMs = 1000
+            };
+
+            row.PropertyChanged += OnAttachItemRowPropertyChanged;
+            AttachItemEntries.Add(row);
+        }
+    }
+
+    private static (string Name, string Source) GetBrokerPublishDisplayParts(string path)
+    {
+        path = TargetPathHelper.NormalizeConfiguredTargetPath(path);
+        var segments = TargetPathHelper.SplitPathSegments(path)
+            .Where(static segment => !string.IsNullOrWhiteSpace(segment))
+            .ToArray();
+
+        return segments.Length switch
+        {
+            0 => (string.Empty, string.Empty),
+            1 => (segments[0], string.Empty),
+            2 => (segments[1], segments[0]),
+            _ when string.Equals(segments[0], "Project", StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(segments[0], "UdlProject", StringComparison.OrdinalIgnoreCase)
+                => (string.Join('.', segments.Skip(2)), $"{segments[0]} -> {segments[1]}"),
+            _ => (segments[^1], string.Join('.', segments.Take(segments.Length - 1)))
+        };
+    }
+
+    private static (string Name, string Source) GetBrokerDisplayParts(string fullPath)
+    {
+        fullPath = TargetPathHelper.ToBrokerReceivedAttachIdentity(fullPath);
+        var segments = TargetPathHelper.SplitPathSegments(fullPath)
+            .Where(static segment => !string.IsNullOrWhiteSpace(segment))
+            .ToArray();
+
+        return segments.Length switch
+        {
+            0 => (string.Empty, string.Empty),
+            1 => (segments[0], string.Empty),
+            2 => (segments[1], segments[0]),
+            _ => (string.Join('.', segments.Skip(2)), $"{segments[0]} -> {segments[1]}")
+        };
+    }
+}

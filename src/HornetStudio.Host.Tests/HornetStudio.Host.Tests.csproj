@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>HornetStudio.Host.Tests</AssemblyName>
+    <RootNamespace>HornetStudio.Host.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HornetStudio.Host\HornetStudio.Host.csproj" />
+    <ProjectReference Include="..\Amium.ItemBroker\Amium.ItemBroker.csproj" />
+    <ProjectReference Include="..\Amium.ItemBroker.Mqtt\Amium.ItemBroker.Mqtt.csproj" />
+  </ItemGroup>
+</Project>

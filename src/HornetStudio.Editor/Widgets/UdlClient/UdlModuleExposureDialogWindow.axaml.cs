@@ -154,10 +154,10 @@ public partial class UdlModuleExposureDialogWindow : Window
         }
 
         var fullPath = $"{prefix}.{segments[0]}.{segments[1]}";
-        var format = HostRegistries.Data.TryGet(fullPath, out var runtimeItem) && runtimeItem is not null && runtimeItem.Params.Has("Format")
+        var format = HostRegistries.Data.TryResolve(fullPath, out var runtimeItem) && runtimeItem is not null && runtimeItem.Params.Has("Format")
             ? runtimeItem.Params["Format"].Value?.ToString() ?? string.Empty
             : string.Empty;
-        var unit = HostRegistries.Data.TryGet(fullPath, out runtimeItem) && runtimeItem is not null && runtimeItem.Params.Has("Unit")
+        var unit = HostRegistries.Data.TryResolve(fullPath, out runtimeItem) && runtimeItem is not null && runtimeItem.Params.Has("Unit")
             ? runtimeItem.Params["Unit"].Value?.ToString() ?? string.Empty
             : string.Empty;
         var bitCount = GetBitCount(format);

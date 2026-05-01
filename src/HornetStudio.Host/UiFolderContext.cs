@@ -6,6 +6,7 @@ namespace HornetStudio.Host;
 
 public sealed class UiFolderContext : IDisposable
 {
+    private const string StudioRootSegment = "Studio";
     private readonly List<AttachedItemLink> _links = [];
     private readonly string _folderPath;
 
@@ -14,8 +15,8 @@ public sealed class UiFolderContext : IDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(folderName);
 
         FolderName = NormalizePath(folderName);
-        ProjectName = string.IsNullOrWhiteSpace(projectName) ? null : NormalizePath(projectName);
-        _folderPath = string.IsNullOrWhiteSpace(ProjectName) ? FolderName : $"{ProjectName}.{FolderName}";
+        ProjectName = NormalizeProjectRoot(projectName);
+        _folderPath = $"{ProjectName}.{FolderName}";
     }
 
     public string FolderName { get; }
@@ -109,7 +110,7 @@ public sealed class UiFolderContext : IDisposable
                 return;
             }
 
-            if (!HostRegistries.Data.TryGet(_targetPath, out var target) || target is null)
+            if (!HostRegistries.Data.TryResolve(_targetPath, out var target) || target is null)
             {
                 return;
             }
@@ -120,7 +121,7 @@ public sealed class UiFolderContext : IDisposable
                 if (!string.Equals(e.Item.Path, _source.Path, StringComparison.Ordinal))
                 {
                     var treeSnapshot = _source.Clone().Repath(_targetPath);
-                    HostRegistries.Data.UpsertSnapshot(_targetPath, treeSnapshot, pruneMissingMembers: true);
+                    HostRegistries.Data.UpsertSnapshot(_targetPath, treeSnapshot, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
                     return;
                 }
 
@@ -140,7 +141,7 @@ public sealed class UiFolderContext : IDisposable
                 }
 
                 var snapshot = _source.Clone().Repath(_targetPath);
-                HostRegistries.Data.UpsertSnapshot(_targetPath, snapshot, pruneMissingMembers: true);
+                HostRegistries.Data.UpsertSnapshot(_targetPath, snapshot, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
             }
             finally
             {
@@ -324,4 +325,7 @@ public sealed class UiFolderContext : IDisposable
 
         return normalized;
     }
+
+    private static string NormalizeProjectRoot(string? value)
+        => StudioRootSegment;
 }

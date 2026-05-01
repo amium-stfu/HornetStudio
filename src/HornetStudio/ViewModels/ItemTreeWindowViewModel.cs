@@ -150,7 +150,7 @@ public sealed class ItemTreeWindowViewModel : ObservableObject, IDisposable
     public void ShowProjectScope()
     {
         _folder = null;
-        WindowTitle = "ItemTree - Project";
+        WindowTitle = "ItemTree - Studio";
         QueueRefresh();
     }
 
@@ -238,7 +238,7 @@ public sealed class ItemTreeWindowViewModel : ObservableObject, IDisposable
     private void RefreshTree()
     {
         var selectedPath = SelectedNode?.FullPath ?? string.Empty;
-        var allKeys = HostRegistries.Data.GetAllKeys()
+        var allKeys = HostRegistries.Data.GetKeysByCapability(DataRegistryItemCapabilities.Display)
             .Where(static key => !string.IsNullOrWhiteSpace(key))
             .Select(NormalizePath)
             .Where(static key => !string.IsNullOrWhiteSpace(key))
@@ -261,8 +261,8 @@ public sealed class ItemTreeWindowViewModel : ObservableObject, IDisposable
         if (_folder is null)
         {
             var projectKeys = allKeys
-                .Where(key => PathsEqual(key, "Project")
-                    || IsDescendantPath(key, "Project"))
+                .Where(key => PathsEqual(key, "Studio")
+                    || IsDescendantPath(key, "Studio"))
                 .ToList();
 
             if (projectKeys.Count > 0)
@@ -301,17 +301,17 @@ public sealed class ItemTreeWindowViewModel : ObservableObject, IDisposable
         {
             WindowTitle = "ItemTree";
             ScopeDescription = "Showing registered runtime items.";
-            ScopePath = "Project";
+            ScopePath = "Studio";
             return;
         }
 
         var scopePrefixes = BuildScopePrefixes(_folder.Name);
         WindowTitle = $"ItemTree - {_folder.TabTitle}";
         ScopePath = scopePrefixes.Count == 0
-            ? $"Project.{_folder.Name}"
+            ? $"Studio.{_folder.Name}"
             : string.Join(" | ", scopePrefixes);
         ScopeDescription = fallbackToAll
-            ? $"No matching Project runtime branch was found for folder '{_folder.Name}'. Showing all registered items instead."
+            ? $"No matching Studio runtime branch was found for folder '{_folder.Name}'. Showing all registered items instead."
             : $"Showing registered runtime items for folder '{_folder.Name}'.";
     }
 
@@ -325,7 +325,7 @@ public sealed class ItemTreeWindowViewModel : ObservableObject, IDisposable
 
         return new[]
         {
-            $"Project.{normalizedFolderName}",
+            $"Studio.{normalizedFolderName}",
         }
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .ToArray();
@@ -348,7 +348,7 @@ public sealed class ItemTreeWindowViewModel : ObservableObject, IDisposable
             var keyNode = EnsureNodePath(segments, visitedPaths, rootPaths);
             if (keyNode is not null)
             {
-                keyNode.ValueText = HostRegistries.Data.TryGet(normalizedKey, out var item) && item is not null
+                keyNode.ValueText = HostRegistries.Data.TryResolve(normalizedKey, out var item) && item is not null
                     ? FormatValue(item.Value)
                     : string.Empty;
 
@@ -618,7 +618,7 @@ public sealed class ItemTreeWindowViewModel : ObservableObject, IDisposable
     {
         if (_folder is null)
         {
-            return FindNode(nodes, "Project");
+            return FindNode(nodes, "Studio");
         }
 
         foreach (var prefix in BuildScopePrefixes(_folder.Name))
@@ -647,7 +647,7 @@ public sealed class ItemTreeWindowViewModel : ObservableObject, IDisposable
 
         return segments.Length == 0
             ? string.Empty
-            : string.Join('.', segments);
+            : string.Join('.', NormalizeStudioRoot(segments));
     }
 
     private static IReadOnlyList<string> SplitPathSegments(string? path)
@@ -679,6 +679,47 @@ public sealed class ItemTreeWindowViewModel : ObservableObject, IDisposable
         }
 
         return true;
+    }
+
+    private static IEnumerable<string> NormalizeStudioRoot(IReadOnlyList<string> segments)
+    {
+        if (segments.Count == 0)
+        {
+            yield break;
+        }
+
+        if (string.Equals(segments[0], "Project", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(segments[0], "UdlProject", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(segments[0], "UdlBook", StringComparison.OrdinalIgnoreCase))
+        {
+            yield return "Studio";
+            foreach (var segment in segments.Skip(1))
+            {
+                yield return segment;
+            }
+
+            yield break;
+        }
+
+        if (string.Equals(segments[0], "Studio", StringComparison.OrdinalIgnoreCase)
+            && segments.Count > 1
+            && (string.Equals(segments[1], "Project", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(segments[1], "UdlProject", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(segments[1], "UdlBook", StringComparison.OrdinalIgnoreCase)))
+        {
+            yield return "Studio";
+            foreach (var segment in segments.Skip(2))
+            {
+                yield return segment;
+            }
+
+            yield break;
+        }
+
+        foreach (var segment in segments)
+        {
+            yield return segment;
+        }
     }
 }
 

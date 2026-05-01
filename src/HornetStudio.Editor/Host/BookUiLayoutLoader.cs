@@ -358,6 +358,42 @@ public static class ProjectUiLayoutLoader
         SetPropertyIfPresent(properties, "UdlClientDebugLogging", GetScalarJsonNode(control, "UdlClientDebugLogging"));
         SetPropertyIfPresent(properties, "UdlClientDemoEnabled", GetScalarJsonNode(control, "UdlClientDemoEnabled"));
         SetPropertyIfPresent(properties, "UdlAttachedItemPaths", GetScalarJsonNode(control, "UdlAttachedItemPaths"));
+        SetPropertyIfPresent(properties, "BrokerHost", GetScalarJsonNode(control, "BrokerHost"));
+        SetPropertyIfPresent(properties, "BrokerPort", GetScalarJsonNode(control, "BrokerPort"));
+        SetPropertyIfPresent(properties, "BrokerBaseTopic", GetScalarJsonNode(control, "BrokerBaseTopic"));
+        SetPropertyIfPresent(properties, "BrokerClientId", GetScalarJsonNode(control, "BrokerClientId"));
+        SetPropertyIfPresent(properties, "BrokerMode", GetScalarJsonNode(control, "BrokerMode"));
+        SetPropertyIfPresent(properties, "BrokerAutoConnect", GetScalarJsonNode(control, "BrokerAutoConnect"));
+        SetPropertyIfPresent(properties, "BrokerAttachedItemPaths", GetScalarJsonNode(control, "BrokerAttachedItemPaths"));
+        SetPropertyIfPresent(properties, "BrokerPublishedItemPaths", GetScalarJsonNode(control, "BrokerPublishedItemPaths"));
+        if (GetSequence(control, "BrokerPublishedItemPaths") is { } brokerPublishedItems)
+        {
+            var array = new System.Text.Json.Nodes.JsonArray();
+            foreach (var child in brokerPublishedItems.Children)
+            {
+                if (TryConvertYamlNode(child, out var converted))
+                {
+                    array.Add(converted);
+                }
+            }
+
+            properties["BrokerPublishedItemPaths"] = array;
+        }
+
+        if (GetSequence(control, "ItemExposures") is { } itemExposures)
+        {
+            var array = new System.Text.Json.Nodes.JsonArray();
+            foreach (var child in itemExposures.Children)
+            {
+                if (TryConvertYamlNode(child, out var converted))
+                {
+                    array.Add(converted);
+                }
+            }
+
+            properties["ItemExposures"] = array;
+        }
+
         if (GetSequence(control, "UdlDemoModules") is { } udlDemoModules)
         {
             var array = new System.Text.Json.Nodes.JsonArray();

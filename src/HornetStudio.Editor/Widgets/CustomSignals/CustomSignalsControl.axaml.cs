@@ -584,7 +584,7 @@ public partial class CustomSignalsControl : EditorTemplateControl
 
     private IEnumerable<string> GetSourceOptions()
     {
-        return HostRegistries.Data.GetAllKeys()
+        return HostRegistries.Data.GetKeysByCapability(DataRegistryItemCapabilities.Display)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -608,7 +608,7 @@ public partial class CustomSignalsControl : EditorTemplateControl
     {
         var folderName = SanitizeSegment(ownerItem.FolderName, "Folder");
         var signalName = SanitizeSegment(definition.Name, "Signal");
-        return $"Project.{folderName}.CustomSignals.{signalName}";
+        return $"Studio.{folderName}.CustomSignals.{signalName}";
     }
 
     internal static string BuildManualTriggerPath(FolderItemModel ownerItem, CustomSignalDefinition definition)
@@ -752,7 +752,7 @@ public sealed class CustomSignalRow : ObservableObject
         }
     }
 
-    public string SummaryText => $"Mode: {Definition.Mode} · Type: {Definition.DataType} · Write: {Definition.WriteMode}";
+    public string SummaryText => $"Mode: {Definition.Mode} ï¿½ Type: {Definition.DataType} ï¿½ Write: {Definition.WriteMode}";
 
     public string ValueDisplay
     {

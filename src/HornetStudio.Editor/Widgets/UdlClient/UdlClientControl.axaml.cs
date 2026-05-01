@@ -922,7 +922,7 @@ public partial class UdlClientControl : EditorTemplateControl
         {
             var attached = folderContext.Attach(attachment.RuntimeItem, attachment.Alias);
             WriteVerboseDiagnosticLog($"Attach snapshot folder={folderContext.FolderPath} client={NormalizeClientName(item)} runtimePath={attachment.RuntimeItem.Path} alias={attachment.Alias} attachedPath={attached.Path}");
-            HostRegistries.Data.UpsertSnapshot(attached.Path!, attached.Clone(), pruneMissingMembers: true);
+            HostRegistries.Data.UpsertSnapshot(attached.Path!, attached.Clone(), DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
         }
 
         return true;
@@ -1326,7 +1326,7 @@ public partial class UdlClientControl : EditorTemplateControl
 
         foreach (var snapshot in desiredSnapshots)
         {
-            HostRegistries.Data.UpsertSnapshot(snapshot.Path!, snapshot, pruneMissingMembers: true);
+            HostRegistries.Data.UpsertSnapshot(snapshot.Path!, snapshot, DataRegistryItemMetadata.WidgetInternal(), pruneMissingMembers: true);
             _publishedAttachOptionPaths.Add(snapshot.Path!);
         }
     }
@@ -1458,7 +1458,7 @@ public partial class UdlClientControl : EditorTemplateControl
         snapshot.Params["Text"].Value = title;
         snapshot.Params["Title"].Value = title;
         WriteVerboseDiagnosticLog($"Status snapshot base={statusBasePath} name={name} value={serializedValue}");
-        HostRegistries.Data.UpsertSnapshot(snapshot.Path!, snapshot, pruneMissingMembers: true);
+        HostRegistries.Data.UpsertSnapshot(snapshot.Path!, snapshot, DataRegistryItemMetadata.WidgetStatus(), pruneMissingMembers: true);
     }
 
     private void RemovePublishedAttachOptionItems()
@@ -2188,13 +2188,13 @@ public partial class UdlClientControl : EditorTemplateControl
     }
 
     private static string GetStatusBasePath(FolderItemModel item)
-        => $"Project.{item.FolderName}.{NormalizeClientName(item)}.Status";
+        => $"Studio.{item.FolderName}.{NormalizeClientName(item)}.Status";
 
     private static string GetAttachOptionsBasePath(FolderItemModel item)
         => $"{GetStatusBasePath(item)}/AttachOptions";
 
     private static string GetLegacyExposureBasePath(FolderItemModel item)
-        => $"Project.{item.FolderName}.UdlClientRuntime.{NormalizeClientName(item)}.Modules";
+        => $"Studio.{item.FolderName}.UdlClientRuntime.{NormalizeClientName(item)}.Modules";
 
     private static void RemovePublishedRuntimeItems(FolderItemModel? item)
     {

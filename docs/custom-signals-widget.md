@@ -39,7 +39,7 @@ Persisted target paths use dot notation and are stored relative to the current f
 
 Across folders or for absolute references this becomes:
 
-`Project.<Folder>.CustomSignals.<SignalName>`
+`Studio.<Folder>.CustomSignals.<SignalName>`
 
 These paths can be consumed by existing signal widgets, charts, loggers, and other runtime features.
 

@@ -503,7 +503,7 @@ public partial class EditorPropertyDialog : UserControl
             return;
         }
 
-        if (ViewModel is null && field.PropertyType == EditorPropertyType.UdlModuleExposureList)
+        if (ViewModel is null && field.PropertyType is EditorPropertyType.UdlModuleExposureList)
         {
             return;
         }

@@ -58,7 +58,7 @@ Legacy folders under `<Folder.Directory>/Python/` may still exist and remain sup
 - Read values via `host.values.some_alias.value` or `host.values["Some.Registry.Path"].value`.
 - Write values back with `host.values.some_alias.value = 42`.
 - The host remains the source of truth and the only administrative authority.
-- Projected paths may also include runtime values such as `Project.Dummy.Applications.Python.Raw.raw_b`.
+- Projected paths may also include runtime values such as `Studio.Dummy.Applications.Python.Raw.raw_b`.
 
 Available projected metadata may include:
 

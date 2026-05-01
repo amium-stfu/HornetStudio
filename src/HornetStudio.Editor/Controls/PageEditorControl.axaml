@@ -57,6 +57,7 @@
                   <widgets:EditorSqlLoggerControl Width="{Binding Width}" Height="{Binding Height}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" DataContext="{Binding}" IsVisible="{Binding IsSqlLoggerControl}" />
                   <controls:RealtimeChartControl Width="{Binding Width}" Height="{Binding Height}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" DataContext="{Binding}" IsVisible="{Binding IsChartControl}" PageIsActive="{Binding Page.IsSelected, ElementName=Root}" />
                   <controls:UdlClientControl Width="{Binding Width}" Height="{Binding Height}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" DataContext="{Binding}" IsVisible="{Binding IsUdlClientControl}" />
+                  <widgets:BrokerClientControl Width="{Binding Width}" Height="{Binding Height}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" DataContext="{Binding}" IsVisible="{Binding IsBrokerWidget}" />
                   <widgets:CustomSignalsControl Width="{Binding Width}" Height="{Binding Height}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" DataContext="{Binding}" IsVisible="{Binding IsCustomSignals}" />
                   <widgets:EnhancedSignalsControl Width="{Binding Width}" Height="{Binding Height}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" DataContext="{Binding}" IsVisible="{Binding IsEnhancedSignals}" />
 
@@ -159,6 +160,7 @@
                 <Button Classes="toolbar" Click="OnBeginAddChartControlClicked" Content="ChartControl" />
                 <Button Classes="toolbar" Click="OnBeginAddCameraControlClicked" Content="Camera" />
                 <Button Classes="toolbar" Click="OnBeginAddUdlClientControlClicked" Content="UdlClientControl" IsVisible="{Binding SupportsUdlClientControl}" />
+                <Button Classes="toolbar" Click="OnBeginAddBrokerWidgetClicked" Content="BrokerWidget" />
                 <Button Classes="toolbar" Click="OnBeginAddCustomSignalsClicked" Content="CustomSignals" />
                 <Button Classes="toolbar" Click="OnBeginAddEnhancedSignalsClicked" Content="EnhancedSignals" />
                 <Button Click="OnCancelSelectionClicked" Content="Abbrechen" />

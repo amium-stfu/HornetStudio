@@ -592,7 +592,7 @@ public sealed class PythonClient : IAsyncDisposable
             ConvertJsonNodeToValue(payload.InitialValue),
             payload.ValueType);
 
-        HostRegistries.Data.UpsertSnapshot(registryPath, snapshot, pruneMissingMembers: false);
+        HostRegistries.Data.UpsertSnapshot(registryPath, snapshot, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: false);
 
         HostLogger.Log.Information("PythonClient value registered. Name={ClientName} Value={ValueName} Path={Path}", _options.Name, valueName, registryPath);
         ClientLog.Info($"Value registered: {valueName} -> {registryPath}");
@@ -621,7 +621,7 @@ public sealed class PythonClient : IAsyncDisposable
         if (!HostRegistries.Data.UpdateValue(registryPath, value, payload.Timestamp))
         {
             var snapshot = BuildValueSnapshot(registryPath, valueName, null, value, null);
-            HostRegistries.Data.UpsertSnapshot(registryPath, snapshot, pruneMissingMembers: false);
+            HostRegistries.Data.UpsertSnapshot(registryPath, snapshot, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: false);
             HostRegistries.Data.UpdateValue(registryPath, value, payload.Timestamp);
         }
 
@@ -941,7 +941,7 @@ public sealed class PythonClient : IAsyncDisposable
     {
         var definitions = new List<HostValueDefinitionPayload>();
 
-        foreach (var rootKey in HostRegistries.Data.GetAllKeys().OrderBy(static key => key, StringComparer.OrdinalIgnoreCase))
+        foreach (var rootKey in HostRegistries.Data.GetKeysByCapability(DataRegistryItemCapabilities.Display).OrderBy(static key => key, StringComparer.OrdinalIgnoreCase))
         {
             if (!ShouldProjectHostValuePath(rootKey) || !HostRegistries.Data.TryGet(rootKey, out var rootItem) || rootItem is null)
             {
@@ -1036,7 +1036,7 @@ public sealed class PythonClient : IAsyncDisposable
 
         foreach (var projected in _hostValuesByPath.Values.Where(projected => projected.Path.Equals(e.Key, StringComparison.OrdinalIgnoreCase) || projected.Path.StartsWith(e.Key + ".", StringComparison.OrdinalIgnoreCase)))
         {
-            if (!HostRegistries.Data.TryGet(projected.Path, out var item) || item is null)
+            if (!HostRegistries.Data.TryResolve(projected.Path, out var item) || item is null)
             {
                 continue;
             }

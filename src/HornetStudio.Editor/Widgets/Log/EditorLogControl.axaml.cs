@@ -561,14 +561,14 @@ public partial class EditorLogControl : UserControl
             return false;
         }
 
-        if (HostRegistries.Data.TryGet(normalized, out var item) && item?.Value is ProcessLog processLog)
+        if (HostRegistries.Data.TryResolve(normalized, out var item) && item?.Value is ProcessLog processLog)
         {
             resolved = processLog;
             return true;
         }
 
         if (!normalized.Contains('.', StringComparison.Ordinal)
-            && HostRegistries.Data.TryGet($"Logs.{normalized}", out item)
+            && HostRegistries.Data.TryResolve($"Logs.{normalized}", out item)
             && item?.Value is ProcessLog legacyProcessLog)
         {
             resolved = legacyProcessLog;

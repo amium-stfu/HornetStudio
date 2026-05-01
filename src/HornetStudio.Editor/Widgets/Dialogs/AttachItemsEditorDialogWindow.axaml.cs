@@ -71,8 +71,16 @@ public partial class AttachItemsEditorDialogWindow : Window, INotifyPropertyChan
         => _field?.OwnerItem is { IsUdlClientControl: true, UdlClientDemoEnabled: true }
            && string.Equals(_field.Key, "UdlAttachedItemPaths", StringComparison.Ordinal);
 
+    public bool ShowEmptyRowsMessage => Rows.Count == 0;
+
+    public string EmptyRowsMessage
+        => _field?.OwnerItem?.IsBrokerWidget == true
+           && string.Equals(_field.Key, "BrokerAttachedItemPaths", StringComparison.Ordinal)
+            ? "No live broker items found. Check that the widget is connected and LocalMqttClientId is unique, for example hornet-studio instead of the remote client id."
+            : "No items available.";
+
     public string ToggleSelectionButtonText
-        => Rows.Count > 0 && Rows.All(static row => row.IsAttached)
+        => Rows.Any(static row => row.CanAttach) && Rows.Where(static row => row.CanAttach).All(static row => row.IsAttached)
             ? "Unselect All"
             : "Select All";
 
@@ -243,6 +251,11 @@ public partial class AttachItemsEditorDialogWindow : Window, INotifyPropertyChan
         {
             _field.RefreshAttachItemOptions(GetUdlAttachItemOptions(ownerItem));
         }
+        else if (_field.OwnerItem is { IsBrokerWidget: true } brokerItem
+                 && string.Equals(_field.Key, "BrokerAttachedItemPaths", StringComparison.Ordinal))
+        {
+            _field.RefreshAttachItemOptions(GetBrokerAttachItemOptions(brokerItem));
+        }
         else
         {
             _field.InitializeAttachItemEditor();
@@ -260,14 +273,17 @@ public partial class AttachItemsEditorDialogWindow : Window, INotifyPropertyChan
             Rows.Add(row);
         }
 
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowEmptyRowsMessage)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(EmptyRowsMessage)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowAddDemoModuleButton)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ToggleSelectionButtonText)));
     }
 
     private void OnToggleSelectionClicked(object? sender, RoutedEventArgs e)
     {
-        var selectAll = Rows.Any(static row => !row.IsAttached);
-        foreach (var row in Rows)
+        var attachableRows = Rows.Where(static row => row.CanAttach).ToArray();
+        var selectAll = attachableRows.Any(static row => !row.IsAttached);
+        foreach (var row in attachableRows)
         {
             row.IsAttached = selectAll;
         }
@@ -276,9 +292,22 @@ public partial class AttachItemsEditorDialogWindow : Window, INotifyPropertyChan
         e.Handled = true;
     }
 
+    private void OnRemoveMissingClicked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button { DataContext: AttachItemEditorRow row })
+        {
+            row.IsRemoved = true;
+            Rows.Remove(row);
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowEmptyRowsMessage)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ToggleSelectionButtonText)));
+        }
+
+        e.Handled = true;
+    }
+
     private void OnRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(AttachItemEditorRow.IsAttached))
+        if (e.PropertyName is nameof(AttachItemEditorRow.IsAttached) or nameof(AttachItemEditorRow.IsRemoved))
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ToggleSelectionButtonText)));
         }
@@ -323,6 +352,7 @@ public partial class AttachItemsEditorDialogWindow : Window, INotifyPropertyChan
 
         var prefixes = new[]
         {
+            $"Studio.{item.FolderName}.{normalizedName}.Status.AttachOptions",
             $"Project.{item.FolderName}.{normalizedName}.Status.AttachOptions",
             $"UdlProject.{item.FolderName}.{normalizedName}.Status.AttachOptions",
             $"Runtime.UdlClient.{normalizedName}"
@@ -379,6 +409,71 @@ public partial class AttachItemsEditorDialogWindow : Window, INotifyPropertyChan
         return separatorIndex > 0
             ? remainder[..separatorIndex]
             : remainder;
+    }
+
+    private static IEnumerable<string> GetBrokerAttachItemOptions(FolderItemModel item)
+    {
+        var normalizedName = string.IsNullOrWhiteSpace(item.Name)
+            ? "BrokerWidget"
+            : TargetPathHelper.NormalizeConfiguredTargetPath(item.Name).Replace('.', '_');
+        var prefixes = new[]
+        {
+            $"Studio.{item.FolderName}.{normalizedName}.Status.AttachOptions",
+            $"Project.{item.FolderName}.{normalizedName}.Status.AttachOptions",
+            $"UdlProject.{item.FolderName}.{normalizedName}.Status.AttachOptions"
+        };
+
+        return HostRegistries.Data.GetAllKeys()
+            .SelectMany(key => prefixes.Select(prefix => TryGetBrokerAttachRuntimePath(key, prefix)))
+            .Where(static path => !string.IsNullOrWhiteSpace(path))
+            .Select(static path => path!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static string? TryGetPathSuffix(string path, string prefix)
+    {
+        if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(prefix))
+        {
+            return null;
+        }
+
+        if (string.Equals(path, prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        if (!path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var suffix = path[prefix.Length..].TrimStart('/', '.', '\\');
+        return string.IsNullOrWhiteSpace(suffix) ? null : suffix;
+    }
+
+    private static string? TryGetBrokerAttachRuntimePath(string registryKey, string prefix)
+    {
+        var suffix = TryGetPathSuffix(registryKey, prefix);
+        return ExtractBrokerAttachPath(suffix);
+    }
+
+    private static string? ExtractBrokerAttachPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
+        var normalizedPath = TargetPathHelper.NormalizeConfiguredTargetPath(path);
+        var markerIndex = normalizedPath.IndexOf("Runtime.ItemBroker.", StringComparison.OrdinalIgnoreCase);
+        if (markerIndex >= 0)
+        {
+            return TargetPathHelper.ToBrokerReceivedAttachIdentity(normalizedPath[markerIndex..].Trim('.'));
+        }
+
+        return TargetPathHelper.ToBrokerReceivedAttachIdentity(normalizedPath);
     }
 
     private void SetAndRaise(ref string field, string value, string propertyName)

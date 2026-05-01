@@ -572,7 +572,7 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
         snapshot.Params["Kind"].Value = "DisplayRuntime";
         snapshot.Params["Text"].Value = title;
         snapshot.Params["Title"].Value = title;
-        HostRegistries.Data.UpsertSnapshot(snapshot.Path!, snapshot, pruneMissingMembers: true);
+        HostRegistries.Data.UpsertSnapshot(snapshot.Path!, snapshot, DataRegistryItemMetadata.WidgetStatus(), pruneMissingMembers: true);
     }
 
     private void RemovePublishedRuntimeItems()
@@ -649,20 +649,21 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
     private string ReadRuntimeString(string? path, string fallback)
     {
         if (string.IsNullOrWhiteSpace(path)
-            || !HostRegistries.Data.TryGet(path, out var item)
+            || !HostRegistries.Data.TryResolve(path, out var item)
             || item is null)
         {
             return fallback;
         }
 
-        var value = item.Value?.ToString();
+        object? rawValue = item.Value;
+        var value = rawValue?.ToString();
         return string.IsNullOrWhiteSpace(value) ? fallback : value;
     }
 
     private bool ReadRuntimeBoolean(string? path, bool fallback)
     {
         if (string.IsNullOrWhiteSpace(path)
-            || !HostRegistries.Data.TryGet(path, out var item)
+            || !HostRegistries.Data.TryResolve(path, out var item)
             || item is null)
         {
             return fallback;
@@ -674,7 +675,7 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
     private double ReadRuntimeDouble(string? path, double fallback, double min, double max)
     {
         if (string.IsNullOrWhiteSpace(path)
-            || !HostRegistries.Data.TryGet(path, out var item)
+            || !HostRegistries.Data.TryResolve(path, out var item)
             || item is null)
         {
             return Math.Clamp(fallback, min, max);

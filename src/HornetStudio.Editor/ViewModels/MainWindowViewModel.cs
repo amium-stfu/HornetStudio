@@ -1676,6 +1676,14 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         nodeObject["UdlAttachedItemPaths"] = item.UdlAttachedItemPaths;
         nodeObject["UdlDemoModuleDefinitions"] = item.UdlDemoModuleDefinitions;
         nodeObject["UdlModuleExposureDefinitions"] = item.UdlModuleExposureDefinitions;
+        nodeObject["BrokerHost"] = item.BrokerHost;
+        nodeObject["BrokerPort"] = item.BrokerPort;
+        nodeObject["BrokerBaseTopic"] = item.BrokerBaseTopic;
+        nodeObject["BrokerClientId"] = item.BrokerClientId;
+        nodeObject["BrokerMode"] = item.BrokerMode;
+        nodeObject["BrokerAutoConnect"] = item.BrokerAutoConnect;
+        nodeObject["BrokerAttachedItemPaths"] = item.BrokerAttachedItemPaths;
+        nodeObject["ItemExposures"] = item.ItemExposures;
         nodeObject["CsvSplitDaily"] = item.CsvSplitDaily;
         nodeObject["CsvSplitDailyTime"] = item.CsvSplitDailyTime;
         nodeObject["CsvSplitMaxFileSizeMb"] = item.CsvSplitMaxFileSizeMb;
@@ -1904,6 +1912,21 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                 }
 
                 break;
+            case ControlKind.BrokerWidget:
+                control["BrokerHost"] = item.BrokerHost;
+                control["BrokerPort"] = item.BrokerPort;
+                control["BrokerBaseTopic"] = item.BrokerBaseTopic;
+                control["BrokerClientId"] = item.BrokerClientId;
+                control["BrokerMode"] = item.BrokerMode;
+                control["BrokerAutoConnect"] = item.BrokerAutoConnect;
+                control["BrokerAttachedItemPaths"] = item.BrokerAttachedItemPaths;
+                control["BrokerPublishedItemPaths"] = BrokerPublishedItemDefinitionCodec.ToJsonArray(item.BrokerPublishedItemPaths);
+                if (!string.IsNullOrWhiteSpace(item.ItemExposures))
+                {
+                    control["ItemExposures"] = ItemExposureDefinitionCodec.ToJsonArray(item.ItemExposures);
+                }
+
+                break;
             case ControlKind.PythonClient:
                 control["PythonScript"] = item.PythonScriptPath;
                 break;
@@ -1968,6 +1991,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             ControlKind.LogControl => "LogControl",
             ControlKind.ChartControl => "ChartControl",
             ControlKind.UdlClientControl => "UdlClient",
+            ControlKind.BrokerWidget => "BrokerWidget",
             ControlKind.CsvLoggerControl => "CsvLoggerControl",
             ControlKind.SqlLoggerControl => "SqlLoggerControl",
             ControlKind.CameraControl => "CameraControl",
@@ -1983,7 +2007,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
     protected static void ApplyKnownUiProperties(FolderItemModel item, JsonObject properties, string pageName, string? fallbackType)
     {
         item.Name = GetStringProperty(properties, "Name") ?? item.Name;
-        item.Id = GetStringProperty(properties, "Id") ?? item.Id;
+        item.Id = Guid.NewGuid().ToString("N");
         item.Enabled = GetBoolProperty(properties, "Enabled") ?? item.Enabled;
         item.View = GetFirstIntProperty(properties, "Screen", "View") ?? item.View;
         item.Title = GetFirstStringProperty(properties, "Text", "Title") ?? item.Title;
@@ -2073,6 +2097,19 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         item.UdlClientDebugLogging = GetBoolProperty(properties, "UdlClientDebugLogging") ?? item.UdlClientDebugLogging;
         item.UdlClientDemoEnabled = GetBoolProperty(properties, "UdlClientDemoEnabled") ?? item.UdlClientDemoEnabled;
         item.UdlAttachedItemPaths = GetStringProperty(properties, "UdlAttachedItemPaths") ?? item.UdlAttachedItemPaths;
+        item.BrokerHost = GetStringProperty(properties, "BrokerHost") ?? item.BrokerHost;
+        item.BrokerPort = GetIntProperty(properties, "BrokerPort") ?? item.BrokerPort;
+        item.BrokerBaseTopic = GetStringProperty(properties, "BrokerBaseTopic") ?? item.BrokerBaseTopic;
+        item.BrokerClientId = GetStringProperty(properties, "BrokerClientId") ?? item.BrokerClientId;
+        item.BrokerMode = GetStringProperty(properties, "BrokerMode") ?? item.BrokerMode;
+        item.BrokerAutoConnect = GetBoolProperty(properties, "BrokerAutoConnect") ?? item.BrokerAutoConnect;
+        item.BrokerAttachedItemPaths = GetStringProperty(properties, "BrokerAttachedItemPaths") ?? item.BrokerAttachedItemPaths;
+        item.BrokerPublishedItemPaths = properties["BrokerPublishedItemPaths"] is { } brokerPublishedItemPathsNode
+            ? BrokerPublishedItemDefinitionCodec.SerializeDefinitions(BrokerPublishedItemDefinitionCodec.FromJsonNode(brokerPublishedItemPathsNode))
+            : item.BrokerPublishedItemPaths;
+        item.ItemExposures = properties["ItemExposures"] is { } itemExposuresNode
+            ? ItemExposureDefinitionCodec.SerializeDefinitions(ItemExposureDefinitionCodec.FromJsonNode(itemExposuresNode))
+            : item.ItemExposures;
         item.UdlDemoModuleDefinitions = properties["UdlDemoModuleDefinitions"] is { } udlDemoDefinitionsNode
             ? UdlDemoModuleDefinitionCodec.FromJsonNode(udlDemoDefinitionsNode)
             : item.UdlDemoModuleDefinitions;
@@ -2355,6 +2392,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             ControlKind.LogControl => "LogControl",
             ControlKind.ChartControl => "ChartControl",
             ControlKind.UdlClientControl => "UdlClientControl",
+            ControlKind.BrokerWidget => "BrokerWidget",
             ControlKind.CsvLoggerControl => "CsvLoggerControl",
             ControlKind.SqlLoggerControl => "SqlLoggerControl",
             ControlKind.CameraControl => "CameraControl",
@@ -2974,6 +3012,27 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                 Height = Math.Max(height, 170),
                 ContainerBorderWidth = 0
             },
+            ControlKind.BrokerWidget => new FolderItemModel
+            {
+                Kind = ControlKind.BrokerWidget,
+                Name = "BrokerWidget",
+                ControlCaption = string.Empty,
+                BodyCaption = "Broker",
+                BodyCaptionVisible = true,
+                ShowFooter = true,
+                Footer = "Disconnected",
+                BrokerHost = "127.0.0.1",
+                BrokerPort = 1883,
+                BrokerBaseTopic = "hornet",
+                BrokerClientId = BrokerWidgetClientId.Create(),
+                BrokerMode = BrokerWidgetModes.External,
+                BrokerAutoConnect = false,
+                X = x,
+                Y = y,
+                Width = Math.Max(width, 420),
+                Height = Math.Max(height, 190),
+                ContainerBorderWidth = 0
+            },
             ControlKind.PythonClient => new FolderItemModel
             {
                 Kind = ControlKind.PythonClient,
@@ -3410,7 +3469,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
 
     private void RefreshDataRegistryDiagnostics()
     {
-        var keys = HostRegistries.Data.GetAllKeys()
+        var keys = HostRegistries.Data.GetKeysByCapability(DataRegistryItemCapabilities.DebugInspect)
             .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -4543,6 +4602,19 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                     BindAttachItemList("UdlAttachedItemPaths", "AttachToUi", current => current.UdlAttachedItemPaths, (current, value) => { current.UdlAttachedItemPaths = value; return null; }, GetUdlAttachItemOptions)
                 }));
                 break;
+            case ControlKind.BrokerWidget:
+                sections.Add(("Properties", new List<EditorDialogBindingDefinition>
+                {
+                    BindText("BrokerHost", "Host", current => current.BrokerHost, (current, value) => { current.BrokerHost = value; return null; }),
+                    BindInt("BrokerPort", "Port", current => current.BrokerPort, (current, value) => current.BrokerPort = value),
+                    BindText("BrokerBaseTopic", "BaseTopic", current => current.BrokerBaseTopic, (current, value) => { current.BrokerBaseTopic = value; return null; }),
+                    BindReadOnly("BrokerClientId", "LocalMqttClientId", current => current.BrokerClientId, _ => "Generated local MQTT client id for this widget. Existing saved values are preserved and should not be copied from remote clients."),
+                    BindChoice("BrokerMode", "BrokerMode", current => current.BrokerMode, (current, value) => { current.BrokerMode = value; return null; }, _ => new[] { BrokerWidgetModes.External, BrokerWidgetModes.Own }),
+                    BindChoice("BrokerAutoConnect", "AutoConnect", current => current.BrokerAutoConnect ? "True" : "False", (current, value) => { current.BrokerAutoConnect = string.Equals(value, "True", StringComparison.OrdinalIgnoreCase); return null; }, _ => new[] { "False", "True" }),
+                    BindAttachItemList("BrokerAttachedItemPaths", "AttachToUi", current => current.BrokerAttachedItemPaths, (current, value) => { current.BrokerAttachedItemPaths = value; return null; }, GetBrokerAttachItemOptions),
+                    BindAttachItemList("BrokerPublishedItemPaths", "PublishItems", current => current.BrokerPublishedItemPaths, (current, value) => { current.BrokerPublishedItemPaths = BrokerPublishedItemDefinitionCodec.SerializeDefinitions(BrokerPublishedItemDefinitionCodec.ParseDefinitions(value)); return null; }, GetBrokerPublishItemOptions)
+                }));
+                break;
             case ControlKind.CameraControl:
                 sections.Add(("Properties", new List<EditorDialogBindingDefinition>
                 {
@@ -5084,7 +5156,15 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         => new(key, label, EditorPropertyType.Choice, read, apply, optionsFactory: optionsFactory, toolTipFactory: toolTipFactory);
 
     private static bool ShouldShowEditorDialogField(FolderItemModel item, string key)
-        => true;
+    {
+        if (string.Equals(key, "TargetParameterPath", StringComparison.Ordinal)
+            && item.Kind is ControlKind.Item or ControlKind.Signal)
+        {
+            return false;
+        }
+
+        return true;
+    }
 
     private IEnumerable<string> GetViewOptions(FolderItemModel item)
     {
@@ -5629,6 +5709,15 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             UdlClientDebugLogging = item.UdlClientDebugLogging,
             UdlAttachedItemPaths = item.UdlAttachedItemPaths,
             UdlModuleExposureDefinitions = item.UdlModuleExposureDefinitions,
+            BrokerHost = item.BrokerHost,
+            BrokerPort = item.BrokerPort,
+            BrokerBaseTopic = item.BrokerBaseTopic,
+            BrokerClientId = item.BrokerClientId,
+            BrokerMode = item.BrokerMode,
+            BrokerAutoConnect = item.BrokerAutoConnect,
+            BrokerAttachedItemPaths = item.BrokerAttachedItemPaths,
+            BrokerPublishedItemPaths = item.BrokerPublishedItemPaths,
+            ItemExposures = item.ItemExposures,
             CsvDirectory = item.CsvDirectory,
             CsvFilename = item.CsvFilename,
             CsvAddTimestamp = item.CsvAddTimestamp,
@@ -5686,7 +5775,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         {
             Kind = effectiveKind == ControlKind.Signal ? ControlKind.Item : effectiveKind,
             Name = item.Name,
-            Id = item.Id,
+            Id = Guid.NewGuid().ToString("N"),
             Title = item.Title,
             SyncText = item.SyncText,
             ControlCaption = string.IsNullOrWhiteSpace(item.ControlCaption) ? item.Header : item.ControlCaption,
@@ -5755,6 +5844,15 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             UdlClientDebugLogging = item.UdlClientDebugLogging,
             UdlAttachedItemPaths = item.UdlAttachedItemPaths,
             UdlModuleExposureDefinitions = item.UdlModuleExposureDefinitions,
+            BrokerHost = item.BrokerHost,
+            BrokerPort = item.BrokerPort,
+            BrokerBaseTopic = item.BrokerBaseTopic,
+            BrokerClientId = item.BrokerClientId,
+            BrokerMode = item.BrokerMode,
+            BrokerAutoConnect = item.BrokerAutoConnect,
+            BrokerAttachedItemPaths = item.BrokerAttachedItemPaths,
+            BrokerPublishedItemPaths = item.BrokerPublishedItemPaths,
+            ItemExposures = item.ItemExposures,
             CsvDirectory = item.CsvDirectory,
             CsvFilename = item.CsvFilename,
             CsvAddTimestamp = item.CsvAddTimestamp,
@@ -6100,7 +6198,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
 
     private static IEnumerable<string> GetProcessLogTargetOptions()
     {
-        return HostRegistries.Data.GetAllKeys()
+        return HostRegistries.Data.GetKeysByCapability(DataRegistryItemCapabilities.Display)
             .Select(key => HostRegistries.Data.TryGet(key, out var item) ? (Key: key, Item: item) : (Key: (string?)null, Item: null))
             .Where(entry => !string.IsNullOrWhiteSpace(entry.Key) && entry.Item?.Value is ProcessLog)
             .Select(entry => entry.Key!)
@@ -6141,11 +6239,23 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             return [];
         }
 
-        return item.Params.GetDictionary().Keys
-            .Append("Value")
+        var options = item.Params.GetDictionary().Keys
+            .Where(HostRegistryParameterPolicy.CanShowInUserPicker)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
             .ToList();
+
+        if (!options.Contains("Value", StringComparer.OrdinalIgnoreCase))
+        {
+            options.Insert(0, "Value");
+        }
+        else
+        {
+            options.RemoveAll(option => string.Equals(option, "Value", StringComparison.OrdinalIgnoreCase));
+            options.Insert(0, "Value");
+        }
+
+        return options;
     }
 
     private static string? EmptyToNull(string value)
@@ -6196,6 +6306,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             ControlKind.LogControl => "LogControl",
             ControlKind.ChartControl => "ChartControl",
             ControlKind.UdlClientControl => "UdlClientControl",
+            ControlKind.BrokerWidget => "BrokerWidget",
             ControlKind.CsvLoggerControl => "CsvLoggerControl",
             ControlKind.SqlLoggerControl => "SqlLoggerControl",
             ControlKind.CameraControl => "CameraControl",
@@ -6282,6 +6393,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
 
         var prefixes = new[]
         {
+            $"Studio.{item.FolderName}.{normalizedName}.Status.AttachOptions",
             $"Project.{item.FolderName}.{normalizedName}.Status.AttachOptions",
             $"UdlProject.{item.FolderName}.{normalizedName}.Status.AttachOptions",
             $"Runtime.UdlClient.{normalizedName}"
@@ -6295,6 +6407,38 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
+
+    private static IEnumerable<string> GetBrokerAttachItemOptions(FolderItemModel item)
+    {
+        var normalizedName = string.IsNullOrWhiteSpace(item.Name) ? "BrokerWidget" : TargetPathHelper.NormalizeConfiguredTargetPath(item.Name).Replace('.', '_');
+        var prefixes = new[]
+        {
+            $"Studio.{item.FolderName}.{normalizedName}.Status.AttachOptions",
+            $"Project.{item.FolderName}.{normalizedName}.Status.AttachOptions",
+            $"UdlProject.{item.FolderName}.{normalizedName}.Status.AttachOptions"
+        };
+
+        var publishedOptions = HostRegistries.Data.GetAllKeys()
+            .SelectMany(key => prefixes.Select(prefix => TryGetBrokerAttachRuntimePath(key, prefix)))
+            .Where(static path => !string.IsNullOrWhiteSpace(path))
+            .Select(static path => path!)
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        return publishedOptions
+            .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static IEnumerable<string> GetBrokerPublishItemOptions(FolderItemModel item)
+        => HostRegistries.Data.GetKeysByCapability(DataRegistryItemCapabilities.BrokerPublish)
+            .Select(TargetPathHelper.NormalizeConfiguredTargetPath)
+            .Where(static path => !string.IsNullOrWhiteSpace(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private static string NormalizeBrokerPublishedItemPaths(string? value)
+        => BrokerPublishedItemDefinitionCodec.SerializeDefinitions(BrokerPublishedItemDefinitionCodec.ParseDefinitions(value));
 
     private static string NormalizeUdlClientName(string? name)
         => string.IsNullOrWhiteSpace(name) ? "UdlClientControl" : name.Trim();
@@ -6341,6 +6485,14 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
 
         var suffix = path[prefix.Length..].TrimStart('/', '.', '\\');
         return string.IsNullOrWhiteSpace(suffix) ? null : suffix;
+    }
+
+    private static string? TryGetBrokerAttachRuntimePath(string registryKey, string prefix)
+    {
+        var suffix = TryGetPathSuffix(registryKey, prefix);
+        return string.IsNullOrWhiteSpace(suffix)
+            ? null
+            : TargetPathHelper.ToBrokerReceivedAttachIdentity(suffix);
     }
 
     private static bool IsRootAttachPath(string path)
@@ -6529,8 +6681,9 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
     {
         var excludedPrefixes = GetNonSelectableTargetPrefixes();
         var allowedLoggerRuntimePrefixes = GetAllowedLoggerRuntimePrefixes(item);
-        var allOptions = HostRegistries.Data.GetAllKeys()
+        var allOptions = HostRegistries.Data.GetKeysByCapability(DataRegistryItemCapabilities.Display)
             .SelectMany(static key => EnumerateSelectablePaths(key))
+            .Select(TargetPathHelper.NormalizeConfiguredTargetPath)
             .Where(static key => !key.StartsWith("Runtime.UdlClient.", StringComparison.OrdinalIgnoreCase))
             .Where(path => !HasExcludedTargetPrefix(path, excludedPrefixes))
             .Where(path => IsAllowedLoggerRuntimePath(path, allowedLoggerRuntimePrefixes))
@@ -6546,13 +6699,15 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                 .ToArray();
 
         var attachedUdlOptions = GetAttachedUdlTargetOptions(item, allOptions);
-        if (attachedUdlOptions.Count == 0)
+        var attachedBrokerOptions = GetAttachedBrokerTargetOptions(item);
+        if (attachedUdlOptions.Count == 0 && attachedBrokerOptions.Count == 0)
         {
             return filteredOptions;
         }
 
         return filteredOptions
             .Concat(attachedUdlOptions)
+            .Concat(attachedBrokerOptions)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -6607,6 +6762,28 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         return filteredOptions.Length == 0 ? [] : filteredOptions;
     }
 
+    private IReadOnlyList<string> GetAttachedBrokerTargetOptions(FolderItemModel? item)
+    {
+        if (item is null || (item.Kind != ControlKind.Item && item.Kind != ControlKind.Signal))
+        {
+            return [];
+        }
+
+        var owningPage = FindOwningPage(item) ?? SelectedFolder;
+        if (owningPage is null)
+        {
+            return [];
+        }
+
+        return EnumeratePageItems(owningPage.Items)
+            .Where(static pageItem => pageItem.Kind == ControlKind.BrokerWidget)
+            .SelectMany(GetBrokerAttachItemOptions)
+            .Where(static path => !string.IsNullOrWhiteSpace(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
     private IReadOnlyList<string> GetAllowedLoggerRuntimePrefixes(FolderItemModel? item)
     {
         var owningPage = item is null ? SelectedFolder : (FindOwningPage(item) ?? SelectedFolder);
@@ -6625,7 +6802,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             .Where(pageItem => pageItem.Kind is ControlKind.CsvLoggerControl or ControlKind.SqlLoggerControl)
             .Select(pageItem => NormalizeTargetPathSegment(pageItem.Name))
             .Where(static name => !string.IsNullOrWhiteSpace(name))
-            .Select(name => $"Project.{pageName}.LoggerRuntime.{name}")
+            .Select(name => $"Studio.{pageName}.LoggerRuntime.{name}")
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
@@ -6655,7 +6832,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
     private static string BuildAttachedUdlPrefix(string pageName, FolderItemModel clientItem)
     {
         var clientName = string.IsNullOrWhiteSpace(clientItem.Name) ? "UdlClientControl" : clientItem.Name.Trim();
-        return $"Project.{pageName}.{clientName}";
+        return $"Studio.{pageName}.{clientName}";
     }
 
     private HashSet<string> GetNonSelectableTargetPrefixes()
@@ -6672,7 +6849,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
 
             foreach (var pageItem in EnumeratePageItems(page.Items))
             {
-                if (pageItem.Kind != ControlKind.UdlClientControl)
+                if (pageItem.Kind != ControlKind.UdlClientControl && pageItem.Kind != ControlKind.BrokerWidget)
                 {
                     continue;
                 }
@@ -6683,6 +6860,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                     continue;
                 }
 
+                prefixes.Add($"Studio.{pageName}.{itemName}.Status");
                 prefixes.Add($"Project.{pageName}.{itemName}.Status");
                 prefixes.Add($"UdlProject.{pageName}.{itemName}.Status");
                 prefixes.Add($"UdlBook.{pageName}.{itemName}.Status");
@@ -6726,10 +6904,10 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             return string.Empty;
         }
 
-        var preferredProjectPrefix = $"Project.{pageName}.";
-        if (allOptions.Any(path => path.StartsWith(preferredProjectPrefix, StringComparison.OrdinalIgnoreCase)))
+        var preferredStudioPrefix = $"Studio.{pageName}.";
+        if (allOptions.Any(path => path.StartsWith(preferredStudioPrefix, StringComparison.OrdinalIgnoreCase)))
         {
-            return preferredProjectPrefix;
+            return preferredStudioPrefix;
         }
 
         var currentPrefix = TryExtractPageTargetPrefix(item.TargetPath, pageName);
@@ -6804,21 +6982,15 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
     {
         foreach (var candidatePath in TargetPathHelper.EnumerateResolutionCandidates(targetPath, pageName))
         {
-            if (TryGetMatchingRegistryItem(candidatePath, out item) && item is not null)
+            if (HostRegistries.Data.TryResolve(candidatePath, out item) && item is not null)
             {
                 return true;
             }
+        }
 
-            var rootKey = HostRegistries.Data.GetAllKeys()
-                .Where(key => TargetPathHelper.IsDescendantPath(candidatePath, key))
-                .OrderByDescending(key => key.Length)
-                .FirstOrDefault();
-
-            if (rootKey is not null
-                && TryGetMatchingRegistryItem(rootKey, out var rootItem)
-                && rootItem is not null
-                && TargetPathHelper.TryGetRelativePath(candidatePath, rootKey, out var relativePath)
-                && TryResolveRelativeChild(rootItem, relativePath, out item))
+        foreach (var candidatePath in TargetPathHelper.EnumerateItemBrokerRuntimeCandidates(targetPath))
+        {
+            if (HostRegistries.Data.TryResolve(candidatePath, out item) && item is not null)
             {
                 return true;
             }
@@ -6833,33 +7005,19 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         var current = rootItem;
         foreach (var segment in TargetPathHelper.SplitPathSegments(relativePath))
         {
-            if (!current.Has(segment))
+            var matchingChildName = current.GetDictionary().Keys
+                .FirstOrDefault(key => string.Equals(key, segment, StringComparison.OrdinalIgnoreCase));
+            if (matchingChildName is null)
             {
                 item = null;
                 return false;
             }
 
-            current = current[segment];
+            current = current.GetDictionary()[matchingChildName];
         }
 
         item = current;
         return true;
-    }
-
-    private static bool TryGetMatchingRegistryItem(string candidatePath, out Item? item)
-    {
-        if (HostRegistries.Data.TryGet(candidatePath, out item) && item is not null)
-        {
-            return true;
-        }
-
-        var comparableCandidatePath = TargetPathHelper.NormalizeComparablePath(candidatePath);
-        var matchingKey = HostRegistries.Data.GetAllKeys()
-            .FirstOrDefault(key => string.Equals(TargetPathHelper.NormalizeComparablePath(key), comparableCandidatePath, StringComparison.OrdinalIgnoreCase));
-
-        return matchingKey is not null
-            && HostRegistries.Data.TryGet(matchingKey, out item)
-            && item is not null;
     }
 
     private FolderModel? FindOwningPage(FolderItemModel item)

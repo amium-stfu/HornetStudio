@@ -358,7 +358,7 @@ public partial class EnhancedSignalsControl : EditorTemplateControl
 
     private static IEnumerable<string> GetSourceOptions()
     {
-        return HostRegistries.Data.GetAllKeys()
+        return HostRegistries.Data.GetKeysByCapability(DataRegistryItemCapabilities.Display)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToArray();

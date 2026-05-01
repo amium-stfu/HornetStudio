@@ -1130,21 +1130,7 @@ public partial class RealtimeChartControl : EditorTemplateWidget
     {
         foreach (var candidatePath in TargetPathHelper.EnumerateResolutionCandidates(targetPath, pageName))
         {
-            if (TryGetMatchingRegistryItem(candidatePath, out item) && item is not null)
-            {
-                return true;
-            }
-
-            var rootKey = HostRegistries.Data.GetAllKeys()
-                .Where(key => TargetPathHelper.IsDescendantPath(candidatePath, key))
-                .OrderByDescending(key => key.Length)
-                .FirstOrDefault();
-
-            if (rootKey is not null
-                && TryGetMatchingRegistryItem(rootKey, out var rootItem)
-                && rootItem is not null
-                && TargetPathHelper.TryGetRelativePath(candidatePath, rootKey, out var relativePath)
-                && TryResolveRelativeChild(rootItem, relativePath, out item))
+            if (HostRegistries.Data.TryResolve(candidatePath, out item) && item is not null)
             {
                 return true;
             }
@@ -1152,40 +1138,6 @@ public partial class RealtimeChartControl : EditorTemplateWidget
 
         item = null;
         return false;
-    }
-
-    private static bool TryResolveRelativeChild(Item rootItem, string relativePath, out Item? item)
-    {
-        var current = rootItem;
-        foreach (var segment in TargetPathHelper.SplitPathSegments(relativePath))
-        {
-            if (!current.Has(segment))
-            {
-                item = null;
-                return false;
-            }
-
-            current = current[segment];
-        }
-
-        item = current;
-        return true;
-    }
-
-    private static bool TryGetMatchingRegistryItem(string candidatePath, out Item? item)
-    {
-        if (HostRegistries.Data.TryGet(candidatePath, out item) && item is not null)
-        {
-            return true;
-        }
-
-        var comparableCandidatePath = TargetPathHelper.NormalizeComparablePath(candidatePath);
-        var matchingKey = HostRegistries.Data.GetAllKeys()
-            .FirstOrDefault(key => string.Equals(TargetPathHelper.NormalizeComparablePath(key), comparableCandidatePath, StringComparison.OrdinalIgnoreCase));
-
-        return matchingKey is not null
-            && HostRegistries.Data.TryGet(matchingKey, out item)
-            && item is not null;
     }
 
     private sealed class ChartRuntimeState

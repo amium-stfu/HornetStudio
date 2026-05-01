@@ -1,0 +1,38 @@
+- Type: BrokerWidget
+
+  Screen: 1
+  Enabled: True
+
+  Identity:
+    Name: broker1
+    Path: UdlBook.Page1.broker1
+    Id: demo-broker-1
+
+  Bounds:
+    X: 40
+    Y: 340
+    Width: 460
+    Height: 220
+
+  Body:
+    BodyCaption: Broker
+    BodyCaptionPosition: Top
+    BodyCaptionVisible: true
+
+  Properties:
+    BrokerHost: 127.0.0.1
+    BrokerPort: 1883
+    BrokerBaseTopic: hornet
+    BrokerClientId: hornet-studio-demo1
+    BrokerMode: External
+    BrokerAutoConnect: false
+    BrokerAttachedItemPaths: ""
+    BrokerPublishedItemPaths:
+      # PublishItems selects local roots. Entries are inactive until enabled in the Published Items edit dialog.
+      - LocalPath: Studio.DefaultLayout.UdlClient1.m300
+        LocalRootPath: Studio.DefaultLayout.UdlClient1.m300
+        BrokerPath: Studio.DefaultLayout.UdlClient1.m300
+        Active: false
+        PublishMode: OnChanged
+        PublishIntervalMs: 1000
+        Writable: false

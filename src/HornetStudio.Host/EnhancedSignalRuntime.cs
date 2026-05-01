@@ -178,7 +178,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
         ArgumentNullException.ThrowIfNull(definition);
         var normalizedFolder = EnhancedSignalPathHelper.NormalizeConfiguredTargetPath(folderName).Replace('/', '.');
         var normalizedName = EnhancedSignalPathHelper.NormalizeConfiguredTargetPath(definition.Name).Replace('/', '.');
-        return $"Project.{normalizedFolder}.EnhancedSignals.{normalizedName}";
+        return $"Studio.{normalizedFolder}.EnhancedSignals.{normalizedName}";
     }
 
     public static string BuildRegistryPath(string folderName, string definitionName)

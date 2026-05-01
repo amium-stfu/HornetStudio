@@ -28,6 +28,7 @@ public enum ControlKind
     LogControl,
     ChartControl,
     UdlClientControl,
+    BrokerWidget,
     CsvLoggerControl,
     SqlLoggerControl,
     CameraControl,
@@ -177,6 +178,15 @@ public sealed class FolderItemModel : ObservableObject
     private bool _udlClientAutoConnect;
     private bool _udlClientDebugLogging;
     private bool _udlClientDemoEnabled;
+    private string _brokerHost = "127.0.0.1";
+    private int _brokerPort = 1883;
+    private string _brokerBaseTopic = "hornet";
+    private string _brokerClientId = BrokerWidgetClientId.Create();
+    private string _brokerMode = BrokerWidgetModes.External;
+    private bool _brokerAutoConnect;
+    private string _brokerAttachedItemPaths = string.Empty;
+    private string _brokerPublishedItemPaths = string.Empty;
+    private string _itemExposures = string.Empty;
     private string _udlAttachedItemPaths = string.Empty;
     private string _udlDemoModuleDefinitions = string.Empty;
     private string _udlModuleExposureDefinitions = string.Empty;
@@ -257,7 +267,7 @@ public sealed class FolderItemModel : ObservableObject
             return string.Empty;
         }
 
-        return $"Project.{folderName}.LoggerRuntime.{itemName}";
+        return $"Studio.{folderName}.LoggerRuntime.{itemName}";
     }
 
     public string GetLoggerRuntimePath(string runtimeItemName)
@@ -288,7 +298,7 @@ public sealed class FolderItemModel : ObservableObject
             return string.Empty;
         }
 
-        return $"Project.{folderName}.DisplayRuntime.{itemName}";
+        return $"Studio.{folderName}.DisplayRuntime.{itemName}";
     }
 
     public string GetDisplayRuntimePath(string runtimeItemName)
@@ -366,46 +376,9 @@ public sealed class FolderItemModel : ObservableObject
 
     private static bool TryResolveCircleDisplayTargetCore(string candidatePath, out Item? targetItem, out Parameter? parameter)
     {
-        if (TryGetMatchingRegistryItem(candidatePath, out targetItem) && targetItem is not null)
+        if (HostRegistries.Data.TryResolve(candidatePath, out targetItem) && targetItem is not null)
         {
             parameter = targetItem.Params.Has("Value") ? targetItem.Params["Value"] : null;
-            return true;
-        }
-
-        var rootKey = HostRegistries.Data.GetAllKeys()
-            .Where(key => TargetPathHelper.IsDescendantPath(candidatePath, key))
-            .OrderByDescending(key => key.Length)
-            .FirstOrDefault();
-
-        if (rootKey is not null
-            && TryGetMatchingRegistryItem(rootKey, out var rootItem)
-            && rootItem is not null
-            && TargetPathHelper.TryGetRelativePath(candidatePath, rootKey, out var relativePath))
-        {
-            var current = rootItem;
-            var segments = TargetPathHelper.SplitPathSegments(relativePath).ToArray();
-            for (var index = 0; index < segments.Length; index++)
-            {
-                var segment = segments[index];
-                if (!current.Has(segment))
-                {
-                    if (index == segments.Length - 1 && current.Params.Has(segment))
-                    {
-                        targetItem = current;
-                        parameter = current.Params[segment];
-                        return true;
-                    }
-
-                    targetItem = null;
-                    parameter = null;
-                    return false;
-                }
-
-                current = current[segment];
-            }
-
-            targetItem = current;
-            parameter = current.Params.Has("Value") ? current.Params["Value"] : null;
             return true;
         }
 
@@ -1101,6 +1074,8 @@ public sealed class FolderItemModel : ObservableObject
 
     public bool IsUdlClientControl => Kind == ControlKind.UdlClientControl;
 
+    public bool IsBrokerWidget => Kind == ControlKind.BrokerWidget;
+
     public bool IsApplicationExplorer => Kind == ControlKind.ApplicationExplorer;
 
     public bool IsCustomSignals => Kind == ControlKind.CustomSignals;
@@ -1114,6 +1089,7 @@ public sealed class FolderItemModel : ObservableObject
         or ControlKind.LogControl
         or ControlKind.ChartControl
         or ControlKind.UdlClientControl
+        or ControlKind.BrokerWidget
         or ControlKind.CsvLoggerControl
         or ControlKind.SqlLoggerControl
         or ControlKind.CameraControl
@@ -1711,7 +1687,8 @@ public sealed class FolderItemModel : ObservableObject
         get => _targetParameterPath;
         set
         {
-            if (SetProperty(ref _targetParameterPath, value))
+            var normalizedValue = NormalizeTargetParameterPath(value);
+            if (SetProperty(ref _targetParameterPath, normalizedValue))
             {
                 RaisePropertyChanged(nameof(TargetParameterView));
                 RaisePropertyChanged(nameof(ItemBodyPresentation));
@@ -1853,6 +1830,63 @@ public sealed class FolderItemModel : ObservableObject
     {
         get => _udlModuleExposureDefinitions;
         set => SetProperty(ref _udlModuleExposureDefinitions, value ?? string.Empty);
+    }
+
+    public string BrokerHost
+    {
+        get => _brokerHost;
+        set => SetProperty(ref _brokerHost, string.IsNullOrWhiteSpace(value) ? "127.0.0.1" : value.Trim());
+    }
+
+    public int BrokerPort
+    {
+        get => _brokerPort;
+        set => SetProperty(ref _brokerPort, value <= 0 ? 1883 : value);
+    }
+
+    public string BrokerBaseTopic
+    {
+        get => _brokerBaseTopic;
+        set => SetProperty(ref _brokerBaseTopic, string.IsNullOrWhiteSpace(value) ? "hornet" : value.Trim());
+    }
+
+    public string BrokerClientId
+    {
+        get => _brokerClientId;
+        set => SetProperty(ref _brokerClientId, BrokerWidgetClientId.Normalize(value));
+    }
+
+    public string BrokerMode
+    {
+        get => _brokerMode;
+        set => SetProperty(ref _brokerMode, BrokerWidgetModes.Normalize(value));
+    }
+
+    public bool BrokerAutoConnect
+    {
+        get => _brokerAutoConnect;
+        set => SetProperty(ref _brokerAutoConnect, value);
+    }
+
+    public string BrokerAttachedItemPaths
+    {
+        get => _brokerAttachedItemPaths;
+        set => SetProperty(ref _brokerAttachedItemPaths, value ?? string.Empty);
+    }
+
+    /// <summary>
+    /// Gets or sets the local HornetStudio item paths configured for future BrokerWidget publishing.
+    /// </summary>
+    public string BrokerPublishedItemPaths
+    {
+        get => _brokerPublishedItemPaths;
+        set => SetProperty(ref _brokerPublishedItemPaths, value ?? string.Empty);
+    }
+
+    public string ItemExposures
+    {
+        get => _itemExposures;
+        set => SetProperty(ref _itemExposures, value ?? string.Empty);
     }
 
     public bool CsvSplitDaily
@@ -2542,6 +2576,7 @@ public sealed class FolderItemModel : ObservableObject
         ControlKind.CsvLoggerControl => 260,
         ControlKind.SqlLoggerControl => 260,
         ControlKind.CameraControl => 260,
+        ControlKind.BrokerWidget => 320,
         _ => 140
     };
 
@@ -2558,6 +2593,7 @@ public sealed class FolderItemModel : ObservableObject
         ControlKind.CsvLoggerControl => 120,
         ControlKind.SqlLoggerControl => 120,
         ControlKind.CameraControl => 160,
+        ControlKind.BrokerWidget => 180,
         _ => 72
     };
 
@@ -2720,9 +2756,10 @@ public sealed class FolderItemModel : ObservableObject
         }
 
         var selectedItem = item!;
-        if (!string.Equals(TargetPath, selectedItem.Path, StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(selectedItem.Path))
+        var resolvedTargetPath = GetPersistedTargetPath(selectedItem.Path, TargetPath);
+        if (!string.Equals(TargetPath, resolvedTargetPath, StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(resolvedTargetPath))
         {
-            _targetPath = selectedItem.Path!;
+            _targetPath = resolvedTargetPath;
             RaisePropertyChanged(nameof(TargetPath));
         }
 
@@ -2752,11 +2789,11 @@ public sealed class FolderItemModel : ObservableObject
         var previousSuggestedName = GetSuggestedNameFromTargetPath(Target?.Path ?? TargetPath);
         var previousTargetUnit = GetTargetUnitText(Target);
         var selectedItem = item!;
-        _targetPath = selectedItem.Path ?? targetPath;
+        _targetPath = GetPersistedTargetPath(selectedItem.Path, targetPath);
         RaisePropertyChanged(nameof(TargetPath));
         Target = selectedItem;
         EnsureTargetParameterSelection(selectedItem);
-        var suggestedName = GetSuggestedNameFromTargetPath(selectedItem.Path ?? targetPath);
+        var suggestedName = GetSuggestedNameFromTargetPath(_targetPath);
 
         if (string.IsNullOrWhiteSpace(Name)
             || string.Equals(Name, previousSuggestedName, StringComparison.Ordinal)
@@ -2980,6 +3017,14 @@ public sealed class FolderItemModel : ObservableObject
             var targetLogPath = Target?.Path ?? TargetPath;
             Core.LogInfo(
                 $"[SignalWrite] item={Path} target={targetLogPath} targetParam={targetParameter?.Name ?? "<none>"} targetValue={FormatDiagnosticValue(targetParameter?.Value)} writeTarget={writeTargetItem.Path ?? "<none>"} writeParam={parameter.Name} raw={FormatDiagnosticValue(rawValue)} converted={FormatDiagnosticValue(convertedValue)}");
+            if (!string.Equals(parameter.Name, "Value", StringComparison.OrdinalIgnoreCase)
+                && !HostRegistryParameterPolicy.CanUserWriteParameter(parameter.Name))
+            {
+                error = $"Parameter '{parameter.Name}' is protected and cannot be written.";
+                Core.LogInfo($"[SignalWrite] result=blocked item={Path} writeParam={parameter.Name}");
+                return false;
+            }
+
             if (string.Equals(parameter.Name, "Value", StringComparison.OrdinalIgnoreCase))
             {
                 writeTargetItem.Value = convertedValue!;
@@ -2997,7 +3042,7 @@ public sealed class FolderItemModel : ObservableObject
             var targetPath = writeTargetItem.Path ?? Target?.Path ?? TargetPath;
             var updated = string.Equals(parameter.Name, "Value", StringComparison.OrdinalIgnoreCase)
                 ? HostRegistries.Data.UpdateValue(targetPath, convertedValue)
-                : HostRegistries.Data.UpdateParameter(targetPath, parameter.Name, convertedValue);
+                : HostRegistries.Data.TryUpdateUserParameter(targetPath, parameter.Name, convertedValue);
             if (!updated)
             {
                 PublishTargetSnapshot();
@@ -3338,7 +3383,10 @@ public sealed class FolderItemModel : ObservableObject
             return targetItem.Params["Value"];
         }
 
-        var firstParameter = targetItem.Params.GetDictionary().Keys.OrderBy(key => key, StringComparer.OrdinalIgnoreCase).FirstOrDefault();
+        var firstParameter = targetItem.Params.GetDictionary().Keys
+            .Where(HostRegistryParameterPolicy.CanShowInUserPicker)
+            .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
         return firstParameter is null ? null : targetItem.Params[firstParameter];
     }
 
@@ -3383,6 +3431,13 @@ public sealed class FolderItemModel : ObservableObject
         try
         {
             var convertedValue = ConvertEditorValue(rawValue, writeParameter.Value?.GetType() ?? readParameter?.Value?.GetType());
+            if (!string.Equals(writeParameter.Name, "Value", StringComparison.OrdinalIgnoreCase)
+                && !HostRegistryParameterPolicy.CanUserWriteParameter(writeParameter.Name))
+            {
+                error = $"Parameter '{writeParameter.Name}' is protected and cannot be written.";
+                return false;
+            }
+
             if (string.Equals(writeParameter.Name, "Value", StringComparison.OrdinalIgnoreCase))
             {
                 writeTargetItem.Value = convertedValue!;
@@ -3395,7 +3450,7 @@ public sealed class FolderItemModel : ObservableObject
             var resolvedTargetPath = writeTargetItem.Path ?? targetItem.Path ?? targetPath ?? string.Empty;
             var updated = string.Equals(writeParameter.Name, "Value", StringComparison.OrdinalIgnoreCase)
                 ? HostRegistries.Data.UpdateValue(resolvedTargetPath, convertedValue)
-                : HostRegistries.Data.UpdateParameter(resolvedTargetPath, writeParameter.Name, convertedValue);
+                : HostRegistries.Data.TryUpdateUserParameter(resolvedTargetPath, writeParameter.Name, convertedValue);
             if (!updated)
             {
                 PublishItemSnapshot(targetItem);
@@ -3613,6 +3668,7 @@ public sealed class FolderItemModel : ObservableObject
         }
 
         var matchedTargetPath = TargetPathHelper.EnumerateResolutionCandidates(TargetPath, FolderName)
+            .Concat(TargetPathHelper.EnumerateItemBrokerRuntimeCandidates(TargetPath))
             .FirstOrDefault(candidate => TargetPathHelper.PathsEqual(e.Key, candidate)
                 || TargetPathHelper.IsDescendantPath(e.Key, candidate)
                 || TargetPathHelper.IsDescendantPath(candidate, e.Key));
@@ -3727,7 +3783,7 @@ public sealed class FolderItemModel : ObservableObject
             return;
         }
 
-        HostRegistries.Data.UpsertSnapshot(item.Path!, item.Clone(), pruneMissingMembers: true);
+        HostRegistries.Data.UpsertSnapshot(item.Path!, item.Clone(), DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
     }
 
     private void RequestTargetRefresh()
@@ -3943,7 +3999,7 @@ public sealed class FolderItemModel : ObservableObject
             : string.Empty;
 
         // Einzelnes Script-Signal als eigenstaendigen Snapshot publizieren, so dass
-        // es unter Project.<Folder>.Applications.Python.<Name> im Target-Tree und RealtimeChart
+        // es unter Studio.<Folder>.Applications.Python.<Name> im Target-Tree und RealtimeChart
         // sichtbar und direkt aufloesbar ist.
         Item item;
         if (string.IsNullOrWhiteSpace(parentPath))
@@ -3957,7 +4013,7 @@ public sealed class FolderItemModel : ObservableObject
 
         item.Params["Path"].Value = normalizedPath;
 
-        HostRegistries.Data.UpsertSnapshot(normalizedPath, item, pruneMissingMembers: false);
+        HostRegistries.Data.UpsertSnapshot(normalizedPath, item, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: false);
     }
 
     private string? GetScriptRuntimePath()
@@ -3992,7 +4048,7 @@ public sealed class FolderItemModel : ObservableObject
             nameSegment = Id;
         }
 
-        return $"Project.{folderSegment}.Applications.Python.{nameSegment}";
+        return $"Studio.{folderSegment}.Applications.Python.{nameSegment}";
     }
 
     private void RefreshPathRecursive()
@@ -4072,21 +4128,15 @@ public sealed class FolderItemModel : ObservableObject
     {
         foreach (var candidatePath in TargetPathHelper.EnumerateResolutionCandidates(targetPath, FolderName))
         {
-            if (TryGetMatchingRegistryItem(candidatePath, out item) && item is not null)
+            if (HostRegistries.Data.TryResolve(candidatePath, out item) && item is not null)
             {
                 return true;
             }
+        }
 
-            var rootKey = HostRegistries.Data.GetAllKeys()
-                .Where(key => TargetPathHelper.IsDescendantPath(candidatePath, key))
-                .OrderByDescending(key => key.Length)
-                .FirstOrDefault();
-
-            if (rootKey is not null
-                && TryGetMatchingRegistryItem(rootKey, out var rootItem)
-                && rootItem is not null
-                && TargetPathHelper.TryGetRelativePath(candidatePath, rootKey, out var relativePath)
-                && TryResolveRelativeChild(rootItem, relativePath, out item))
+        foreach (var candidatePath in TargetPathHelper.EnumerateItemBrokerRuntimeCandidates(targetPath))
+        {
+            if (HostRegistries.Data.TryResolve(candidatePath, out item) && item is not null)
             {
                 return true;
             }
@@ -4096,38 +4146,34 @@ public sealed class FolderItemModel : ObservableObject
         return false;
     }
 
+    private static string GetPersistedTargetPath(string? resolvedPath, string? configuredPath)
+    {
+        if (!string.IsNullOrWhiteSpace(resolvedPath) && TargetPathHelper.IsRuntimeItemBrokerPath(resolvedPath))
+        {
+            return TargetPathHelper.ToFlatItemBrokerPath(resolvedPath);
+        }
+
+        return resolvedPath ?? TargetPathHelper.NormalizeConfiguredTargetPath(configuredPath);
+    }
+
     private static bool TryResolveRelativeChild(Item rootItem, string relativePath, out Item? item)
     {
         var current = rootItem;
         foreach (var segment in TargetPathHelper.SplitPathSegments(relativePath))
         {
-            if (!current.Has(segment))
+            var matchingChildName = current.GetDictionary().Keys
+                .FirstOrDefault(key => string.Equals(key, segment, StringComparison.OrdinalIgnoreCase));
+            if (matchingChildName is null)
             {
                 item = null;
                 return false;
             }
 
-            current = current[segment];
+            current = current.GetDictionary()[matchingChildName];
         }
 
         item = current;
         return true;
-    }
-
-    private static bool TryGetMatchingRegistryItem(string candidatePath, out Item? item)
-    {
-        if (HostRegistries.Data.TryGet(candidatePath, out item) && item is not null)
-        {
-            return true;
-        }
-
-        var comparableCandidatePath = TargetPathHelper.NormalizeComparablePath(candidatePath);
-        var matchingKey = HostRegistries.Data.GetAllKeys()
-            .FirstOrDefault(key => string.Equals(TargetPathHelper.NormalizeComparablePath(key), comparableCandidatePath, StringComparison.OrdinalIgnoreCase));
-
-        return matchingKey is not null
-            && HostRegistries.Data.TryGet(matchingKey, out item)
-            && item is not null;
     }
 
     private void EnsureCircleDisplayRuntimeSignals()
@@ -4179,7 +4225,7 @@ public sealed class FolderItemModel : ObservableObject
             : ProgressBarColor;
         snapshot[CircleDisplayProgressBarColorItemName].Params["Text"].Value = CircleDisplayProgressBarColorItemName;
 
-        HostRegistries.Data.UpsertSnapshot(runtimeBasePath, snapshot, pruneMissingMembers: false);
+        HostRegistries.Data.UpsertSnapshot(runtimeBasePath, snapshot, DataRegistryItemMetadata.WidgetInternal(), pruneMissingMembers: false);
         UpsertCircleDisplayRuntimeValue(
             runtimeItemName: CircleDisplaySignalColorItemName,
             value: string.IsNullOrWhiteSpace(SignalColor) ? CircleDisplayDefaultSignalColor : SignalColor,
@@ -4214,7 +4260,7 @@ public sealed class FolderItemModel : ObservableObject
         item.Params["Kind"].Value = "DisplayRuntime";
         item.Params["Text"].Value = title;
         item.Params["Title"].Value = title;
-        HostRegistries.Data.UpsertSnapshot(runtimePath, item, pruneMissingMembers: true);
+        HostRegistries.Data.UpsertSnapshot(runtimePath, item, DataRegistryItemMetadata.WidgetInternal(), pruneMissingMembers: true);
     }
 
     private static bool IsInsideCircle(double normalizedRow, double normalizedColumn)
@@ -4437,6 +4483,7 @@ public sealed class FolderItemModel : ObservableObject
             ControlKind.LogControl => "LogControl",
             ControlKind.ChartControl => "ChartControl",
             ControlKind.UdlClientControl => "UdlClientControl",
+            ControlKind.BrokerWidget => "BrokerWidget",
             ControlKind.CsvLoggerControl => "CsvLoggerControl",
             ControlKind.SqlLoggerControl => "SqlLoggerControl",
             ControlKind.CameraControl => "CameraControl",
@@ -4476,7 +4523,9 @@ public sealed class FolderItemModel : ObservableObject
             return null;
         }
 
-        if (!string.IsNullOrWhiteSpace(TargetParameterPath) && Target.Params.Has(TargetParameterPath))
+        if (!string.IsNullOrWhiteSpace(TargetParameterPath)
+            && HostRegistryParameterPolicy.CanShowInUserPicker(TargetParameterPath)
+            && Target.Params.Has(TargetParameterPath))
         {
             return Target.Params[TargetParameterPath];
         }
@@ -4541,7 +4590,9 @@ public sealed class FolderItemModel : ObservableObject
 
     private void EnsureTargetParameterSelection(Item targetItem)
     {
-        if (!string.IsNullOrWhiteSpace(TargetParameterPath) && targetItem.Params.Has(TargetParameterPath))
+        if (!string.IsNullOrWhiteSpace(TargetParameterPath)
+            && HostRegistryParameterPolicy.CanShowInUserPicker(TargetParameterPath)
+            && targetItem.Params.Has(TargetParameterPath))
         {
             return;
         }
@@ -4552,8 +4603,37 @@ public sealed class FolderItemModel : ObservableObject
             return;
         }
 
-        var firstParameter = targetItem.Params.GetDictionary().Keys.OrderBy(key => key, StringComparer.OrdinalIgnoreCase).FirstOrDefault();
+        var firstParameter = targetItem.Params.GetDictionary().Keys
+            .Where(HostRegistryParameterPolicy.CanShowInUserPicker)
+            .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
         TargetParameterPath = firstParameter ?? string.Empty;
+    }
+
+    private string NormalizeTargetParameterPath(string? value)
+    {
+        var trimmed = value?.Trim() ?? string.Empty;
+        if (Target is null)
+        {
+            return trimmed;
+        }
+
+        if (!string.IsNullOrWhiteSpace(trimmed)
+            && HostRegistryParameterPolicy.CanShowInUserPicker(trimmed)
+            && Target.Params.Has(trimmed))
+        {
+            return trimmed;
+        }
+
+        if (Target.Params.Has("Value"))
+        {
+            return "Value";
+        }
+
+        return Target.Params.GetDictionary().Keys
+            .Where(HostRegistryParameterPolicy.CanShowInUserPicker)
+            .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault() ?? string.Empty;
     }
 
     private static ulong ToUInt64ForBitOperations(object? value)
@@ -4754,7 +4834,7 @@ public sealed class FolderItemModel : ObservableObject
         }
 
         Item? resolvedItem;
-        if (!HostRegistries.Data.TryGet(writePath, out resolvedItem) || resolvedItem is null)
+        if (!HostRegistries.Data.TryResolve(writePath, out resolvedItem) || resolvedItem is null)
         {
             return false;
         }

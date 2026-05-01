@@ -21,7 +21,7 @@ internal sealed class DataRegistrySignal : ISignal
             : sourcePath;
         Descriptor = descriptor ?? throw new ArgumentNullException(nameof(descriptor));
 
-        if (_dataRegistry.TryGet(_sourcePath, out var item) && item is not null)
+        if (_dataRegistry.TryResolve(_sourcePath, out var item) && item is not null)
         {
             _cachedValue = item.Value;
         }
@@ -49,8 +49,13 @@ internal sealed class DataRegistrySignal : ISignal
     }
 }
 
+/// <summary>
+/// Exposes data registry items as host signals.
+/// </summary>
 public sealed class SignalRegistry : ISignalRegistry
 {
+    private const string StudioRootSegment = "Studio";
+    private static readonly string[] LegacyProjectRootSegments = ["Project", "UdlProject", "UdlBook"];
     private readonly IDataRegistry _dataRegistry;
     private readonly ConcurrentDictionary<string, DataRegistrySignal> _signalsBySourcePath = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, DataRegistrySignal> _signalsById = new(StringComparer.OrdinalIgnoreCase);
@@ -105,21 +110,32 @@ public sealed class SignalRegistry : ISignalRegistry
             return false;
         }
 
-        if (_signalsBySourcePath.TryGetValue(sourcePath, out var existing))
+        var signalKey = NormalizeSourcePath(sourcePath);
+        if (_signalsBySourcePath.TryGetValue(signalKey, out var existing))
         {
             signal = existing;
             return true;
         }
 
-        if (!_dataRegistry.TryGet(sourcePath, out var item) || item is null)
+        if (!_dataRegistry.TryResolve(sourcePath, out var item) || item is null)
         {
             return false;
         }
 
-        var descriptor = CreateDescriptorFromItem(sourcePath, item);
-        var created = new DataRegistrySignal(_dataRegistry, sourcePath, descriptor);
+        var canonicalSourcePath = string.IsNullOrWhiteSpace(item.Path) ? sourcePath : item.Path!;
+        var canonicalSignalKey = NormalizeSourcePath(canonicalSourcePath);
+        if (_signalsBySourcePath.TryGetValue(canonicalSignalKey, out existing))
+        {
+            _signalsBySourcePath.TryAdd(signalKey, existing);
+            signal = existing;
+            return true;
+        }
 
-        existing = _signalsBySourcePath.GetOrAdd(sourcePath, created);
+        var descriptor = CreateDescriptorFromItem(canonicalSourcePath, item);
+        var created = new DataRegistrySignal(_dataRegistry, canonicalSourcePath, descriptor);
+
+        existing = _signalsBySourcePath.GetOrAdd(canonicalSignalKey, created);
+        _signalsBySourcePath.TryAdd(signalKey, existing);
         _signalsById.TryAdd(existing.Descriptor.Id, existing);
 
         signal = existing;
@@ -135,7 +151,7 @@ public sealed class SignalRegistry : ISignalRegistry
         var value = item.Params.Has("Value") ? item.Params["Value"].Value : null;
         var dataType = InferDataType(value);
 
-        var isWritable = true; // optional: später z.B. über spezielles Flag steuern
+        var isWritable = InferIsWritable(item);
         var category = item.Params.Has("Kind") ? item.Params["Kind"].Value?.ToString() : null;
 
         return new SignalDescriptor(
@@ -188,6 +204,51 @@ public sealed class SignalRegistry : ISignalRegistry
         }
     }
 
+    private static bool InferIsWritable(Item item)
+    {
+        bool writable;
+        if (item.Params.Has("Writable") && TryConvertBoolean((object?)item.Params["Writable"].Value, out writable))
+        {
+            return writable;
+        }
+
+        if (item.Params.Has("IsWritable") && TryConvertBoolean((object?)item.Params["IsWritable"].Value, out writable))
+        {
+            return writable;
+        }
+
+        if (item.Params.Has("WritePath") || item.Params.Has("Set") || item.Params.Has("Write"))
+        {
+            return true;
+        }
+
+        return true;
+    }
+
+    private static bool TryConvertBoolean(object? value, out bool result)
+    {
+        switch (value)
+        {
+            case bool booleanValue:
+                result = booleanValue;
+                return true;
+            case string stringValue when bool.TryParse(stringValue, out var parsed):
+                result = parsed;
+                return true;
+            case string stringValue when string.Equals(stringValue, "1", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(stringValue, "yes", StringComparison.OrdinalIgnoreCase):
+                result = true;
+                return true;
+            case string stringValue when string.Equals(stringValue, "0", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(stringValue, "no", StringComparison.OrdinalIgnoreCase):
+                result = false;
+                return true;
+            default:
+                result = false;
+                return false;
+        }
+    }
+
     private void OnDataRegistryItemChanged(object? sender, DataChangedEventArgs e)
     {
         if (e.ChangeKind != DataChangeKind.ValueUpdated)
@@ -195,7 +256,7 @@ public sealed class SignalRegistry : ISignalRegistry
             return;
         }
 
-        if (!_signalsBySourcePath.TryGetValue(e.Key, out var signal))
+        if (!TryGetSignalForChangedItem(e, out var signal) || signal is null)
         {
             return;
         }
@@ -205,5 +266,67 @@ public sealed class SignalRegistry : ISignalRegistry
 
         var args = new SignalValueChangedEventArgs(signal.Descriptor, null, currentValue, DateTimeOffset.FromUnixTimeMilliseconds((long)e.Timestamp));
         SignalChanged?.Invoke(this, args);
+    }
+
+    private bool TryGetSignalForChangedItem(DataChangedEventArgs e, out DataRegistrySignal? signal)
+    {
+        if (_signalsBySourcePath.TryGetValue(NormalizeSourcePath(e.Key), out signal))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(e.Item.Path)
+            && _signalsBySourcePath.TryGetValue(NormalizeSourcePath(e.Item.Path!), out signal))
+        {
+            return true;
+        }
+
+        signal = null;
+        return false;
+    }
+
+    private static string NormalizeSourcePath(string path)
+        => string.Join('.', NormalizeStudioRoot(path
+            .Trim()
+            .Replace('\\', '.')
+            .Replace('/', '.')
+            .Trim('.')
+            .Split(['.'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)));
+
+    private static IEnumerable<string> NormalizeStudioRoot(IReadOnlyList<string> segments)
+    {
+        if (segments.Count == 0)
+        {
+            yield break;
+        }
+
+        if (LegacyProjectRootSegments.Contains(segments[0], StringComparer.OrdinalIgnoreCase))
+        {
+            yield return StudioRootSegment;
+            foreach (var segment in segments.Skip(1))
+            {
+                yield return segment;
+            }
+
+            yield break;
+        }
+
+        if (string.Equals(segments[0], StudioRootSegment, StringComparison.OrdinalIgnoreCase)
+            && segments.Count > 1
+            && LegacyProjectRootSegments.Contains(segments[1], StringComparer.OrdinalIgnoreCase))
+        {
+            yield return StudioRootSegment;
+            foreach (var segment in segments.Skip(2))
+            {
+                yield return segment;
+            }
+
+            yield break;
+        }
+
+        foreach (var segment in segments)
+        {
+            yield return segment;
+        }
     }
 }

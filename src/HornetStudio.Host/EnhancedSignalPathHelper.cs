@@ -6,7 +6,9 @@ namespace HornetStudio.Host;
 
 internal static class EnhancedSignalPathHelper
 {
-    private static readonly string[] ProjectRootSegments = ["Project", "UdlProject", "UdlBook"];
+    private const string StudioRootSegment = "Studio";
+    private static readonly string[] ProjectRootSegments = [StudioRootSegment, "Project", "UdlProject", "UdlBook"];
+    private static readonly string[] LegacyProjectRootSegments = ["Project", "UdlProject", "UdlBook"];
     private static readonly string[] NonProjectRootSegments = ["Runtime", "Logs", "Commands"];
     private static readonly char[] HierarchySeparators = ['.', '/'];
 
@@ -24,7 +26,7 @@ internal static class EnhancedSignalPathHelper
         }
 
         var segments = normalized.Split(HierarchySeparators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        return segments.Length == 0 ? string.Empty : string.Join('.', segments);
+        return segments.Length == 0 ? string.Empty : string.Join('.', NormalizeStudioRoot(segments));
     }
 
     public static IReadOnlyList<string> SplitPathSegments(string? path)
@@ -128,6 +130,7 @@ internal static class EnhancedSignalPathHelper
         }
 
         yield return normalizedFolder;
+        yield return JoinPath(StudioRootSegment, normalizedFolder);
         yield return JoinPath("Project", normalizedFolder);
     }
 
@@ -142,6 +145,13 @@ internal static class EnhancedSignalPathHelper
         yield return normalized;
         yield return normalized.Replace('/', '.');
         yield return normalized.Replace('.', '/');
+
+        var legacyProjectPath = ToLegacyProjectPath(normalized);
+        if (!string.IsNullOrWhiteSpace(legacyProjectPath))
+        {
+            yield return legacyProjectPath;
+            yield return legacyProjectPath.Replace('.', '/');
+        }
     }
 
     private static bool ShouldPrependProjectRoot(string path)
@@ -177,5 +187,53 @@ internal static class EnhancedSignalPathHelper
         }
 
         return $"{NormalizeConfiguredTargetPath(left)}.{NormalizeConfiguredTargetPath(right)}";
+    }
+
+    private static IEnumerable<string> NormalizeStudioRoot(IReadOnlyList<string> segments)
+    {
+        if (segments.Count == 0)
+        {
+            yield break;
+        }
+
+        if (LegacyProjectRootSegments.Contains(segments[0], StringComparer.OrdinalIgnoreCase))
+        {
+            yield return StudioRootSegment;
+            foreach (var segment in segments.Skip(1))
+            {
+                yield return segment;
+            }
+
+            yield break;
+        }
+
+        if (string.Equals(segments[0], StudioRootSegment, StringComparison.OrdinalIgnoreCase)
+            && segments.Count > 1
+            && LegacyProjectRootSegments.Contains(segments[1], StringComparer.OrdinalIgnoreCase))
+        {
+            yield return StudioRootSegment;
+            foreach (var segment in segments.Skip(2))
+            {
+                yield return segment;
+            }
+
+            yield break;
+        }
+
+        foreach (var segment in segments)
+        {
+            yield return segment;
+        }
+    }
+
+    private static string ToLegacyProjectPath(string? path)
+    {
+        var segments = SplitPathSegments(path);
+        if (segments.Count <= 1 || !string.Equals(segments[0], StudioRootSegment, StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Empty;
+        }
+
+        return string.Join('.', new[] { "Project" }.Concat(segments.Skip(1)));
     }
 }

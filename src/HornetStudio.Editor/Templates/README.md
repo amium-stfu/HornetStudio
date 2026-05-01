@@ -49,7 +49,7 @@ Includes `list_host_values`, `read_host_value`, and `write_host_value`.
 ## Notes
 
 - Value templates publish data via `define_value` and `value_update`.
-- The host maps these messages into the registry under project-local paths like `Project.<Folder>.Applications.Python.<ClientName>.<ValueName>` when started from the UI.
+- The host maps these messages into the registry under project-local paths like `Studio.<Folder>.Applications.Python.<ClientName>.<ValueName>` when started from the UI. Legacy `Project.<Folder>...` inputs are still resolved for compatibility.
 - You can target these registry paths from signal widgets after the PythonClient is running.
 - For simple user inputs or local computed values, prefer the `CustomSignals` widget over Python. Keep Python for integrations, external IO, or more complex logic.
 - `LogsTemplate.py` can be used directly from `InteractionRules` with `InvokePythonClientFunction` or `InvokePythonFunction`; pass plain text like `Hello HostLog`.

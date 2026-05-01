@@ -36,7 +36,7 @@ When created from `ApplicationExplorer`, Python applications are stored under `A
 - read by path with `host.values["Some.Registry.Path"].value`
 - write with `host.values.some_alias.value = 42`
 - inspect metadata like `unit`, `path`, and `is_writable`
-- projected paths may also include runtime values such as `Project.Dummy.Applications.Python.Raw.raw_b`
+- projected paths may also include runtime values such as `Studio.Dummy.Applications.Python.Raw.raw_b`
 
 ## InteractionRules Arguments
 

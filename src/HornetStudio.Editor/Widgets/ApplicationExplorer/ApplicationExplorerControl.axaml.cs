@@ -969,7 +969,7 @@ public sealed class ApplicationEntryRow : INotifyPropertyChanged
     {
         var folderName = string.IsNullOrWhiteSpace(ownerItem?.FolderName) ? "Page" : ownerItem!.FolderName.Trim();
         var normalizedEnvName = string.IsNullOrWhiteSpace(envName) ? "PythonEnv" : envName.Trim();
-        return $"Project.{folderName}.Applications.Python.{normalizedEnvName}";
+        return $"Studio.{folderName}.Applications.Python.{normalizedEnvName}";
     }
 
     private async Task RunEnvAsync(string scriptPath, string clientName, string targetPath, int startupDelayMs, CancellationToken cancellationToken)

@@ -22,6 +22,8 @@
   <ItemGroup>
     <ProjectReference Include="..\HornetStudio.Host\HornetStudio.Host.csproj" />
     <ProjectReference Include="..\Amium.Item\Amium.Item.csproj" />
+    <ProjectReference Include="..\Amium.ItemBroker\Amium.ItemBroker.csproj" />
+    <ProjectReference Include="..\Amium.ItemBroker.Mqtt\Amium.ItemBroker.Mqtt.csproj" />
     <ProjectReference Include="..\Amium.UdlClient\Amium.UdlClient.csproj" />
   </ItemGroup>
 

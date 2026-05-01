@@ -10,7 +10,7 @@ public static class UiPublisher
     {
         ArgumentNullException.ThrowIfNull(item);
         ArgumentException.ThrowIfNullOrWhiteSpace(item.Path);
-        return HostRegistries.Data.UpsertSnapshot(item.Path!, item, pruneMissingMembers);
+        return HostRegistries.Data.UpsertSnapshot(item.Path!, item, DataRegistryItemMetadata.PublicData(), pruneMissingMembers);
     }
 
     public static Item Publish(string path, ProcessLog log, string? title = null, bool pruneMissingMembers = false)
@@ -33,7 +33,7 @@ public static class UiPublisher
         item.Params["Text"].Value = displayTitle;
         // Wichtig: Der Registry-Schlüssel soll exakt dem TargetLog-Pfad entsprechen,
         // damit EditorLogControl den Log über "Logs.Host" o.ä. direkt auflösen kann.
-        return HostRegistries.Data.UpsertSnapshot(normalizedPath, item, pruneMissingMembers);
+        return HostRegistries.Data.UpsertSnapshot(normalizedPath, item, DataRegistryItemMetadata.Diagnostic(), pruneMissingMembers);
     }
 
     private static string NormalizeProcessLogPath(string path)

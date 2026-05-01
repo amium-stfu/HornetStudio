@@ -62,7 +62,7 @@
               CornerRadius="8"
               Padding="10">
         <Grid RowDefinitions="Auto,*">
-          <Grid ColumnDefinitions="Auto,150,*,Auto"
+          <Grid ColumnDefinitions="28,220,*,90,72"
                 Margin="0,0,0,8">
             <TextBlock Grid.Column="1"
                        FontSize="11"
@@ -84,32 +84,46 @@
                        IsVisible="{Binding ShowIntervalColumn}" />
           </Grid>
 
+          <TextBlock Grid.Row="1"
+                     Margin="0,12,0,12"
+                     FontSize="12"
+                     Foreground="{Binding SecondaryTextBrush, ElementName=Root}"
+                     Text="{Binding EmptyRowsMessage}"
+                     TextWrapping="Wrap"
+                     IsVisible="{Binding ShowEmptyRowsMessage}" />
+
           <ScrollViewer Grid.Row="1" MaxHeight="420" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
             <ItemsControl ItemsSource="{Binding Rows}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="viewModels:AttachItemEditorRow">
-                  <Grid Margin="0,0,0,6" ColumnDefinitions="Auto,150,*,Auto">
+                  <Grid Margin="0,0,0,6" ColumnDefinitions="28,220,*,90,72">
                     <CheckBox Grid.Column="0"
+                              HorizontalAlignment="Left"
                               VerticalAlignment="Center"
-                              IsChecked="{Binding IsAttached, Mode=TwoWay}" />
+                              IsChecked="{Binding IsAttached, Mode=TwoWay}"
+                              IsEnabled="{Binding CanAttach}"
+                              IsVisible="{Binding CanAttach}" />
 
                     <TextBlock Grid.Column="1"
-                               Margin="8,0,0,0"
+                               Margin="{Binding IndentMargin}"
                                VerticalAlignment="Center"
                                FontSize="12"
                                Text="{Binding Name}"
-                               TextTrimming="CharacterEllipsis" />
+                               TextTrimming="CharacterEllipsis"
+                               TextWrapping="NoWrap" />
 
                     <TextBlock Grid.Column="2"
                                Margin="8,0,0,0"
                                VerticalAlignment="Center"
                                FontSize="12"
                                Text="{Binding Source}"
-                               TextTrimming="CharacterEllipsis" />
+                               TextTrimming="CharacterEllipsis"
+                               TextWrapping="NoWrap" />
 
                     <StackPanel Grid.Column="3"
                                 Orientation="Horizontal"
                                 Spacing="4"
+                                HorizontalAlignment="Right"
                                 VerticalAlignment="Center"
                                 IsVisible="{Binding DataContext.ShowIntervalColumn, RelativeSource={RelativeSource AncestorType=Window}}">
                       <TextBlock Text="ms"
@@ -121,6 +135,15 @@
                                VerticalAlignment="Center"
                                FontSize="11" />
                     </StackPanel>
+
+                    <Button Grid.Column="4"
+                            Classes="dialog-button"
+                            Margin="8,0,0,0"
+                            Padding="8,4"
+                            HorizontalAlignment="Right"
+                            Content="Remove"
+                            Click="OnRemoveMissingClicked"
+                            IsVisible="{Binding CanRemoveMissing}" />
                   </Grid>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>

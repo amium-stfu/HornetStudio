@@ -29,6 +29,8 @@ This file lists runtime third-party components used by HornetStudio. Test-only a
 | Microsoft.CodeAnalysis.Common | 5.3.0 | Microsoft | MIT |
 | Microsoft.CodeAnalysis.CSharp | 5.3.0 | Microsoft | MIT |
 | Microsoft.Win32.SystemEvents | 8.0.0 | Microsoft | MIT |
+| MQTTnet | 5.1.0.1559 | .NET Foundation and Contributors | MIT |
+| MQTTnet.Server | 5.1.0.1559 | .NET Foundation and Contributors | MIT |
 | OpenCvSharp4 | 4.10.0.20240616 | shimat | Apache-2.0 |
 | OpenCvSharp4.runtime.win | 4.10.0.20240616 | shimat | Apache-2.0 |
 | ScottPlot | 5.0.56 | Scott Harden | MIT |

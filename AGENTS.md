@@ -17,6 +17,7 @@ The following short commands are treated as MODE instructions:
 - plan → [MODE: PLAN]
 - impl → [MODE: IMPLEMENT]
 - debug → [MODE: DEBUG]
+- clean -> [MODE: CLEAN]
 - publish -> [MODE: PUBLISH]
 
 Rules:
@@ -143,6 +144,21 @@ Only the necessary parts.
 - Possible root causes
 ```
 
+### CLEAN
+
+- Clean up existing code without changing intended behavior.
+- Do not add new features.
+- Do not perform large architectural refactorings without asking.
+- Remove unused code, obsolete comments, temporary debug output, and dead branches.
+- Improve exception handling where it is incomplete, unclear, or too broad.
+- Replace silent `catch` blocks with explicit handling, logging, or rethrowing with context.
+- Avoid UI blocking by replacing blocking calls such as `.Result`, `.Wait()`, `Thread.Sleep`, or long-running work on the UI thread.
+- Improve readability with small, local changes only.
+- Preserve public APIs unless changing them is necessary and explicitly approved.
+- Update tests only when cleanup affects tested behavior or exposes missing coverage.
+- If cleanup reveals a behavioral bug, switch to [MODE: DEBUG] or ask before fixing it.
+- After cleanup, run relevant build/tests when feasible.
+
 ### PUBLISH
 
 - Create a release publish only.
@@ -214,6 +230,7 @@ Only the necessary parts.
 - Maintain an `AGENTS.md` with project-specific rules.
 - Maintain `CHANGELOG.md` for relevant changes.
 - Maintain `TODO.md` or `ROADMAP.md` only when already present or clearly useful.
+- If a chat becomes too complex, offer to create a concise chat handoff for continuing in a new chat.
 - After changes, briefly check build, tests, formatting, and warnings.
 - Do not make changes outside the requested scope without asking.
 - At the end of every larger change, provide a short summary with changed files.
