@@ -5,7 +5,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Amium.Item
+namespace Amium.Items
 {
     /// <summary>
     /// Provides serialization and cloning helpers for <see cref="Item"/> and <see cref="Parameter"/> instances.

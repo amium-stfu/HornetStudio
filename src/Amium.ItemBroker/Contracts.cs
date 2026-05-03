@@ -1,4 +1,4 @@
-using Amium.Item;
+using Amium.Items;
 
 namespace Amium.ItemBroker;
 
@@ -11,50 +11,124 @@ public interface IItemBroker
     /// Subscribes a client to item updates.
     /// </summary>
     /// <param name="client">The subscribing client.</param>
-    /// <param name="message">The subscription request.</param>
+    /// <param name="path">The subscription path.</param>
+    /// <param name="options">The optional subscription options.</param>
+    /// <param name="correlationId">The optional correlation id.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The active subscription.</returns>
-    Task<IItemSubscription> SubscribeAsync(IItemBrokerClient client, ItemSubscribeMessage message, CancellationToken cancellationToken = default);
+    Task<IItemSubscription> SubscribeAsync(
+        IItemBrokerClient client,
+        string path,
+        ItemSubscriptionOptions? options = null,
+        string? correlationId = null,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Publishes a retained item snapshot.
     /// </summary>
-    /// <param name="message">The snapshot message.</param>
+    /// <param name="item">The item snapshot.</param>
+    /// <param name="retained">A value indicating whether the snapshot should be retained.</param>
+    /// <param name="sourceClientId">The optional source client id.</param>
+    /// <param name="correlationId">The optional correlation id.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task PublishSnapshotAsync(ItemSnapshotMessage message, CancellationToken cancellationToken = default);
+    Task PublishSnapshotAsync(
+        Item item,
+        bool retained = true,
+        string? sourceClientId = null,
+        string? correlationId = null,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Publishes an item value change.
+    /// Updates an item value or routes a write request to the current owner.
     /// </summary>
-    /// <param name="message">The value change message.</param>
+    /// <param name="item">The item whose current value should be published.</param>
+    /// <param name="retained">A value indicating whether the updated value should be retained when the owner applies it locally.</param>
+    /// <param name="sourceClientId">The optional source client id.</param>
+    /// <param name="correlationId">The optional correlation id.</param>
+    /// <param name="replyTo">The optional reply target when the update becomes a routed write request.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    Task PublishValueChangedAsync(ItemValueChangedMessage message, CancellationToken cancellationToken = default);
+    /// <returns>An acknowledgement describing the update result.</returns>
+    Task<ItemBrokerAckMessage> UpdateValueAsync(
+        Item item,
+        bool retained = false,
+        string? sourceClientId = null,
+        string? correlationId = null,
+        string? replyTo = null,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Publishes an item parameter change.
+    /// Updates an item parameter or routes a write request to the current owner.
     /// </summary>
-    /// <param name="message">The parameter change message.</param>
+    /// <param name="item">The item that owns the parameter.</param>
+    /// <param name="parameterName">The changed parameter name.</param>
+    /// <param name="retained">A value indicating whether the updated parameter should be retained when the owner applies it locally.</param>
+    /// <param name="sourceClientId">The optional source client id.</param>
+    /// <param name="correlationId">The optional correlation id.</param>
+    /// <param name="replyTo">The optional reply target when the update becomes a routed write request.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    Task PublishParameterChangedAsync(ItemParameterChangedMessage message, CancellationToken cancellationToken = default);
+    /// <returns>An acknowledgement describing the update result.</returns>
+    Task<ItemBrokerAckMessage> UpdateParameterAsync(
+        Item item,
+        string parameterName,
+        bool retained = false,
+        string? sourceClientId = null,
+        string? correlationId = null,
+        string? replyTo = null,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Removes retained state for a path and its descendants.
     /// </summary>
-    /// <param name="message">The remove message.</param>
+    /// <param name="item">The item root to remove.</param>
+    /// <param name="sourceClientId">The optional source client id.</param>
+    /// <param name="correlationId">The optional correlation id.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task RemoveAsync(ItemRemoveMessage message, CancellationToken cancellationToken = default);
+    Task RemoveAsync(
+        Item item,
+        string? sourceClientId = null,
+        string? correlationId = null,
+        CancellationToken cancellationToken = default);
+
+}
+
+/// <summary>
+/// The exception that is thrown when an item owner would be overwritten implicitly.
+/// </summary>
+public sealed class ItemOwnershipConflictException : InvalidOperationException
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ItemOwnershipConflictException"/> class.
+    /// </summary>
+    /// <param name="path">The affected item path.</param>
+    /// <param name="existingOwnerClientId">The currently registered owner client id.</param>
+    /// <param name="requestedOwnerClientId">The conflicting requested owner client id.</param>
+    public ItemOwnershipConflictException(
+        string path,
+        string existingOwnerClientId,
+        string requestedOwnerClientId)
+        : base($"Item path '{path}' is already owned by '{existingOwnerClientId}' and cannot be claimed by '{requestedOwnerClientId}'.")
+    {
+        Path = path;
+        ExistingOwnerClientId = existingOwnerClientId;
+        RequestedOwnerClientId = requestedOwnerClientId;
+    }
 
     /// <summary>
-    /// Routes a write request to the owning publisher or matching adapter.
+    /// Gets the affected item path.
     /// </summary>
-    /// <param name="message">The write request.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>An acknowledgement describing the routing result.</returns>
-    Task<ItemBrokerAckMessage> WriteAsync(ItemWriteRequestMessage message, CancellationToken cancellationToken = default);
+    public string Path { get; }
+
+    /// <summary>
+    /// Gets the currently registered owner client id.
+    /// </summary>
+    public string ExistingOwnerClientId { get; }
+
+    /// <summary>
+    /// Gets the requested conflicting owner client id.
+    /// </summary>
+    public string RequestedOwnerClientId { get; }
 }
 
 /// <summary>

@@ -20,6 +20,8 @@ namespace HornetStudio.Editor.Widgets;
 
 public partial class EditorLogControl : UserControl
 {
+    private const int MaxDisplayEntries = 1000;
+
     public static readonly StyledProperty<bool> PageIsActiveProperty =
         AvaloniaProperty.Register<EditorLogControl, bool>(nameof(PageIsActive), true);
 
@@ -357,6 +359,7 @@ public partial class EditorLogControl : UserControl
             }
 
             LogEntries.Add(CreateDisplayEntry(entry));
+            TrimDisplayEntries();
             ScrollToEnd();
         });
     }
@@ -369,7 +372,16 @@ public partial class EditorLogControl : UserControl
             LogEntries.Add(CreateDisplayEntry(entry));
         }
 
+        TrimDisplayEntries();
         ScrollToEnd();
+    }
+
+    private void TrimDisplayEntries()
+    {
+        while (LogEntries.Count > MaxDisplayEntries)
+        {
+            LogEntries.RemoveAt(0);
+        }
     }
 
     private void UpdateFilterButtons()

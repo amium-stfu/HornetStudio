@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>Amium.ItemBroker.MqttDemoWinForms</AssemblyName>
+    <RootNamespace>Amium.ItemBroker.MqttDemoWinForms</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Amium.Item\Amium.Item.csproj" />
+    <ProjectReference Include="..\Amium.ItemBroker\Amium.ItemBroker.csproj" />
+    <ProjectReference Include="..\Amium.ItemBroker.Mqtt\Amium.ItemBroker.Mqtt.csproj" />
+    <ProjectReference Include="..\Amium.ItemBroker.Mqtt.Client\Amium.ItemBroker.Mqtt.Client.csproj" />
+  </ItemGroup>
+</Project>

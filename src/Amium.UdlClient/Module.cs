@@ -1,5 +1,5 @@
 using HornetStudio.Editor.Models;
-using ItemModel = Amium.Item.Item;
+using ItemModel = Amium.Items.Item;
 
 namespace Amium.UdlClient;
 

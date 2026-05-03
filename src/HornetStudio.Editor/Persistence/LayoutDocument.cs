@@ -191,13 +191,13 @@ public sealed class FolderItemDocument
 
     public string UdlModuleExposureDefinitions { get; init; } = string.Empty;
 
-    public string BrokerHost { get; init; } = "127.0.0.1";
+    public string BrokerHost { get; init; } = BrokerWidgetDefaults.Host;
 
-    public int BrokerPort { get; init; } = 1883;
+    public int BrokerPort { get; init; } = BrokerWidgetDefaults.Port;
 
-    public string BrokerBaseTopic { get; init; } = "hornet";
+    public string BrokerBaseTopic { get; init; } = BrokerWidgetDefaults.BaseTopic;
 
-    public string BrokerClientId { get; init; } = "hornet-studio";
+    public string BrokerClientId { get; init; } = BrokerWidgetDefaults.ClientIdDisplay;
 
     public string BrokerMode { get; init; } = BrokerWidgetModes.External;
 

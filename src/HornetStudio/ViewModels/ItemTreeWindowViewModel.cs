@@ -6,7 +6,7 @@ using System.Globalization;
 using System.Linq;
 using Avalonia.Threading;
 using HornetStudio.Host;
-using Amium.Item;
+using Amium.Items;
 using HornetStudio.Editor.Models;
 
 namespace HornetStudio.ViewModels;

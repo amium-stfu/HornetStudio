@@ -34,4 +34,14 @@ public sealed class MqttItemBrokerOptions
     /// Gets or sets the broker subscription root path mirrored to MQTT.
     /// </summary>
     public string SubscriptionRootPath { get; set; } = "Runtime";
+
+    /// <summary>
+    /// Gets or sets a value indicating whether broker health values should be published by the selfhosted host facade.
+    /// </summary>
+    public bool PublishHealth { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the interval used by the selfhosted host facade for broker health publishing.
+    /// </summary>
+    public TimeSpan HealthPublishInterval { get; set; } = TimeSpan.FromSeconds(1);
 }

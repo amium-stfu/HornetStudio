@@ -8,7 +8,7 @@ using System.Reflection;
 using System.Text;
 using System.Xml.Linq;
 using HornetStudio.Host;
-using Amium.Item;
+using Amium.Items;
 using HornetStudio.Contracts;
 
 
@@ -307,6 +307,9 @@ namespace HornetStudio.Logging
             _pendingFlushLineCount = 0;
             _lastFlushUtc = DateTime.UtcNow;
         }
+
+        private StreamWriter GetRequiredWriter()
+            => myWriter ?? throw new InvalidOperationException("CSV writer is not initialized.");
 
         private bool IsRotationEnabled => SplitDaily || SplitMaxFileSizeMb > 0;
 
@@ -624,6 +627,7 @@ namespace HornetStudio.Logging
         private async Task WriteLogsToFile(System.Threading.CancellationToken token)
         {
             OpenWriter(DateTime.Now, dueToDailyRotation: false, dueToSizeRotation: false);
+            var writer = GetRequiredWriter();
 
             try
             {
@@ -642,13 +646,15 @@ namespace HornetStudio.Logging
                             if (ShouldRotateForDaily(now))
                             {
                                 OpenWriter(now, dueToDailyRotation: true, dueToSizeRotation: false);
+                                writer = GetRequiredWriter();
                             }
                             else if (ShouldRotateForSize(result))
                             {
                                 OpenWriter(now, dueToDailyRotation: false, dueToSizeRotation: true);
+                                writer = GetRequiredWriter();
                             }
 
-                            await myWriter.WriteLineAsync(result);
+                            await writer.WriteLineAsync(result);
                             _currentFileSizeBytes += Encoding.UTF8.GetByteCount(result + Environment.NewLine);
                             _currentDataLineCount++;
                             _pendingFlushLineCount++;
@@ -675,14 +681,14 @@ namespace HornetStudio.Logging
                         continue;
                     }
 
-                    await myWriter.WriteLineAsync(result);
+                    await writer.WriteLineAsync(result);
                     _currentFileSizeBytes += Encoding.UTF8.GetByteCount(result + Environment.NewLine);
                     _currentDataLineCount++;
                     _pendingFlushLineCount++;
                 }
 
                 await FlushWriterAsync();
-                myWriter.Close();
+                writer.Close();
             }
         }
 

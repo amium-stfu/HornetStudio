@@ -5,9 +5,9 @@ using System.Linq;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
-using ItemModel = Amium.Item.Item;
-using ItemChangedEventArgs = Amium.Item.ItemChangedEventArgs;
-using ItemDictionary = Amium.Item.ItemDictionary;
+using ItemModel = Amium.Items.Item;
+using ItemChangedEventArgs = Amium.Items.ItemChangedEventArgs;
+using ItemDictionary = Amium.Items.ItemDictionary;
 
 namespace Amium.UdlClient;
 

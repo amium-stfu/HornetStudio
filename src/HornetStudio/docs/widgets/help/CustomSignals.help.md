@@ -31,6 +31,7 @@ The widget parses stored definitions and creates runtime rows for them.
 ### Publish signals
 
 The widget publishes input, constant, and computed values into the registry.
+Published custom signal paths follow the widget-aware format `Studio.{FolderName}.{WidgetName}.{SignalName}`.
 
 ### Write routing
 

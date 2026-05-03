@@ -5,7 +5,7 @@
     xmlns:controls="using:HornetStudio.Editor.Widgets"
     xmlns:editorUi="using:HornetStudio.Editor.Controls">
   <controls:UdlClientControl.HeaderActionsContent>
-    <Grid ColumnDefinitions="Auto,Auto">
+    <Grid ColumnDefinitions="Auto">
       <Button Padding="0"
             Background="Transparent"
             BorderBrush="Transparent"
@@ -24,24 +24,6 @@
                      Text="{Binding ConnectionStateText, RelativeSource={RelativeSource AncestorType=controls:UdlClientControl}}" />
         </Border>
       </Button>
-
-      <Border Grid.Column="1"
-              Margin="6,0,0,0"
-              Padding="6,2"
-              Background="{Binding EffectiveBodyBackgroundBrush}"
-              BorderBrush="{Binding EffectiveBodyBorderBrush}"
-              BorderThickness="1"
-              CornerRadius="6">
-        <StackPanel Orientation="Horizontal" Spacing="4">
-          <TextBlock FontSize="11"
-                     Foreground="{Binding EffectiveBodyForegroundBrush}"
-                     Text="Modules" />
-          <TextBlock FontSize="11"
-                     FontWeight="SemiBold"
-                     Foreground="{Binding EffectiveBodyForegroundBrush}"
-                     Text="{Binding ModuleCountText, RelativeSource={RelativeSource AncestorType=controls:UdlClientControl}}" />
-        </StackPanel>
-      </Border>
     </Grid>
   </controls:UdlClientControl.HeaderActionsContent>
 
@@ -51,73 +33,189 @@
             BorderBrush="{Binding EffectiveBodyBorderBrush}"
             BorderThickness="{Binding EffectiveBodyBorderThickness}"
             CornerRadius="10">
-      <Grid RowDefinitions="*,Auto">
-        <ScrollViewer VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Disabled">
-          <ItemsControl ItemsSource="{Binding Modules, RelativeSource={RelativeSource AncestorType=controls:UdlClientControl}}">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate>
-                <Border Margin="0,0,0,8"
-                        Padding="8,6"
-                        CornerRadius="8"
-                        Background="{Binding RowBackground}"
-                        BorderBrush="{Binding RowBorderBrush}"
-                        BorderThickness="1">
-                  <Grid RowDefinitions="Auto,Auto,Auto">
-                    <Grid ColumnDefinitions="*,Auto">
-                      <TextBlock Grid.Column="0"
-                                 FontSize="13"
-                                 FontWeight="SemiBold"
-                                 Foreground="{Binding PrimaryForeground}"
-                                 Text="{Binding ModuleName}" />
+      <Grid RowDefinitions="Auto,*">
+        <StackPanel Grid.Row="0" Margin="0,0,0,8" Spacing="4">
+          <TextBlock FontSize="12"
+                     FontWeight="SemiBold"
+                     Foreground="{Binding EffectiveBodyForegroundBrush}"
+                     Text="{Binding SocketText, RelativeSource={RelativeSource AncestorType=controls:UdlClientControl}}" />
+          <TextBlock FontSize="11"
+                     Foreground="{Binding EffectiveBodyForegroundBrush}"
+                     Text="{Binding ConnectionStateText, RelativeSource={RelativeSource AncestorType=controls:UdlClientControl}}"
+                     TextWrapping="Wrap" />
+        </StackPanel>
 
-                      <StackPanel Grid.Column="1"
-                                  Margin="6,0,0,0"
-                                  Orientation="Horizontal"
-                                  Spacing="6">
-                        <Button Padding="8,2"
-                                Classes="toolbar"
-                                Click="OnEditModuleClicked"
-                                CommandParameter="{Binding .}">
-                          <TextBlock FontSize="11" Text="Edit" />
-                        </Button>
+        <Grid Grid.Row="1" RowDefinitions="*,*">
+          <Border Grid.Row="0"
+                  Margin="0,0,0,5"
+                  Padding="8"
+                  Background="{Binding EffectiveBodyBackgroundBrush}"
+                  BorderBrush="{Binding EffectiveBodyBorderBrush}"
+                  BorderThickness="1"
+                  CornerRadius="8">
+            <Grid RowDefinitions="Auto,*">
+              <Grid Grid.Row="0"
+                    Margin="0,0,0,6"
+                    ColumnDefinitions="*,Auto,Auto">
+                <TextBlock Grid.Column="0"
+                           FontSize="12"
+                           FontWeight="SemiBold"
+                           Foreground="{Binding EffectiveBodyForegroundBrush}"
+                           Text="Received Items"
+                           VerticalAlignment="Center" />
+                <Button Grid.Column="1"
+                        Margin="6,0,0,0"
+                        Padding="8,2"
+                        Classes="toolbar"
+                        Click="OnAddDemoClicked"
+                        IsVisible="{Binding CanAddDemo, RelativeSource={RelativeSource AncestorType=controls:UdlClientControl}}"
+                        IsEnabled="{Binding CanAddDemo, RelativeSource={RelativeSource AncestorType=controls:UdlClientControl}}">
+                  <TextBlock FontSize="11" Text="AddDemo" />
+                </Button>
+                <ToggleButton Grid.Column="2"
+                              Margin="6,0,0,0"
+                              Padding="8,2"
+                              Classes="toolbar"
+                              Click="OnToggleAllReceivedItemsClicked"
+                              IsChecked="{Binding AreAllReceivedItemsAttached, RelativeSource={RelativeSource AncestorType=controls:UdlClientControl}}"
+                              IsEnabled="{Binding CanToggleAllReceivedItems, RelativeSource={RelativeSource AncestorType=controls:UdlClientControl}}">
+                  <TextBlock FontSize="11" Text="All" />
+                </ToggleButton>
+              </Grid>
+              <Grid Grid.Row="1">
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                  <ItemsControl ItemsSource="{Binding ReceivedItems, RelativeSource={RelativeSource AncestorType=controls:UdlClientControl}}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Border Margin="0,0,0,6"
+                                Padding="6,4"
+                                Background="{Binding RowBackground}"
+                                BorderBrush="{Binding RowBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                ToolTip.Tip="{Binding ToolTipText}">
+                          <Grid ColumnDefinitions="Auto,*,Auto"
+                                VerticalAlignment="Center">
+                            <Border Width="10"
+                                    Height="10"
+                                    CornerRadius="999"
+                                    Background="{Binding StatusIndicatorBrush}"
+                                    VerticalAlignment="Center"
+                                    Margin="0,0,8,0" />
+                            <TextBlock Grid.Column="1"
+                                       FontSize="12"
+                                       Foreground="{Binding PrimaryForeground}"
+                                       Text="{Binding PathText}"
+                                       TextTrimming="CharacterEllipsis"
+                                       TextWrapping="NoWrap"
+                                       VerticalAlignment="Center" />
+                            <Button Grid.Column="2"
+                                    Padding="8,2"
+                                    Classes="toolbar"
+                                    Click="OnAttachReceivedItemClicked"
+                                    CommandParameter="{Binding .}"
+                                    IsEnabled="{Binding CanExecuteAction}">
+                              <TextBlock FontSize="11" Text="{Binding ActionText}" />
+                            </Button>
+                          </Grid>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+                <TextBlock FontSize="11"
+                           Foreground="{Binding EffectiveMutedForegroundBrush}"
+                           Text="No received runtime items available. Connect the client or enable demo modules."
+                           IsVisible="{Binding HasNoReceivedItems, RelativeSource={RelativeSource AncestorType=controls:UdlClientControl}}"
+                           TextWrapping="Wrap"
+                           VerticalAlignment="Center"
+                           HorizontalAlignment="Center"
+                           TextAlignment="Center"
+                           Margin="12" />
+              </Grid>
+            </Grid>
+          </Border>
 
-                        <Button Padding="8,2"
-                                Classes="toolbar"
-                                Click="OnDeleteModuleClicked"
-                                CommandParameter="{Binding .}"
-                                IsEnabled="{Binding CanDelete}">
-                          <TextBlock FontSize="11" Text="Delete" />
-                        </Button>
-                      </StackPanel>
-                    </Grid>
-
-                    <TextBlock Grid.Row="1"
-                               Margin="0,4,0,0"
-                               FontSize="11"
-                               Foreground="{Binding SecondaryForeground}"
-                               Text="{Binding SummaryText}"
-                               TextWrapping="Wrap" />
-
-                    <TextBlock Grid.Row="2"
-                               Margin="0,4,0,0"
-                               FontSize="11"
-                               Foreground="{Binding SecondaryForeground}"
-                               Text="{Binding AlertText}"
-                               TextWrapping="Wrap"
-                               IsVisible="{Binding HasAlert}" />
-                  </Grid>
-                </Border>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-        </ScrollViewer>
-
-        <TextBlock Grid.Row="1"
-                   FontSize="11"
-                   Foreground="{Binding EffectiveMutedForegroundBrush}"
-                   Text="No UDL modules available. Connect the client or configure exposure entries for persisted modules."
-                   IsVisible="{Binding HasNoModules, RelativeSource={RelativeSource AncestorType=controls:UdlClientControl}}" />
+          <Border Grid.Row="1"
+                  Margin="0,5,0,0"
+                  Padding="8"
+                  Background="{Binding EffectiveBodyBackgroundBrush}"
+                  BorderBrush="{Binding EffectiveBodyBorderBrush}"
+                  BorderThickness="1"
+                  CornerRadius="8">
+            <Grid RowDefinitions="Auto,*">
+              <TextBlock Grid.Row="0"
+                         Margin="0,0,0,6"
+                         FontSize="12"
+                         FontWeight="SemiBold"
+                         Foreground="{Binding EffectiveBodyForegroundBrush}"
+                         Text="Attached Items" />
+              <Grid Grid.Row="1">
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                  <ItemsControl ItemsSource="{Binding AttachedItems, RelativeSource={RelativeSource AncestorType=controls:UdlClientControl}}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Border Margin="0,0,0,6"
+                                Padding="6,4"
+                                Background="{Binding RowBackground}"
+                                BorderBrush="{Binding RowBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                ToolTip.Tip="{Binding ToolTipText}">
+                          <Grid ColumnDefinitions="Auto,*,Auto"
+                                VerticalAlignment="Center">
+                            <Border Width="10"
+                                    Height="10"
+                                    CornerRadius="999"
+                                    Background="{Binding StatusIndicatorBrush}"
+                                    VerticalAlignment="Center"
+                                    Margin="0,0,8,0" />
+                            <TextBlock Grid.Column="1"
+                                       FontSize="12"
+                                       Foreground="{Binding PrimaryForeground}"
+                                       Text="{Binding PathText}"
+                                       TextTrimming="CharacterEllipsis"
+                                       TextWrapping="NoWrap"
+                                       VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="2"
+                                        Orientation="Horizontal"
+                                        Spacing="6">
+                              <Button Padding="8,2"
+                                      Classes="toolbar"
+                                      Click="OnEditAttachedItemClicked"
+                                      CommandParameter="{Binding .}"
+                                      IsEnabled="{Binding CanEdit}">
+                                <TextBlock FontSize="11" Text="Edit" />
+                              </Button>
+                              <Button Padding="8,2"
+                                      Classes="toolbar"
+                                      Click="OnDetachAttachedItemClicked"
+                                      CommandParameter="{Binding .}"
+                                      IsEnabled="{Binding CanDetach}">
+                                <TextBlock FontSize="11" Text="Detach" />
+                              </Button>
+                            </StackPanel>
+                          </Grid>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+                <TextBlock FontSize="11"
+                           Foreground="{Binding EffectiveMutedForegroundBrush}"
+                           Text="No UI items attached. Use AttachToUi to select received runtime items."
+                           IsVisible="{Binding HasNoAttachedItems, RelativeSource={RelativeSource AncestorType=controls:UdlClientControl}}"
+                           TextWrapping="Wrap"
+                           VerticalAlignment="Center"
+                           HorizontalAlignment="Center"
+                           TextAlignment="Center"
+                           Margin="12" />
+              </Grid>
+            </Grid>
+          </Border>
+        </Grid>
       </Grid>
     </Border>
   </controls:UdlClientControl.BodyContent>

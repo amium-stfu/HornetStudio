@@ -17,7 +17,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Styling;
 using Avalonia.Threading;
-using Amium.Item;
+using Amium.Items;
 using HornetStudio.Host;
 using HornetStudio.Logging;
 using HornetStudio.Editor;
@@ -3021,9 +3021,9 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                 BodyCaptionVisible = true,
                 ShowFooter = true,
                 Footer = "Disconnected",
-                BrokerHost = "127.0.0.1",
-                BrokerPort = 1883,
-                BrokerBaseTopic = "hornet",
+                BrokerHost = BrokerWidgetDefaults.Host,
+                BrokerPort = BrokerWidgetDefaults.Port,
+                BrokerBaseTopic = BrokerWidgetDefaults.BaseTopic,
                 BrokerClientId = BrokerWidgetClientId.Create(),
                 BrokerMode = BrokerWidgetModes.External,
                 BrokerAutoConnect = false,
@@ -4597,9 +4597,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                     BindInt("UdlClientPort", "Port", current => current.UdlClientPort, (current, value) => current.UdlClientPort = value),
                     BindChoice("UdlClientAutoConnect", "AutoConnect", current => current.UdlClientAutoConnect ? "True" : "False", (current, value) => { current.UdlClientAutoConnect = string.Equals(value, "True", StringComparison.OrdinalIgnoreCase); return null; }, _ => new[] { "False", "True" }),
                     BindChoice("UdlClientDebugLogging", "DebugLogging", current => current.UdlClientDebugLogging ? "True" : "False", (current, value) => { current.UdlClientDebugLogging = string.Equals(value, "True", StringComparison.OrdinalIgnoreCase); return null; }, _ => new[] { "False", "True" }),
-                    BindChoice("UdlClientDemoEnabled", "Demo", current => current.UdlClientDemoEnabled ? "True" : "False", (current, value) => { current.UdlClientDemoEnabled = string.Equals(value, "True", StringComparison.OrdinalIgnoreCase); return null; }, _ => new[] { "False", "True" }),
-                    BindUdlModuleExposureList("UdlModuleExposureDefinitions", "ModuleExposures", current => current.UdlModuleExposureDefinitions, (current, value) => { current.UdlModuleExposureDefinitions = value; return null; }),
-                    BindAttachItemList("UdlAttachedItemPaths", "AttachToUi", current => current.UdlAttachedItemPaths, (current, value) => { current.UdlAttachedItemPaths = value; return null; }, GetUdlAttachItemOptions)
+                    BindChoice("UdlClientDemoEnabled", "Demo", current => current.UdlClientDemoEnabled ? "True" : "False", (current, value) => { current.UdlClientDemoEnabled = string.Equals(value, "True", StringComparison.OrdinalIgnoreCase); return null; }, _ => new[] { "False", "True" })
                 }));
                 break;
             case ControlKind.BrokerWidget:
@@ -4610,9 +4608,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                     BindText("BrokerBaseTopic", "BaseTopic", current => current.BrokerBaseTopic, (current, value) => { current.BrokerBaseTopic = value; return null; }),
                     BindReadOnly("BrokerClientId", "LocalMqttClientId", current => current.BrokerClientId, _ => "Generated local MQTT client id for this widget. Existing saved values are preserved and should not be copied from remote clients."),
                     BindChoice("BrokerMode", "BrokerMode", current => current.BrokerMode, (current, value) => { current.BrokerMode = value; return null; }, _ => new[] { BrokerWidgetModes.External, BrokerWidgetModes.Own }),
-                    BindChoice("BrokerAutoConnect", "AutoConnect", current => current.BrokerAutoConnect ? "True" : "False", (current, value) => { current.BrokerAutoConnect = string.Equals(value, "True", StringComparison.OrdinalIgnoreCase); return null; }, _ => new[] { "False", "True" }),
-                    BindAttachItemList("BrokerAttachedItemPaths", "AttachToUi", current => current.BrokerAttachedItemPaths, (current, value) => { current.BrokerAttachedItemPaths = value; return null; }, GetBrokerAttachItemOptions),
-                    BindAttachItemList("BrokerPublishedItemPaths", "PublishItems", current => current.BrokerPublishedItemPaths, (current, value) => { current.BrokerPublishedItemPaths = BrokerPublishedItemDefinitionCodec.SerializeDefinitions(BrokerPublishedItemDefinitionCodec.ParseDefinitions(value)); return null; }, GetBrokerPublishItemOptions)
+                    BindChoice("BrokerAutoConnect", "AutoConnect", current => current.BrokerAutoConnect ? "True" : "False", (current, value) => { current.BrokerAutoConnect = string.Equals(value, "True", StringComparison.OrdinalIgnoreCase); return null; }, _ => new[] { "False", "True" })
                 }));
                 break;
             case ControlKind.CameraControl:

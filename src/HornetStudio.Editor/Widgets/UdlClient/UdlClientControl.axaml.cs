@@ -16,7 +16,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using HornetStudio.Editor.Controls;
 using HornetStudio.Host;
-using Amium.Item;
+using Amium.Items;
 using HornetStudio.Logging;
 using HornetStudio.Editor.Helpers;
 using HornetStudio.Editor.Models;
@@ -38,6 +38,27 @@ public partial class UdlClientControl : EditorTemplateControl
 
     public static readonly DirectProperty<UdlClientControl, string> ItemCountTextProperty =
         AvaloniaProperty.RegisterDirect<UdlClientControl, string>(nameof(ItemCountText), control => control.ItemCountText);
+
+    public static readonly DirectProperty<UdlClientControl, string> ReceivedItemCountTextProperty =
+        AvaloniaProperty.RegisterDirect<UdlClientControl, string>(nameof(ReceivedItemCountText), control => control.ReceivedItemCountText);
+
+    public static readonly DirectProperty<UdlClientControl, string> AttachedItemCountTextProperty =
+        AvaloniaProperty.RegisterDirect<UdlClientControl, string>(nameof(AttachedItemCountText), control => control.AttachedItemCountText);
+
+    public static readonly DirectProperty<UdlClientControl, bool> HasNoReceivedItemsProperty =
+        AvaloniaProperty.RegisterDirect<UdlClientControl, bool>(nameof(HasNoReceivedItems), control => control.HasNoReceivedItems);
+
+    public static readonly DirectProperty<UdlClientControl, bool> HasNoAttachedItemsProperty =
+        AvaloniaProperty.RegisterDirect<UdlClientControl, bool>(nameof(HasNoAttachedItems), control => control.HasNoAttachedItems);
+
+    public static readonly DirectProperty<UdlClientControl, bool> CanAddDemoProperty =
+        AvaloniaProperty.RegisterDirect<UdlClientControl, bool>(nameof(CanAddDemo), control => control.CanAddDemo);
+
+    public static readonly DirectProperty<UdlClientControl, bool> CanToggleAllReceivedItemsProperty =
+        AvaloniaProperty.RegisterDirect<UdlClientControl, bool>(nameof(CanToggleAllReceivedItems), control => control.CanToggleAllReceivedItems);
+
+    public static readonly DirectProperty<UdlClientControl, bool> AreAllReceivedItemsAttachedProperty =
+        AvaloniaProperty.RegisterDirect<UdlClientControl, bool>(nameof(AreAllReceivedItemsAttached), control => control.AreAllReceivedItemsAttached);
 
     public static readonly DirectProperty<UdlClientControl, string> ModuleCountTextProperty =
         AvaloniaProperty.RegisterDirect<UdlClientControl, string>(nameof(ModuleCountText), control => control.ModuleCountText);
@@ -97,11 +118,18 @@ public partial class UdlClientControl : EditorTemplateControl
     private string _connectionStateText = "Disconnected";
     private string _autoConnectText = "False";
     private string _itemCountText = "0";
+    private string _receivedItemCountText = "0";
+    private string _attachedItemCountText = "0";
     private string _moduleCountText = "0";
     private IBrush _connectionStatusBackground = Brushes.Black;
     private IBrush _connectionStatusForeground = Brushes.White;
     private IBrush _connectionStatusHoverBackground = Brushes.DimGray;
     private bool _canToggleConnection = true;
+    private bool _hasNoReceivedItems = true;
+    private bool _hasNoAttachedItems = true;
+    private bool _canAddDemo;
+    private bool _canToggleAllReceivedItems;
+    private bool _areAllReceivedItemsAttached;
     private bool _hasNoModules = true;
     private string _connectionToggleText = "Connect";
     private string _publishedStatusBasePath = string.Empty;
@@ -110,7 +138,11 @@ public partial class UdlClientControl : EditorTemplateControl
     public UdlClientControl()
     {
         AttachRows = [];
+        ReceivedItems = [];
+        AttachedItems = [];
         Modules = [];
+        ReceivedItems.CollectionChanged += (_, _) => UpdateReceivedItemCollectionState();
+        AttachedItems.CollectionChanged += (_, _) => UpdateAttachedItemCollectionState();
         Modules.CollectionChanged += (_, _) => UpdateModuleCollectionState();
         InitializeComponent();
         AttachedToVisualTree += OnAttachedToVisualTree;
@@ -126,6 +158,10 @@ public partial class UdlClientControl : EditorTemplateControl
     }
 
     public ObservableCollection<AttachItemEditorRow> AttachRows { get; }
+
+    public ObservableCollection<UdlClientAttachSectionRow> ReceivedItems { get; }
+
+    public ObservableCollection<UdlClientAttachSectionRow> AttachedItems { get; }
 
     public ObservableCollection<UdlClientModuleRow> Modules { get; }
 
@@ -151,6 +187,48 @@ public partial class UdlClientControl : EditorTemplateControl
     {
         get => _itemCountText;
         private set => SetAndRaise(ItemCountTextProperty, ref _itemCountText, value);
+    }
+
+    public string ReceivedItemCountText
+    {
+        get => _receivedItemCountText;
+        private set => SetAndRaise(ReceivedItemCountTextProperty, ref _receivedItemCountText, value);
+    }
+
+    public string AttachedItemCountText
+    {
+        get => _attachedItemCountText;
+        private set => SetAndRaise(AttachedItemCountTextProperty, ref _attachedItemCountText, value);
+    }
+
+    public bool HasNoReceivedItems
+    {
+        get => _hasNoReceivedItems;
+        private set => SetAndRaise(HasNoReceivedItemsProperty, ref _hasNoReceivedItems, value);
+    }
+
+    public bool HasNoAttachedItems
+    {
+        get => _hasNoAttachedItems;
+        private set => SetAndRaise(HasNoAttachedItemsProperty, ref _hasNoAttachedItems, value);
+    }
+
+    public bool CanAddDemo
+    {
+        get => _canAddDemo;
+        private set => SetAndRaise(CanAddDemoProperty, ref _canAddDemo, value);
+    }
+
+    public bool CanToggleAllReceivedItems
+    {
+        get => _canToggleAllReceivedItems;
+        private set => SetAndRaise(CanToggleAllReceivedItemsProperty, ref _canToggleAllReceivedItems, value);
+    }
+
+    public bool AreAllReceivedItemsAttached
+    {
+        get => _areAllReceivedItemsAttached;
+        private set => SetAndRaise(AreAllReceivedItemsAttachedProperty, ref _areAllReceivedItemsAttached, value);
     }
 
     public string ModuleCountText
@@ -236,6 +314,8 @@ public partial class UdlClientControl : EditorTemplateControl
         }
 
         AttachRows.Clear();
+        ReceivedItems.Clear();
+        AttachedItems.Clear();
         Modules.Clear();
         _attachPopup = null;
     }
@@ -260,6 +340,7 @@ public partial class UdlClientControl : EditorTemplateControl
             RemovePublishedStatusItems();
             UnhookObservedItem();
             RebuildAttachRows();
+            RebuildAttachSectionRows();
             RebuildModuleRows();
             return;
         }
@@ -282,6 +363,7 @@ public partial class UdlClientControl : EditorTemplateControl
         }
 
         RebuildAttachRows();
+        RebuildAttachSectionRows();
         RebuildModuleRows();
     }
 
@@ -329,6 +411,16 @@ public partial class UdlClientControl : EditorTemplateControl
             {
                 row.RefreshTheme();
             }
+
+            foreach (var row in ReceivedItems)
+            {
+                row.RefreshTheme();
+            }
+
+            foreach (var row in AttachedItems)
+            {
+                row.RefreshTheme();
+            }
         }
 
         if (e.PropertyName == nameof(FolderItemModel.UdlAttachedItemPaths))
@@ -339,6 +431,7 @@ public partial class UdlClientControl : EditorTemplateControl
             }
 
             RebuildAttachRows();
+            RebuildAttachSectionRows();
             SynchronizeAttachedItems();
         }
 
@@ -360,6 +453,7 @@ public partial class UdlClientControl : EditorTemplateControl
             or nameof(FolderItemModel.UdlDemoModuleDefinitions))
         {
             RebuildModuleRows();
+            RebuildAttachSectionRows();
             if (_client is not null)
             {
                 DisconnectInternal();
@@ -511,6 +605,7 @@ public partial class UdlClientControl : EditorTemplateControl
         RemovePublishedAttachOptionItems();
         RemovePublishedExposureItems();
         RemovePublishedRuntimeItems(Item);
+        RebuildAttachSectionRows();
         RefreshPresentation();
         WriteDiagnosticLog("Disconnect completed");
     }
@@ -736,6 +831,7 @@ public partial class UdlClientControl : EditorTemplateControl
 
         PublishAttachOptionItems(runtimeItems);
         PublishExposureItems();
+        RebuildAttachSectionRows();
         RebuildModuleRows();
     }
 
@@ -804,6 +900,7 @@ public partial class UdlClientControl : EditorTemplateControl
 
         var attachmentsChanged = SynchronizeAttachedItems();
         RebuildAttachRows();
+        RebuildAttachSectionRows();
         if (attachmentsChanged)
         {
             Host?.RefreshFolderBindings(Item?.FolderName ?? string.Empty);
@@ -846,6 +943,113 @@ public partial class UdlClientControl : EditorTemplateControl
         }
     }
 
+    private void RebuildAttachSectionRows()
+    {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(RebuildAttachSectionRows);
+            return;
+        }
+
+        var item = Item;
+        if (item is null)
+        {
+            ReceivedItems.Clear();
+            AttachedItems.Clear();
+            UpdateReceivedItemCollectionState();
+            UpdateAttachedItemCollectionState();
+            return;
+        }
+
+        var nextReceivedItems = new List<UdlClientAttachSectionRow>();
+        var nextAttachedItems = new List<UdlClientAttachSectionRow>();
+
+        var attachedPaths = ParseAttachedPaths(item.UdlAttachedItemPaths);
+        foreach (var option in GetAttachOptions(item))
+        {
+            var isAttached = attachedPaths.Contains(option);
+            var summaryText = isAttached
+                ? "Runtime item is available and already attached to the UI."
+                : "Runtime item is available and can be attached to the UI.";
+            var alertText = isAttached ? "Item is already attached." : string.Empty;
+
+            nextReceivedItems.Add(new UdlClientAttachSectionRow(
+                ownerItem: item,
+                relativePath: option,
+                summaryText: summaryText,
+                alertText: alertText,
+                actionText: isAttached ? "Attached" : "Attach",
+                canExecuteAction: !isAttached,
+                statusBrush: isAttached ? Brushes.ForestGreen : Brushes.Gray));
+        }
+
+        foreach (var attachedPath in attachedPaths)
+        {
+            var isLive = TryResolveRuntimeItem(attachedPath, out _);
+            var moduleName = TryGetRuntimeModuleName(attachedPath, out var resolvedModuleName)
+                ? resolvedModuleName
+                : string.Empty;
+            var summaryText = isLive
+                ? "Attached item resolves to a live runtime item."
+                : "Saved attachment does not currently resolve to a runtime item.";
+            var alertText = isLive ? string.Empty : "Runtime item is currently unavailable.";
+
+            nextAttachedItems.Add(new UdlClientAttachSectionRow(
+                ownerItem: item,
+                relativePath: attachedPath,
+                summaryText: summaryText,
+                alertText: alertText,
+                actionText: "Detach",
+                canExecuteAction: true,
+                statusBrush: isLive ? Brushes.ForestGreen : Brushes.Firebrick,
+                moduleName: moduleName));
+        }
+
+        if (!HasAttachSectionRowsChanged(ReceivedItems, nextReceivedItems)
+            && !HasAttachSectionRowsChanged(AttachedItems, nextAttachedItems))
+        {
+            UpdateReceivedItemCollectionState();
+            UpdateAttachedItemCollectionState();
+            return;
+        }
+
+        ReplaceAttachSectionRows(target: ReceivedItems, rows: nextReceivedItems);
+        ReplaceAttachSectionRows(target: AttachedItems, rows: nextAttachedItems);
+        UpdateReceivedItemCollectionState();
+        UpdateAttachedItemCollectionState();
+    }
+
+    private static bool HasAttachSectionRowsChanged(
+        IReadOnlyList<UdlClientAttachSectionRow> currentRows,
+        IReadOnlyList<UdlClientAttachSectionRow> nextRows)
+    {
+        if (currentRows.Count != nextRows.Count)
+        {
+            return true;
+        }
+
+        for (var index = 0; index < currentRows.Count; index++)
+        {
+            if (!currentRows[index].HasSamePresentation(nextRows[index]))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void ReplaceAttachSectionRows(
+        ObservableCollection<UdlClientAttachSectionRow> target,
+        IEnumerable<UdlClientAttachSectionRow> rows)
+    {
+        target.Clear();
+        foreach (var row in rows)
+        {
+            target.Add(row);
+        }
+    }
+
     private void OnAttachRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (!Dispatcher.UIThread.CheckAccess())
@@ -860,12 +1064,168 @@ public partial class UdlClientControl : EditorTemplateControl
             return;
         }
 
-        Item.UdlAttachedItemPaths = string.Join(Environment.NewLine, AttachRows
+        Item.UdlAttachedItemPaths = SerializeAttachedPaths(AttachRows
             .Where(static row => row.IsAttached)
             .Select(static row => row.RelativePath));
 
         SynchronizeAttachedItems();
+        RebuildAttachSectionRows();
         RefreshPresentation();
+    }
+
+    private void OnAttachReceivedItemClicked(object? sender, RoutedEventArgs e)
+    {
+        if (Item is null
+            || sender is not Button { CommandParameter: UdlClientAttachSectionRow row }
+            || !row.CanExecuteAction)
+        {
+            return;
+        }
+
+        Item.UdlAttachedItemPaths = AddAttachedPath(Item.UdlAttachedItemPaths, row.RelativePath);
+        e.Handled = true;
+    }
+
+    private async void OnAddDemoClicked(object? sender, RoutedEventArgs e)
+    {
+        if (Item is null
+            || Item.UdlClientDemoEnabled != true
+            || TopLevel.GetTopLevel(this) is not Window { DataContext: MainWindowViewModel viewModel } owner)
+        {
+            return;
+        }
+
+        var result = await UdlDemoModulesDialogWindow.ShowAsync(
+            owner: owner,
+            viewModel: viewModel,
+            ownerItem: Item,
+            rawDefinitions: Item.UdlDemoModuleDefinitions);
+        if (result is null)
+        {
+            return;
+        }
+
+        Item.UdlDemoModuleDefinitions = result;
+        e.Handled = true;
+    }
+
+    private void OnToggleAllReceivedItemsClicked(object? sender, RoutedEventArgs e)
+    {
+        if (Item is null || sender is not ToggleButton toggleButton)
+        {
+            return;
+        }
+
+        var receivedPaths = ReceivedItems.Select(static row => row.RelativePath)
+            .Where(static path => !string.IsNullOrWhiteSpace(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (receivedPaths.Length == 0)
+        {
+            return;
+        }
+
+        Item.UdlAttachedItemPaths = toggleButton.IsChecked == true
+            ? AddAttachedPaths(Item.UdlAttachedItemPaths, receivedPaths)
+            : RemoveAttachedPaths(Item.UdlAttachedItemPaths, receivedPaths);
+        e.Handled = true;
+    }
+
+    private async void OnEditAttachedItemClicked(object? sender, RoutedEventArgs e)
+    {
+        if (Item is null
+            || sender is not Button { CommandParameter: UdlClientAttachSectionRow row }
+            || !row.CanEdit
+            || TopLevel.GetTopLevel(this) is not Window { DataContext: MainWindowViewModel viewModel } owner)
+        {
+            return;
+        }
+
+        var result = await UdlModuleExposureDialogWindow.ShowAsync(
+            owner: owner,
+            viewModel: viewModel,
+            rawDefinitions: Item.UdlModuleExposureDefinitions,
+            runtimeChannels: GetRuntimeChannelDescriptors(),
+            moduleName: row.ModuleName);
+        if (result is null)
+        {
+            return;
+        }
+
+        Item.UdlModuleExposureDefinitions = result;
+        PublishExposureItems();
+        RebuildModuleRows();
+        RebuildAttachSectionRows();
+        e.Handled = true;
+    }
+
+    private void OnDetachAttachedItemClicked(object? sender, RoutedEventArgs e)
+    {
+        if (Item is null
+            || sender is not Button { CommandParameter: UdlClientAttachSectionRow row }
+            || !row.CanDetach)
+        {
+            return;
+        }
+
+        Item.UdlAttachedItemPaths = RemoveAttachedPath(Item.UdlAttachedItemPaths, row.RelativePath);
+        e.Handled = true;
+    }
+
+    private static IEnumerable<string> GetUdlAttachOptions(FolderItemModel item)
+    {
+        var normalizedName = NormalizeClientName(item);
+        var prefixes = new[]
+        {
+            $"Studio.{item.FolderName}.{normalizedName}.Status.AttachOptions",
+            $"Project.{item.FolderName}.{normalizedName}.Status.AttachOptions",
+            $"UdlProject.{item.FolderName}.{normalizedName}.Status.AttachOptions",
+            $"Runtime.UdlClient.{normalizedName}"
+        };
+
+        return HostRegistries.Data.GetAllKeys()
+            .SelectMany(key => prefixes.Select(prefix => TryGetAttachRootOption(key, prefix, TargetPathHelper.NormalizeComparablePath(prefix))))
+            .Where(static key => !string.IsNullOrWhiteSpace(key))
+            .Select(static key => key!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static key => key, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private void UpdateReceivedItemCollectionState()
+    {
+        HasNoReceivedItems = ReceivedItems.Count == 0;
+        ReceivedItemCountText = ReceivedItems.Count.ToString(CultureInfo.InvariantCulture);
+        UpdateReceivedSectionActionsState();
+    }
+
+    private void UpdateAttachedItemCollectionState()
+    {
+        HasNoAttachedItems = AttachedItems.Count == 0;
+        AttachedItemCountText = AttachedItems.Count.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private void UpdateReceivedSectionActionsState()
+    {
+        var item = Item;
+        CanAddDemo = item?.UdlClientDemoEnabled == true;
+
+        if (item is null)
+        {
+            CanToggleAllReceivedItems = false;
+            AreAllReceivedItemsAttached = false;
+            return;
+        }
+
+        var receivedPaths = ReceivedItems.Select(static row => row.RelativePath)
+            .Where(static path => !string.IsNullOrWhiteSpace(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var attachedPaths = ParseAttachedPaths(item.UdlAttachedItemPaths);
+
+        CanToggleAllReceivedItems = receivedPaths.Length > 0;
+        AreAllReceivedItemsAttached = receivedPaths.Length > 0
+            && receivedPaths.All(attachedPaths.Contains);
     }
 
     private bool SynchronizeAttachedItems()
@@ -1140,6 +1500,9 @@ public partial class UdlClientControl : EditorTemplateControl
             ConnectionStatusForeground = Brushes.White;
             ConnectionStatusHoverBackground = CreateHoverBrush(ConnectionStatusBackground);
             _verboseDiagnosticsEnabled = false;
+            CanAddDemo = false;
+            CanToggleAllReceivedItems = false;
+            AreAllReceivedItemsAttached = false;
             RemovePublishedStatusItems();
             return;
         }
@@ -1177,6 +1540,7 @@ public partial class UdlClientControl : EditorTemplateControl
         ConnectionStatusHoverBackground = CreateHoverBrush(ConnectionStatusBackground);
 
         _verboseDiagnosticsEnabled = item?.UdlClientDebugLogging == true;
+        UpdateReceivedSectionActionsState();
 
         if (item is not null)
         {
@@ -1773,6 +2137,19 @@ public partial class UdlClientControl : EditorTemplateControl
         RefreshPresentation();
     }
 
+    private static bool TryGetRuntimeModuleName(string relativePath, out string moduleName)
+    {
+        var segments = TargetPathHelper.SplitPathSegments(relativePath);
+        if (segments.Count >= 1 && !string.IsNullOrWhiteSpace(segments[0]))
+        {
+            moduleName = segments[0];
+            return true;
+        }
+
+        moduleName = string.Empty;
+        return false;
+    }
+
     private static bool IsRuntimeChannelItem(Item item)
         => TargetPathHelper.SplitPathSegments(GetRelativeRuntimePath(item)).Count == 2;
 
@@ -2170,6 +2547,65 @@ public partial class UdlClientControl : EditorTemplateControl
         return normalized;
     }
 
+    private static string SerializeAttachedPaths(IEnumerable<string> paths)
+        => string.Join(Environment.NewLine, ParseAttachedPaths(string.Join(Environment.NewLine, paths ?? []))
+            .OrderBy(static path => path.Count(static ch => ch == '.'))
+            .ThenBy(static path => path, StringComparer.OrdinalIgnoreCase));
+
+    private static string AddAttachedPath(string? serialized, string path)
+    {
+        var attachedPaths = ParseAttachedPaths(serialized);
+        var normalizedPath = TargetPathHelper.NormalizeConfiguredTargetPath(path);
+        if (!string.IsNullOrWhiteSpace(normalizedPath))
+        {
+            attachedPaths.Add(normalizedPath);
+        }
+
+        return SerializeAttachedPaths(attachedPaths);
+    }
+
+    private static string AddAttachedPaths(string? serialized, IEnumerable<string> paths)
+    {
+        var attachedPaths = ParseAttachedPaths(serialized);
+        foreach (var path in paths ?? [])
+        {
+            var normalizedPath = TargetPathHelper.NormalizeConfiguredTargetPath(path);
+            if (!string.IsNullOrWhiteSpace(normalizedPath))
+            {
+                attachedPaths.Add(normalizedPath);
+            }
+        }
+
+        return SerializeAttachedPaths(attachedPaths);
+    }
+
+    private static string RemoveAttachedPath(string? serialized, string path)
+    {
+        var attachedPaths = ParseAttachedPaths(serialized);
+        var normalizedPath = TargetPathHelper.NormalizeConfiguredTargetPath(path);
+        if (!string.IsNullOrWhiteSpace(normalizedPath))
+        {
+            attachedPaths.RemoveWhere(candidate => string.Equals(candidate, normalizedPath, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return SerializeAttachedPaths(attachedPaths);
+    }
+
+    private static string RemoveAttachedPaths(string? serialized, IEnumerable<string> paths)
+    {
+        var attachedPaths = ParseAttachedPaths(serialized);
+        foreach (var path in paths ?? [])
+        {
+            var normalizedPath = TargetPathHelper.NormalizeConfiguredTargetPath(path);
+            if (!string.IsNullOrWhiteSpace(normalizedPath))
+            {
+                attachedPaths.RemoveWhere(candidate => string.Equals(candidate, normalizedPath, StringComparison.OrdinalIgnoreCase));
+            }
+        }
+
+        return SerializeAttachedPaths(attachedPaths);
+    }
+
     private static string NormalizeClientName(FolderItemModel item)
         => string.IsNullOrWhiteSpace(item.Name) ? "UdlClientControl" : item.Name.Trim();
 
@@ -2252,6 +2688,150 @@ public partial class UdlClientControl : EditorTemplateControl
 
 public partial class UdlClientWidget : UdlClientControl
 {
+}
+
+/// <summary>
+/// Represents one compact received or attached row shown in the UDL client body.
+/// </summary>
+public sealed class UdlClientAttachSectionRow : NotifyBase
+{
+    private readonly FolderItemModel _ownerItem;
+    private readonly IBrush _statusBrush;
+    private readonly string _actionText;
+    private readonly bool _canExecuteAction;
+    private readonly string _statusKey;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="UdlClientAttachSectionRow"/> class.
+    /// </summary>
+    /// <param name="ownerItem">The owning widget item.</param>
+    /// <param name="relativePath">The relative runtime path.</param>
+    /// <param name="summaryText">The tooltip summary text.</param>
+    /// <param name="alertText">The tooltip alert text.</param>
+    /// <param name="statusBrush">The traffic-light status brush.</param>
+    /// <param name="actionText">The primary row action text.</param>
+    /// <param name="canExecuteAction">Whether the primary row action is enabled.</param>
+    /// <param name="moduleName">The resolved module name.</param>
+    public UdlClientAttachSectionRow(
+        FolderItemModel ownerItem,
+        string relativePath,
+        string summaryText,
+        string alertText,
+        IBrush statusBrush,
+        string actionText = "",
+        bool canExecuteAction = false,
+        string moduleName = "")
+    {
+        _ownerItem = ownerItem ?? throw new ArgumentNullException(nameof(ownerItem));
+        _statusBrush = statusBrush ?? throw new ArgumentNullException(nameof(statusBrush));
+        RelativePath = TargetPathHelper.NormalizeConfiguredTargetPath(relativePath);
+        ModuleName = moduleName?.Trim() ?? string.Empty;
+        SummaryText = summaryText?.Trim() ?? string.Empty;
+        AlertText = alertText?.Trim() ?? string.Empty;
+        _actionText = actionText?.Trim() ?? string.Empty;
+        _canExecuteAction = canExecuteAction;
+        _statusKey = statusBrush.ToString() ?? string.Empty;
+    }
+
+    /// <summary>
+    /// Gets the relative runtime path.
+    /// </summary>
+    public string RelativePath { get; }
+
+    /// <summary>
+    /// Gets the compact row path text.
+    /// </summary>
+    public string PathText => RelativePath;
+
+    /// <summary>
+    /// Gets the resolved module name for exposure editing.
+    /// </summary>
+    public string ModuleName { get; }
+
+    /// <summary>
+    /// Gets the tooltip summary text.
+    /// </summary>
+    public string SummaryText { get; }
+
+    /// <summary>
+    /// Gets the tooltip alert text.
+    /// </summary>
+    public string AlertText { get; }
+
+    /// <summary>
+    /// Gets the primary row action text.
+    /// </summary>
+    public string ActionText => _actionText;
+
+    /// <summary>
+    /// Gets a value indicating whether the primary row action can run.
+    /// </summary>
+    public bool CanExecuteAction => _canExecuteAction;
+
+    /// <summary>
+    /// Gets a value indicating whether the attached row can open the exposure editor.
+    /// </summary>
+    public bool CanEdit => !string.IsNullOrWhiteSpace(ModuleName);
+
+    /// <summary>
+    /// Gets a value indicating whether the attached row can be detached.
+    /// </summary>
+    public bool CanDetach => true;
+
+    /// <summary>
+    /// Determines whether this row matches another row's visible presentation state.
+    /// </summary>
+    /// <param name="other">The other row to compare.</param>
+    /// <returns><see langword="true"/> when both rows present the same UI state; otherwise <see langword="false"/>.</returns>
+    public bool HasSamePresentation(UdlClientAttachSectionRow other)
+    {
+        return other is not null
+            && string.Equals(RelativePath, other.RelativePath, StringComparison.Ordinal)
+            && string.Equals(ModuleName, other.ModuleName, StringComparison.Ordinal)
+            && string.Equals(SummaryText, other.SummaryText, StringComparison.Ordinal)
+            && string.Equals(AlertText, other.AlertText, StringComparison.Ordinal)
+            && string.Equals(ActionText, other.ActionText, StringComparison.Ordinal)
+            && CanExecuteAction == other.CanExecuteAction
+            && CanEdit == other.CanEdit
+            && CanDetach == other.CanDetach
+            && string.Equals(_statusKey, other._statusKey, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Gets the row tooltip text.
+    /// </summary>
+    public string ToolTipText => string.IsNullOrWhiteSpace(AlertText)
+        ? SummaryText
+        : $"{SummaryText}{Environment.NewLine}{AlertText}";
+
+    /// <summary>
+    /// Gets the row background brush.
+    /// </summary>
+    public IBrush RowBackground => Brushes.Transparent;
+
+    /// <summary>
+    /// Gets the row border brush.
+    /// </summary>
+    public IBrush RowBorderBrush => _ownerItem.EffectiveBodyBorderBrush;
+
+    /// <summary>
+    /// Gets the primary foreground brush.
+    /// </summary>
+    public IBrush PrimaryForeground => _ownerItem.EffectiveBodyForegroundBrush;
+
+    /// <summary>
+    /// Gets the traffic-light status brush.
+    /// </summary>
+    public IBrush StatusIndicatorBrush => _statusBrush;
+
+    /// <summary>
+    /// Raises property changed notifications for theme-dependent row values.
+    /// </summary>
+    public void RefreshTheme()
+    {
+        OnPropertyChanged(nameof(RowBorderBrush));
+        OnPropertyChanged(nameof(PrimaryForeground));
+    }
 }
 
 public sealed class UdlClientModuleRow : NotifyBase

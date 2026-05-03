@@ -9,7 +9,7 @@ using Avalonia;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
-using Amium.Item;
+using Amium.Items;
 using HornetStudio.Host;
 using HornetStudio.Host.Python.Client;
 using HornetStudio.Editor.Helpers;
@@ -178,9 +178,9 @@ public sealed class FolderItemModel : ObservableObject
     private bool _udlClientAutoConnect;
     private bool _udlClientDebugLogging;
     private bool _udlClientDemoEnabled;
-    private string _brokerHost = "127.0.0.1";
-    private int _brokerPort = 1883;
-    private string _brokerBaseTopic = "hornet";
+    private string _brokerHost = BrokerWidgetDefaults.Host;
+    private int _brokerPort = BrokerWidgetDefaults.Port;
+    private string _brokerBaseTopic = BrokerWidgetDefaults.BaseTopic;
     private string _brokerClientId = BrokerWidgetClientId.Create();
     private string _brokerMode = BrokerWidgetModes.External;
     private bool _brokerAutoConnect;
@@ -1835,19 +1835,19 @@ public sealed class FolderItemModel : ObservableObject
     public string BrokerHost
     {
         get => _brokerHost;
-        set => SetProperty(ref _brokerHost, string.IsNullOrWhiteSpace(value) ? "127.0.0.1" : value.Trim());
+        set => SetProperty(ref _brokerHost, string.IsNullOrWhiteSpace(value) ? BrokerWidgetDefaults.Host : value.Trim());
     }
 
     public int BrokerPort
     {
         get => _brokerPort;
-        set => SetProperty(ref _brokerPort, value <= 0 ? 1883 : value);
+        set => SetProperty(ref _brokerPort, value <= 0 ? BrokerWidgetDefaults.Port : value);
     }
 
     public string BrokerBaseTopic
     {
         get => _brokerBaseTopic;
-        set => SetProperty(ref _brokerBaseTopic, string.IsNullOrWhiteSpace(value) ? "hornet" : value.Trim());
+        set => SetProperty(ref _brokerBaseTopic, string.IsNullOrWhiteSpace(value) ? BrokerWidgetDefaults.BaseTopic : value.Trim());
     }
 
     public string BrokerClientId
@@ -3025,27 +3025,27 @@ public sealed class FolderItemModel : ObservableObject
                 return false;
             }
 
-            if (string.Equals(parameter.Name, "Value", StringComparison.OrdinalIgnoreCase))
-            {
-                writeTargetItem.Value = convertedValue!;
-            }
-            else
-            {
-                parameter.Value = convertedValue!;
-            }
-
-            if (refreshDisplayImmediately)
-            {
-                RefreshTargetBindings();
-            }
-
             var targetPath = writeTargetItem.Path ?? Target?.Path ?? TargetPath;
             var updated = string.Equals(parameter.Name, "Value", StringComparison.OrdinalIgnoreCase)
                 ? HostRegistries.Data.UpdateValue(targetPath, convertedValue)
                 : HostRegistries.Data.TryUpdateUserParameter(targetPath, parameter.Name, convertedValue);
             if (!updated)
             {
+                if (string.Equals(parameter.Name, "Value", StringComparison.OrdinalIgnoreCase))
+                {
+                    writeTargetItem.Value = convertedValue!;
+                }
+                else
+                {
+                    parameter.Value = convertedValue!;
+                }
+
                 PublishTargetSnapshot();
+            }
+
+            if (refreshDisplayImmediately)
+            {
+                RefreshTargetBindings();
             }
 
             error = string.Empty;
@@ -3438,21 +3438,21 @@ public sealed class FolderItemModel : ObservableObject
                 return false;
             }
 
-            if (string.Equals(writeParameter.Name, "Value", StringComparison.OrdinalIgnoreCase))
-            {
-                writeTargetItem.Value = convertedValue!;
-            }
-            else
-            {
-                writeParameter.Value = convertedValue!;
-            }
-
             var resolvedTargetPath = writeTargetItem.Path ?? targetItem.Path ?? targetPath ?? string.Empty;
             var updated = string.Equals(writeParameter.Name, "Value", StringComparison.OrdinalIgnoreCase)
                 ? HostRegistries.Data.UpdateValue(resolvedTargetPath, convertedValue)
                 : HostRegistries.Data.TryUpdateUserParameter(resolvedTargetPath, writeParameter.Name, convertedValue);
             if (!updated)
             {
+                if (string.Equals(writeParameter.Name, "Value", StringComparison.OrdinalIgnoreCase))
+                {
+                    writeTargetItem.Value = convertedValue!;
+                }
+                else
+                {
+                    writeParameter.Value = convertedValue!;
+                }
+
                 PublishItemSnapshot(targetItem);
             }
 

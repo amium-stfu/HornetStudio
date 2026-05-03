@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using HornetStudio.Host;
 using HornetStudio.Editor.Helpers;
 using HornetStudio.Editor.Models;
@@ -26,6 +27,7 @@ public partial class AttachItemsEditorDialogWindow : Window, INotifyPropertyChan
     private string _editorDialogSectionContentBackground = "#EEF3F8";
     private bool _showIntervalColumn;
     private bool _isOpeningDemoModules;
+    private readonly DispatcherTimer _brokerOptionRefreshTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
 
     public new event PropertyChangedEventHandler? PropertyChanged;
 
@@ -34,6 +36,7 @@ public partial class AttachItemsEditorDialogWindow : Window, INotifyPropertyChan
         Rows = [];
         InitializeComponent();
         DataContext = this;
+        _brokerOptionRefreshTimer.Tick += OnBrokerOptionRefreshTimerTick;
     }
 
     public AttachItemsEditorDialogWindow(MainWindowViewModel? viewModel, EditorDialogField field)
@@ -57,6 +60,8 @@ public partial class AttachItemsEditorDialogWindow : Window, INotifyPropertyChan
             Width = 640;
             MinWidth = 600;
         }
+
+        Opened += OnOpened;
     }
 
     public ObservableCollection<AttachItemEditorRow> Rows { get; }
@@ -140,8 +145,20 @@ public partial class AttachItemsEditorDialogWindow : Window, INotifyPropertyChan
 
     protected override void OnClosed(System.EventArgs e)
     {
+        _brokerOptionRefreshTimer.Stop();
         AttachToViewModel(null);
         base.OnClosed(e);
+    }
+
+    private void OnOpened(object? sender, EventArgs e)
+    {
+        if (!ShouldAutoRefreshBrokerOptions())
+        {
+            return;
+        }
+
+        RefreshRowsFromField();
+        _brokerOptionRefreshTimer.Start();
     }
 
     private void OnSaveClicked(object? sender, RoutedEventArgs e)
@@ -309,8 +326,21 @@ public partial class AttachItemsEditorDialogWindow : Window, INotifyPropertyChan
     {
         if (e.PropertyName is nameof(AttachItemEditorRow.IsAttached) or nameof(AttachItemEditorRow.IsRemoved))
         {
+            _field?.ApplyAttachItemEntries(Rows);
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ToggleSelectionButtonText)));
         }
+    }
+
+    private void OnBrokerOptionRefreshTimerTick(object? sender, EventArgs e)
+    {
+        if (!ShouldAutoRefreshBrokerOptions())
+        {
+            _brokerOptionRefreshTimer.Stop();
+            return;
+        }
+
+        _field?.ApplyAttachItemEntries(Rows);
+        RefreshRowsFromField();
     }
 
     private void SelectNewDemoModules(ISet<string> previousModuleNames, ISet<string> currentModuleNames)
@@ -475,6 +505,10 @@ public partial class AttachItemsEditorDialogWindow : Window, INotifyPropertyChan
 
         return TargetPathHelper.ToBrokerReceivedAttachIdentity(normalizedPath);
     }
+
+    private bool ShouldAutoRefreshBrokerOptions()
+        => _field?.OwnerItem?.IsBrokerWidget == true
+           && string.Equals(_field.Key, "BrokerAttachedItemPaths", StringComparison.Ordinal);
 
     private void SetAndRaise(ref string field, string value, string propertyName)
     {

@@ -10,7 +10,7 @@ It does not replace the HornetStudio `DataRegistry`. The registry remains the lo
 
 - `Amium.Item` defines items, child items, values, and parameters.
 - `HornetStudio.Host.DataRegistry` stores live local Host items for one HornetStudio process.
-- `Amium.ItemBroker` keeps transport-neutral broker contracts, message contracts, routing, retained state, and central broker policies.
+- `Amium.ItemBroker` keeps a slim operation-based broker contract, routed message contracts, retained state, routing, and central broker policies.
 - `Amium.ItemBroker.Client` provides application-facing convenience APIs for publishing, writing, subscribing, local diffing, and future throttling or batching.
 - `Amium.ItemBroker.Service` starts the broker core as a standalone process.
 - `Amium.ItemBroker.Mqtt` maps MQTT topics to broker messages for local inspection and basic write testing.
@@ -100,7 +100,7 @@ Writes target item path plus parameter. The default parameter is `Value`. Write 
 
 ## External Transports
 
-Transport adapters translate external protocol messages into broker messages and broker messages back into protocol-specific output. Adapters must not move protocol semantics into the core broker.
+Transport adapters translate external protocol messages into broker operations and broker messages back into protocol-specific output. Adapters must not move protocol semantics into the core broker.
 
 Potential adapters:
 
@@ -115,15 +115,15 @@ MQTT is the first external inspection transport. `Amium.ItemBroker.Mqtt` hosts a
 Topic mapping:
 
 - Broker-owned state: `hornet/broker/...`
-- Client-owned item values: `clients/{clientId}/{item path}`
-- Client-owned item parameters: `clients/{clientId}/{item path}/params/{parameter}`
+- Shared item values: `hornet/{item path}`
+- Shared item parameters: `hornet/{item path}/params/{parameter}`
 - Example: `Runtime.Health.ItemBroker.Heartbeat` parameter `Value` maps to `hornet/broker/heartbeat`.
-- Example: `Runtime.Device.Read` parameter `Value` from source client `device-client` maps to `clients/device-client/Runtime/Device/Read`.
-- Example: `Runtime.Device.Read` parameter `Unit` from source client `device-client` maps to `clients/device-client/Runtime/Device/Read/params/Unit`.
+- Example: `Runtime.Device.Read` parameter `Value` maps to `hornet/Runtime/Device/Read`.
+- Example: `Runtime.Device.Read` parameter `Unit` maps to `hornet/Runtime/Device/Read/params/Unit`.
 
-The MQTT `clientId` topic segment is derived from the broker message `SourceClientId`. If a broker message has no source id, the MQTT adapter uses the explicit fallback `unknown`.
+The MQTT item topic shape is shared and does not include the MQTT client id.
 
-Parameter names such as `Value`, `Unit`, `Format`, `Kind`, `Writable`, `WritePath`, and `WriteMode` remain item parameters, not child items. Incoming MQTT publishes are translated back to broker path plus parameter. Writable item-topic publishes become broker write requests. Non-writable item-topic publishes become value changes, and `params/{parameter}` publishes become parameter changes.
+Parameter names such as `Value`, `Unit`, `Format`, `Kind`, `Writable`, `WritePath`, and `WriteMode` remain item parameters, not child items. Incoming MQTT publishes are translated back to broker path plus parameter. Publishes on writable shared item topics become broker write requests and are confirmed only when the local owner republishes the accepted value. Non-writable shared-topic writes are rejected by the MQTT adapter. Rejection diagnostics are opt-in through `Amium.ItemBroker.Mqtt.WriteDiagnostics`.
 
 The broker core remains transport-neutral and must not depend on MQTTnet.
 
@@ -160,7 +160,7 @@ MQTT exposes these health paths as:
 Responsibilities:
 
 - Normalize paths before publishing.
-- Provide `PublishItemAsync`, `PublishValueAsync`, `PublishParameterAsync`, `WriteAsync`, and `SubscribeAsync`.
+- Provide `PublishSnapshotAsync`, `PublishValueAsync`, `PublishParameterAsync`, `WriteValueAsync`, `WriteParameterAsync`, and `SubscribeAsync`.
 - Track local published item state where useful.
 - Prefer deltas after an initial snapshot.
 - Support future batching, throttling, latest-only, reconnect, and subscription convenience behavior.

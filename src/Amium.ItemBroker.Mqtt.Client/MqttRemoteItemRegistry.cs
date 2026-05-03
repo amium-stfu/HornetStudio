@@ -1,8 +1,8 @@
 using System.Collections.Concurrent;
 using System.Globalization;
-using Amium.Item;
+using Amium.Items;
 using Amium.ItemBroker.Mqtt;
-using ItemModel = Amium.Item.Item;
+using ItemModel = Amium.Items.Item;
 
 namespace Amium.ItemBroker.Mqtt.Client;
 

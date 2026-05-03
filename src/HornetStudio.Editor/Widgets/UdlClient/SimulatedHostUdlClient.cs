@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using HornetStudio.Host;
-using Amium.Item;
+using Amium.Items;
 using HornetStudio.Editor.Models;
 
 namespace HornetStudio.Editor.Widgets;

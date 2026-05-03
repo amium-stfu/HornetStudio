@@ -1,4 +1,4 @@
-using Amium.Item;
+using Amium.Items;
 using Amium.ItemBroker;
 using Amium.ItemBroker.Mqtt;
 using Amium.ItemBroker.Mqtt.Client;
@@ -18,8 +18,10 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Longest root wins", () => RunSync(LongestRootWins)),
     ("Missing child returns false", () => RunSync(MissingChildReturnsFalse)),
     ("UpdateValue updates descendant item", () => RunSync(UpdateValueUpdatesDescendantItem)),
+    ("UpdateValue ignores unchanged descendant item", () => RunSync(UpdateValueIgnoresUnchangedDescendantItem)),
     ("UpdateValue converts numeric payloads to existing type", () => RunSync(UpdateValueConvertsNumericPayloadsToExistingType)),
     ("UpdateParameter updates descendant parameter", () => RunSync(UpdateParameterUpdatesDescendantParameter)),
+    ("UpdateParameter ignores unchanged descendant parameter", () => RunSync(UpdateParameterIgnoresUnchangedDescendantParameter)),
     ("UpdateParameter converts numeric payloads to existing type", () => RunSync(UpdateParameterConvertsNumericPayloadsToExistingType)),
     ("Protected parameter policy detects protected names", () => RunSync(ProtectedParameterPolicyDetectsProtectedNames)),
     ("Guarded user parameter write rejects protected names", () => RunSync(GuardedUserParameterWriteRejectsProtectedNames)),
@@ -31,6 +33,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Prune clears stale descendants", () => RunSync(PruneClearsStaleDescendants)),
     ("Signal lookup works for descendants", () => RunSync(SignalLookupWorksForDescendants)),
     ("Signal update fires for descendant updates", () => RunSync(SignalUpdateFiresForDescendantUpdates)),
+    ("UI folder child source update preserves request child", () => RunSync(UiFolderChildSourceUpdatePreservesRequestChild)),
     ("Host item broker client receives live items", HostItemBrokerClientReceivesLiveItems),
     ("Host item broker client hides self-published items", HostItemBrokerClientHidesSelfPublishedItems),
     ("Host item broker client snapshots are detached", HostItemBrokerClientSnapshotsAreDetached),
@@ -147,6 +150,25 @@ static void UpdateValueUpdatesDescendantItem()
     AssertEqual(4, resolved?.Value);
 }
 
+static void UpdateValueIgnoresUnchangedDescendantItem()
+{
+    var registry = new DataRegistry();
+    registry.UpsertSnapshot("Runtime.Device", CreateDeviceSnapshot(1));
+    var changeCount = 0;
+    registry.ItemChanged += (_, e) =>
+    {
+        if (e.ChangeKind == DataChangeKind.ValueUpdated)
+        {
+            changeCount++;
+        }
+    };
+
+    AssertTrue(registry.UpdateValue("Runtime.Device.Read", 1));
+    AssertTrue(registry.TryResolve("Runtime.Device.Read", out var resolved));
+    AssertEqual(1, resolved?.Value);
+    AssertEqual(0, changeCount);
+}
+
 static void UpdateValueConvertsNumericPayloadsToExistingType()
 {
     var registry = new DataRegistry();
@@ -166,6 +188,25 @@ static void UpdateParameterUpdatesDescendantParameter()
     AssertTrue(registry.UpdateParameter("Runtime.Device.Read", "Unit", "bar"));
     AssertTrue(registry.TryResolve("Runtime.Device.Read", out var resolved));
     AssertEqual("bar", resolved?.Params["Unit"].Value);
+}
+
+static void UpdateParameterIgnoresUnchangedDescendantParameter()
+{
+    var registry = new DataRegistry();
+    registry.UpsertSnapshot("Runtime.Device", CreateDeviceSnapshot(1));
+    var changeCount = 0;
+    registry.ItemChanged += (_, e) =>
+    {
+        if (e.ChangeKind == DataChangeKind.ParameterUpdated)
+        {
+            changeCount++;
+        }
+    };
+
+    AssertTrue(registry.UpdateParameter("Runtime.Device.Read", "Unit", "V"));
+    AssertTrue(registry.TryResolve("Runtime.Device.Read", out var resolved));
+    AssertEqual("V", resolved?.Params["Unit"].Value);
+    AssertEqual(0, changeCount);
 }
 
 static void UpdateParameterConvertsNumericPayloadsToExistingType()
@@ -294,6 +335,24 @@ static void SignalUpdateFiresForDescendantUpdates()
     AssertEqual(5, changedValue);
 }
 
+static void UiFolderChildSourceUpdatePreservesRequestChild()
+{
+    var source = new Item("m300", 0).Repath("Runtime.UiFolderMirror.m300");
+    source["Read"].Value = 0;
+    source["Set"]["Request"].Value = 0;
+    using var context = new UiFolderContext("MirrorTest");
+    var attached = context.Attach(source, "m300");
+    HostRegistries.Data.UpsertSnapshot(attached.Path!, attached);
+
+    AssertTrue(HostRegistries.Data.UpdateValue("Studio.MirrorTest.m300.Set.Request", 42));
+    source["Read"].Value = 1;
+
+    AssertTrue(HostRegistries.Data.TryResolve("Studio.MirrorTest.m300.Read", out var read));
+    AssertEqual(1, read?.Value);
+    AssertTrue(HostRegistries.Data.TryResolve("Studio.MirrorTest.m300.Set.Request", out var request));
+    AssertEqual(42, request?.Value);
+}
+
 static async Task HostItemBrokerClientReceivesLiveItems()
 {
     var port = GetAvailableTcpPort();
@@ -318,7 +377,7 @@ static async Task HostItemBrokerClientReceivesLiveItems()
             ReconnectDelay = TimeSpan.FromMilliseconds(10),
         });
 
-        await publisher.PublishValueAsync("Edm1.Temperature", 23.5).ConfigureAwait(false);
+        await publisher.UpdateValueAsync(new Item("Temperature", 23.5).Repath("Edm1.Temperature")).ConfigureAwait(false);
 
         var deadline = DateTimeOffset.UtcNow.AddSeconds(2);
         while (DateTimeOffset.UtcNow < deadline)
@@ -356,7 +415,7 @@ static async Task HostItemBrokerClientHidesSelfPublishedItems()
         await using var hostClient = new HostItemBrokerClient("BrokerWidgetSelfEcho", IPAddress.Loopback.ToString(), port, "hornet", "hornet-studio-self-echo-test");
         await hostClient.ConnectAsync().ConfigureAwait(false);
 
-        await hostClient.PublishItemAsync(new Item("Pressure", 12.5).Repath("Studio.SelfEcho.Pressure"), "Studio.SelfEcho.Pressure").ConfigureAwait(false);
+        await hostClient.PublishSnapshotAsync(new Item("Pressure", 12.5).Repath("Studio.SelfEcho.Pressure")).ConfigureAwait(false);
         await Task.Delay(TimeSpan.FromMilliseconds(500)).ConfigureAwait(false);
 
         AssertFalse(hostClient.GetItemSnapshots().Values.Any(root => ContainsItemPath(root, "Studio.SelfEcho.Pressure")));
@@ -392,7 +451,7 @@ static async Task HostItemBrokerClientSnapshotsAreDetached()
             ReconnectDelay = TimeSpan.FromMilliseconds(10),
         });
 
-        await publisher.PublishValueAsync("Edm1.Temperature", 23.5).ConfigureAwait(false);
+        await publisher.UpdateValueAsync(new Item("Temperature", 23.5).Repath("Edm1.Temperature")).ConfigureAwait(false);
         await WaitForSnapshotAsync(hostClient, "shared").ConfigureAwait(false);
 
         var snapshot = hostClient.GetItemSnapshots();
@@ -433,7 +492,7 @@ static async Task HostItemBrokerClientPublishesLocalSnapshots()
         });
         await receiver.ConnectAsync().ConfigureAwait(false);
 
-        await publisher.PublishItemAsync(new Item("Pressure", 12.5).Repath("Studio.DefaultLayout.Edm1.Pressure"), "Studio.DefaultLayout.Edm1.Pressure").ConfigureAwait(false);
+        await publisher.PublishSnapshotAsync(new Item("Pressure", 12.5).Repath("Studio.DefaultLayout.Edm1.Pressure")).ConfigureAwait(false);
 
         var deadline = DateTimeOffset.UtcNow.AddSeconds(2);
         while (DateTimeOffset.UtcNow < deadline)

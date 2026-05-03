@@ -6,7 +6,7 @@ Dieses Dokument beschreibt den Datenfluss im Host, wie Messwerte aktualisiert we
 
 **Kernkomponenten**
 
-- `Amium.Item.Item`
+- `Amium.Items.Item`
   - Baumstruktur von Messpunkten und Gruppen.
   - Wichtige Parameter (`Item.Params[...]`):
     - `Name` – Anzeigename des Items

@@ -6,7 +6,7 @@ using Amium.ItemBroker;
 using Amium.ItemBroker.Client;
 using MQTTnet;
 using MQTTnet.Exceptions;
-using ItemModel = Amium.Item.Item;
+using ItemModel = Amium.Items.Item;
 
 namespace Amium.ItemBroker.Mqtt.Client;
 
@@ -20,9 +20,7 @@ public sealed class MqttItemBrokerClientSession : IItemBrokerClientSession, IAsy
     private readonly MqttItemBrokerClientOptions _options;
     private readonly MqttItemTopicMapper _topicMapper;
     private readonly IItemBrokerClock _clock;
-    private readonly IItemPublishPolicyResolver _publishPolicyResolver;
     private readonly MqttClientFactory _mqttFactory = new();
-    private readonly ConcurrentDictionary<string, PublishedItemState> _publishedStates = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, MqttItemSubscription> _subscriptions = new(StringComparer.OrdinalIgnoreCase);
     private IMqttClient? _client;
     private bool _isSubscribedToItems;
@@ -33,11 +31,9 @@ public sealed class MqttItemBrokerClientSession : IItemBrokerClientSession, IAsy
     /// </summary>
     /// <param name="options">The MQTT client options.</param>
     /// <param name="clock">The optional timestamp source.</param>
-    /// <param name="publishPolicyResolver">The optional publish policy resolver.</param>
     public MqttItemBrokerClientSession(
         MqttItemBrokerClientOptions options,
-        IItemBrokerClock? clock = null,
-        IItemPublishPolicyResolver? publishPolicyResolver = null)
+        IItemBrokerClock? clock = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.ClientId);
@@ -47,7 +43,6 @@ public sealed class MqttItemBrokerClientSession : IItemBrokerClientSession, IAsy
         _options = options;
         _topicMapper = new MqttItemTopicMapper(options.BaseTopic);
         _clock = clock ?? new SystemItemBrokerClock();
-        _publishPolicyResolver = publishPolicyResolver ?? new DefaultItemPublishPolicyResolver();
     }
 
     /// <inheritdoc />
@@ -67,256 +62,73 @@ public sealed class MqttItemBrokerClientSession : IItemBrokerClientSession, IAsy
         => EnsureConnectedAsync(cancellationToken);
 
     /// <inheritdoc />
-    Task IItemBrokerClientSession.PublishItemAsync(
-        ItemModel item,
-        string? path,
-        ItemPublishPolicy? policy,
-        string? correlationId,
-        CancellationToken cancellationToken)
-        => PublishItemAsync(
-            item: item,
-            path: path,
-            policy: policy,
-            correlationId: correlationId,
-            retained: false,
-            cancellationToken: cancellationToken);
-
-    /// <summary>
-    /// Publishes an item snapshot or optimized item delta.
-    /// </summary>
-    /// <param name="item">The item to publish.</param>
-    /// <param name="path">The optional item path override.</param>
-    /// <param name="policy">The optional publish policy.</param>
-    /// <param name="correlationId">The optional correlation id.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <param name="retained">A value indicating whether MQTT should retain the published messages.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task PublishItemAsync(
-        ItemModel item,
-        string? path = null,
-        ItemPublishPolicy? policy = null,
-        string? correlationId = null,
-        CancellationToken cancellationToken = default,
-        bool retained = false)
-    {
-        ArgumentNullException.ThrowIfNull(item);
-
-        foreach (var publishItem in EnumerateItems(item, path))
-        {
-            var normalizedPath = publishItem.Path;
-            var nextState = PublishedItemState.From(publishItem.Item);
-            var requiresSnapshot = !_publishedStates.TryGetValue(normalizedPath, out var previousState);
-            var decision = policy is null
-                ? _publishPolicyResolver.Resolve(path: normalizedPath, isSnapshotRequired: requiresSnapshot)
-                : new ItemPublishDecision(policy.Mode, ShouldPublish: true);
-
-            if (!decision.ShouldPublish)
-            {
-                continue;
-            }
-
-            if (requiresSnapshot || decision.Mode == ItemPublishMode.Snapshot)
-            {
-                await PublishValueAsync(
-                    path: normalizedPath,
-                    value: nextState.Value,
-                    correlationId: correlationId,
-                    retained: retained,
-                    cancellationToken: cancellationToken).ConfigureAwait(false);
-
-                foreach (var parameter in publishItem.Item.Params.GetDictionary())
-                {
-                    await PublishParameterAsync(
-                        path: normalizedPath,
-                        parameterName: parameter.Key,
-                        value: parameter.Value.Value,
-                        correlationId: correlationId,
-                        retained: retained,
-                        cancellationToken: cancellationToken).ConfigureAwait(false);
-                }
-
-                _publishedStates[normalizedPath] = nextState;
-                continue;
-            }
-
-            if (!Equals(previousState!.Value, nextState.Value))
-            {
-                await PublishValueAsync(
-                    path: normalizedPath,
-                    value: nextState.Value,
-                    correlationId: correlationId,
-                    retained: retained,
-                    cancellationToken: cancellationToken).ConfigureAwait(false);
-            }
-
-            foreach (var parameter in nextState.Parameters)
-            {
-                if (!previousState.Parameters.TryGetValue(parameter.Key, out var previousValue) || !Equals(previousValue, parameter.Value))
-                {
-                    await PublishParameterAsync(
-                        path: normalizedPath,
-                        parameterName: parameter.Key,
-                        value: parameter.Value,
-                        correlationId: correlationId,
-                        retained: retained,
-                        cancellationToken: cancellationToken).ConfigureAwait(false);
-                }
-            }
-
-            _publishedStates[normalizedPath] = nextState;
-        }
-    }
-
     /// <inheritdoc />
-    Task IItemBrokerClientSession.PublishValueAsync(string path, object? value, string? correlationId, CancellationToken cancellationToken)
-        => PublishValueAsync(
-            path: path,
-            value: value,
-            correlationId: correlationId,
-            retained: false,
-            cancellationToken: cancellationToken);
-
-    /// <summary>
-    /// Publishes a value delta for an item.
-    /// </summary>
-    /// <param name="path">The item path.</param>
-    /// <param name="value">The value to publish.</param>
-    /// <param name="correlationId">The optional correlation id.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <param name="retained">A value indicating whether MQTT should retain the published message.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    public Task PublishValueAsync(
-        string path,
-        object? value,
-        string? correlationId = null,
-        CancellationToken cancellationToken = default,
-        bool retained = false)
-        => PublishParameterTopicAsync(path, "Value", value, retained, cancellationToken);
-
-    /// <inheritdoc />
-    Task IItemBrokerClientSession.PublishValueAsync(ItemModel item, string? correlationId, CancellationToken cancellationToken)
-        => PublishValueAsync(
-            item: item,
-            correlationId: correlationId,
-            retained: false,
-            cancellationToken: cancellationToken);
-
-    /// <summary>
-    /// Publishes the current value of an item as a value delta.
-    /// </summary>
-    /// <param name="item">The item whose current value should be published.</param>
-    /// <param name="correlationId">The optional correlation id.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <param name="retained">A value indicating whether MQTT should retain the published message.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task PublishValueAsync(
+    public async Task PublishSnapshotAsync(
         ItemModel item,
+        bool retained = true,
         string? correlationId = null,
-        CancellationToken cancellationToken = default,
-        bool retained = false)
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(item);
 
         foreach (var publishItem in EnumerateItems(item))
         {
-            await PublishValueAsync(
+            await PublishValuePathAsync(
                 path: publishItem.Path,
                 value: publishItem.Item.Value,
                 correlationId: correlationId,
                 retained: retained,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            foreach (var parameter in publishItem.Item.Params.GetDictionary())
+            {
+                await PublishParameterPathAsync(
+                    path: publishItem.Path,
+                    parameterName: parameter.Key,
+                    value: parameter.Value.Value,
+                    correlationId: correlationId,
+                    retained: retained,
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 
     /// <inheritdoc />
-    Task IItemBrokerClientSession.PublishParameterAsync(
-        string path,
-        string parameterName,
-        object? value,
-        string? correlationId,
-        CancellationToken cancellationToken)
-        => PublishParameterAsync(
-            path: path,
-            parameterName: parameterName,
-            value: value,
-            correlationId: correlationId,
-            retained: false,
-            cancellationToken: cancellationToken);
-
-    /// <summary>
-    /// Publishes a parameter delta for an item.
-    /// </summary>
-    /// <param name="path">The item path.</param>
-    /// <param name="parameterName">The parameter name.</param>
-    /// <param name="value">The value to publish.</param>
-    /// <param name="correlationId">The optional correlation id.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <param name="retained">A value indicating whether MQTT should retain the published message.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    public Task PublishParameterAsync(
-        string path,
-        string parameterName,
-        object? value,
-        string? correlationId = null,
-        CancellationToken cancellationToken = default,
-        bool retained = false)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(parameterName);
-        return PublishParameterTopicAsync(path, parameterName, value, retained, cancellationToken);
-    }
-
-    /// <inheritdoc />
-    Task IItemBrokerClientSession.PublishParameterAsync(
+    public Task<ItemBrokerAckMessage> UpdateValueAsync(
         ItemModel item,
-        string parameterName,
-        string? correlationId,
-        CancellationToken cancellationToken)
-        => PublishParameterAsync(
+        bool retained = false,
+        string? correlationId = null,
+        CancellationToken cancellationToken = default)
+        => UpdateParameterAsync(
             item: item,
-            parameterName: parameterName,
-            correlationId: correlationId,
-            retained: false,
-            cancellationToken: cancellationToken);
-
-    /// <summary>
-    /// Publishes the current value of a named item parameter as a parameter delta.
-    /// </summary>
-    /// <param name="item">The item that owns the parameter.</param>
-    /// <param name="parameterName">The parameter name.</param>
-    /// <param name="correlationId">The optional correlation id.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <param name="retained">A value indicating whether MQTT should retain the published message.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    public Task PublishParameterAsync(
-        ItemModel item,
-        string parameterName,
-        string? correlationId = null,
-        CancellationToken cancellationToken = default,
-        bool retained = false)
-    {
-        ArgumentNullException.ThrowIfNull(item);
-        ArgumentException.ThrowIfNullOrWhiteSpace(parameterName);
-
-        return PublishParameterAsync(
-            path: ResolveItemPath(item),
-            parameterName: parameterName,
-            value: item.Params[parameterName].Value,
-            correlationId: correlationId,
+            parameterName: "Value",
             retained: retained,
+            correlationId: correlationId,
             cancellationToken: cancellationToken);
-    }
 
     /// <inheritdoc />
-    public async Task<ItemBrokerAckMessage> WriteAsync(
-        string path,
-        object? value,
-        string parameterName = "Value",
+    public async Task<ItemBrokerAckMessage> UpdateParameterAsync(
+        ItemModel item,
+        string parameterName,
+        bool retained = false,
         string? correlationId = null,
         CancellationToken cancellationToken = default)
     {
-        var normalizedPath = ItemBrokerPath.Normalize(path);
+        ArgumentNullException.ThrowIfNull(item);
+        ArgumentException.ThrowIfNullOrWhiteSpace(parameterName);
+        var normalizedPath = ItemBrokerItemPath.Resolve(item);
         var normalizedParameterName = string.IsNullOrWhiteSpace(parameterName) ? "Value" : parameterName.Trim();
-        await PublishParameterTopicAsync(normalizedPath, normalizedParameterName, value, retained: true, cancellationToken).ConfigureAwait(false);
+        var value = string.Equals(normalizedParameterName, "Value", StringComparison.OrdinalIgnoreCase)
+            ? item.Value
+            : item.Params[normalizedParameterName].Value;
+
+        await PublishParameterPathAsync(
+            path: normalizedPath,
+            parameterName: normalizedParameterName,
+            value: value,
+            correlationId: correlationId,
+            retained: retained,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
 
         return new ItemBrokerAckMessage(
             Path: normalizedPath,
@@ -366,7 +178,21 @@ public sealed class MqttItemBrokerClientSession : IItemBrokerClientSession, IAsy
         }
     }
 
-    private async Task PublishParameterTopicAsync(string path, string parameterName, object? value, bool retained, CancellationToken cancellationToken)
+    private Task PublishValuePathAsync(
+        string path,
+        object? value,
+        string? correlationId,
+        bool retained,
+        CancellationToken cancellationToken)
+        => PublishParameterPathAsync(path, "Value", value, correlationId, retained, cancellationToken);
+
+    private async Task PublishParameterPathAsync(
+        string path,
+        string parameterName,
+        object? value,
+        string? correlationId,
+        bool retained,
+        CancellationToken cancellationToken)
     {
         var topic = _topicMapper.ToTopic(path, parameterName, ClientId);
         var message = new MqttApplicationMessageBuilder()
@@ -541,15 +367,9 @@ public sealed class MqttItemBrokerClientSession : IItemBrokerClientSession, IAsy
         return payload;
     }
 
-    private static string ResolveItemPath(ItemModel item, string? path = null)
+    private static IEnumerable<PublishItem> EnumerateItems(ItemModel root)
     {
-        ArgumentNullException.ThrowIfNull(item);
-        return ItemBrokerPath.Normalize(path ?? item.Path ?? item.Name ?? throw new ArgumentException("Item must provide a path or name.", nameof(item)));
-    }
-
-    private static IEnumerable<PublishItem> EnumerateItems(ItemModel root, string? rootPath = null)
-    {
-        yield return new PublishItem(root, ResolveItemPath(root, rootPath));
+        yield return new PublishItem(root, ItemBrokerItemPath.Resolve(root));
 
         foreach (var child in root.GetDictionary().Values)
         {
@@ -597,19 +417,6 @@ public sealed class MqttItemBrokerClientSession : IItemBrokerClientSession, IAsy
         {
             _remove(SubscriptionId);
             return ValueTask.CompletedTask;
-        }
-    }
-
-    private sealed record PublishedItemState(object? Value, IReadOnlyDictionary<string, object?> Parameters)
-    {
-        public static PublishedItemState From(ItemModel item)
-        {
-            var parameters = item.Params
-                .GetDictionary()
-                .Where(parameter => !string.Equals(parameter.Key, "Value", StringComparison.OrdinalIgnoreCase))
-                .ToDictionary(parameter => parameter.Key, parameter => parameter.Value.Value, StringComparer.OrdinalIgnoreCase);
-
-            return new PublishedItemState(item.Value, parameters);
         }
     }
 }

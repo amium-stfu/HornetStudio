@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
-using Amium.Item;
-using ItemModel = Amium.Item.Item;
+using Amium.Items;
+using ItemModel = Amium.Items.Item;
 
 namespace Amium.ItemBroker;
 

@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using Amium.Item;
+using Amium.Items;
 using HornetStudio.Editor.Models;
 
 namespace HornetStudio.Editor.ViewModels;

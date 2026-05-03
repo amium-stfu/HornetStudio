@@ -1,5 +1,5 @@
 using System;
-using Amium.Item;
+using Amium.Items;
 using HornetStudio.Editor.Models;
 
 namespace HornetStudio.Host

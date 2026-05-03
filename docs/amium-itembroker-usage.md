@@ -5,13 +5,14 @@
 The current broker implementation can be used in-process through `Amium.ItemBroker`. It supports:
 
 - Publishing item snapshots.
-- Publishing value and parameter deltas.
+- Updating values and parameters through one public update model.
 - Subscribing to exact or recursive paths.
 - Delivering retained snapshots to new subscribers.
 - Removing retained paths.
-- Routing write requests to the last publisher of a path or nearest ancestor.
+- Protecting existing item owners from implicit overwrite.
+- Routing non-owner updates to the registered owner.
 
-`Amium.ItemBroker.Service` starts the broker core and enables the local MQTT inspection transport by default on `127.0.0.1:1883` with broker state below `hornet/broker/...` and client-owned item data below `clients/...`.
+`Amium.ItemBroker.Service` starts a reusable selfhosted MQTT ItemBroker host on `127.0.0.1:1883` by default. The host publishes broker-owned health state below `hornet/broker/...` and accepts shared item participation below `hornet/...`.
 
 ## In-Process Broker
 
@@ -21,38 +22,37 @@ Applications can create an in-memory broker directly:
 var broker = new InMemoryItemBroker();
 ```
 
-Publishers can send snapshots and deltas:
+Publishers can register ownership with a snapshot and then send later updates without constructing transport-style messages:
 
 ```csharp
 await broker.PublishSnapshotAsync(
-    message: new ItemSnapshotMessage(
-        Path: "Runtime.Device.Read",
-        Item: item,
-        SourceClientId: "device-client",
-        CorrelationId: null,
-        Timestamp: DateTimeOffset.UtcNow));
+    item: item,
+    retained: true,
+    sourceClientId: "device-client");
 
-await broker.PublishValueChangedAsync(
-    message: new ItemValueChangedMessage(
-        Path: "Runtime.Device.Read",
-        Value: 42,
-        SourceClientId: "device-client",
-        CorrelationId: null,
-        Timestamp: DateTimeOffset.UtcNow));
+await broker.UpdateValueAsync(
+    item: new Item("Read", 42).Repath("Runtime.Device.Read"),
+    sourceClientId: "device-client");
 ```
+
+Ownership is explicit:
+
+- The first snapshot for a path registers the owner.
+- The same owner can publish the snapshot again to refresh it.
+- A different owner cannot claim an already owned path implicitly.
+- Later value and parameter changes should use `UpdateValueAsync(...)` and `UpdateParameterAsync(...)`.
 
 Subscribers register an `IItemBrokerClient`:
 
 ```csharp
 await broker.SubscribeAsync(
     client: client,
-    message: new ItemSubscribeMessage(
-        Path: "Runtime.Device",
-        Recursive: true,
-        IncludeRetained: true,
-        SourceClientId: client.ClientId,
-        CorrelationId: null,
-        Timestamp: DateTimeOffset.UtcNow));
+    path: "Runtime.Device",
+    options: new ItemSubscriptionOptions
+    {
+        Recursive = true,
+        IncludeRetained = true,
+    });
 ```
 
 ## Client SDK
@@ -65,10 +65,9 @@ var session = new ItemBrokerClientSession(
     clientId: "device-client",
     broker: broker);
 
-await session.PublishItemAsync(item: item);
-await session.PublishValueAsync(path: "Runtime.Device.Read", value: 42);
-await session.PublishParameterAsync(path: "Runtime.Device.Read", parameterName: "Unit", value: "V");
-await session.WriteAsync(path: "Runtime.Device.Write", value: true);
+await session.PublishSnapshotAsync(item: item);
+await session.UpdateValueAsync(item: new Item("Read", 42).Repath("Runtime.Device.Read"));
+await session.UpdateParameterAsync(item: item, parameterName: "Unit");
 ```
 
 Subscriptions can be registered with options:
@@ -87,7 +86,7 @@ await session.SubscribeAsync(
     });
 ```
 
-The current SDK publishes a snapshot the first time an item path is sent and value or parameter deltas on later changes. Future work can add transport reconnect handling, batching, and throttling.
+If the session owns the target path, `Update...` applies the change locally in the broker. If another owner is registered, the broker turns the update into a routed write request for that owner. Future work can add transport reconnect handling, batching, and throttling.
 
 ## Demo Client
 
@@ -97,7 +96,46 @@ Start `Amium.ItemBroker.Service` first, then run the demo client to publish two 
 dotnet run --project src/Amium.ItemBroker.DemoClient/Amium.ItemBroker.DemoClient.csproj
 ```
 
-The demo publishes `Runtime.Demo.Temperature` and `Runtime.Demo.Pressure` under `clients/demo-client/...`.
+The demo publishes `Runtime.Demo.Temperature` and `Runtime.Demo.Pressure` under `hornet/Runtime/Demo/...`.
+
+## Selfhosted MQTT Host
+
+Applications that want to host the broker and MQTT surface without HornetStudio can use `Amium.ItemBroker.Mqtt` directly:
+
+```csharp
+var host = new MqttItemBrokerHost(new MqttItemBrokerOptions
+{
+    Host = "127.0.0.1",
+    Port = 1883,
+    BaseTopic = "hornet",
+    ClientId = "device-broker",
+});
+
+await host.StartAsync();
+```
+
+The host owns an `IItemBroker` instance through `host.Broker` and publishes health items automatically unless `PublishHealth` is disabled.
+
+Low-level `ItemBrokerMessage` records still exist for routed broker events, retained snapshots, acknowledgements, and transport adapters, but normal in-process broker usage should prefer the slim operation-based API above.
+
+## Remote MQTT Client
+
+Applications that want to join an existing MQTT-backed ItemBroker can use the lower-level session or the higher-level remote client facade from `Amium.ItemBroker.Mqtt.Client`:
+
+```csharp
+await using var client = new MqttRemoteItemClient(new MqttItemBrokerClientOptions
+{
+    Host = "127.0.0.1",
+    Port = 1883,
+    BaseTopic = "hornet",
+    ClientId = "monitoring-app",
+});
+
+await client.ConnectAsync();
+var roots = client.GetRemoteItemSnapshots();
+```
+
+`MqttRemoteItemClient` keeps remote item snapshots for external consumers, supports publishing local snapshots, and hides the same paths from its visible remote mirror so hybrid scenarios do not reflect their own published items back as remote data.
 
 ## Retained vs Non-Retained Data
 
@@ -121,8 +159,8 @@ The broker is the central authority for retained state. A client SDK may choose 
 
 For 100 Hz measurements, avoid publishing a full item snapshot on every update. Prefer:
 
-- `PublishValueAsync(...)` for value deltas.
-- `PublishParameterAsync(...)` only when metadata changes.
+- `UpdateValueAsync(...)` for later value changes after snapshot registration.
+- `UpdateParameterAsync(...)` only when metadata changes.
 - Latest-only behavior for displays that only need the newest value.
 - Throttled latest behavior for external tools.
 - Batch intervals for transports that benefit from grouped updates.
@@ -146,7 +184,7 @@ Subscribe to:
 
 ```text
 hornet/broker/#
-clients/#
+hornet/#
 ```
 
 Broker-owned health output uses compact `hornet/broker/...` topics:
@@ -156,19 +194,19 @@ Runtime.Health.ItemBroker.Heartbeat + Value
 hornet/broker/heartbeat
 ```
 
-Client-owned values use the broker message source id as MQTT `clientId`:
+Shared client-owned values use flat item topics:
 
 ```text
 Runtime.Device.Read + Value from source client device-client
-clients/device-client/Runtime/Device/Read
+hornet/Runtime/Device/Read
 
 Runtime.Device.Read + Unit from source client device-client
-clients/device-client/Runtime/Device/Read/params/Unit
+hornet/Runtime/Device/Read/params/Unit
 ```
 
-If a broker message has no source id, the MQTT adapter uses `unknown` as the topic client id. The service publishes retained health values immediately so MQTT Explorer shows visible data under `hornet/broker/#`.
+The service publishes retained health values immediately so MQTT Explorer shows visible data under `hornet/broker/#`.
 
-Incoming MQTT publishes under `clients/{clientId}/#` are mapped back to broker item path plus parameter. If the item is marked with `Writable=true`, the adapter routes the publish as a broker write request. Otherwise, item-topic updates become value changes and `params/{parameter}` updates become parameter changes.
+Incoming MQTT publishes under `hornet/#` are mapped back to broker item path plus parameter. A publish on the same shared topic is treated as a write attempt only when the item is marked with `Writable=true`; the local owner must then accept the change and republish the confirmed value. Non-writable item-topic publishes are rejected instead of being applied as competing state. Rejection diagnostics can be enabled with the `Amium.ItemBroker.Mqtt.WriteDiagnostics` AppContext switch.
 
 ## Health Data
 

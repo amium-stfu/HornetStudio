@@ -10,38 +10,51 @@ public sealed class InMemoryItemBroker : IItemBroker
     private const string BrokerClientId = "ItemBroker";
     private readonly IItemBrokerStore _store;
     private readonly IItemBrokerClock _clock;
-    private readonly IItemRetentionPolicyResolver _retentionPolicyResolver;
     private readonly ConcurrentDictionary<string, BrokerSubscription> _subscriptions = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, IItemBrokerClient> _clients = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<string, string> _lastPublishersByPath = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, string> _ownersByPath = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="InMemoryItemBroker"/> class.
     /// </summary>
     /// <param name="store">The retained state store.</param>
     /// <param name="clock">The timestamp source.</param>
-    /// <param name="retentionPolicyResolver">The central retention policy resolver.</param>
     public InMemoryItemBroker(
         IItemBrokerStore? store = null,
-        IItemBrokerClock? clock = null,
-        IItemRetentionPolicyResolver? retentionPolicyResolver = null)
+        IItemBrokerClock? clock = null)
     {
         _store = store ?? new InMemoryItemBrokerStore();
         _clock = clock ?? new SystemItemBrokerClock();
-        _retentionPolicyResolver = retentionPolicyResolver ?? new DefaultItemRetentionPolicyResolver();
     }
 
     /// <inheritdoc />
-    public async Task<IItemSubscription> SubscribeAsync(IItemBrokerClient client, ItemSubscribeMessage message, CancellationToken cancellationToken = default)
+    public async Task<IItemSubscription> SubscribeAsync(
+        IItemBrokerClient client,
+        string path,
+        ItemSubscriptionOptions? options = null,
+        string? correlationId = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(client);
-        ArgumentNullException.ThrowIfNull(message);
+
+        var selectedOptions = options ?? ItemSubscriptionOptions.Default;
+        var normalizedPath = ItemBrokerPath.Normalize(path);
+        var message = new ItemSubscribeMessage(
+            Path: normalizedPath,
+            Recursive: selectedOptions.Recursive,
+            IncludeRetained: selectedOptions.IncludeRetained,
+            SourceClientId: client.ClientId,
+            CorrelationId: correlationId,
+            Timestamp: _clock.GetUtcNow())
+        {
+            Options = selectedOptions,
+        };
 
         _clients[client.ClientId] = client;
         var subscription = new BrokerSubscription(
             subscriptionId: Guid.NewGuid().ToString("N"),
             client: client,
-            path: ItemBrokerPath.Normalize(message.Path),
+            path: normalizedPath,
             recursive: message.Options.Recursive,
             onDispose: RemoveSubscription);
 
@@ -59,124 +72,219 @@ public sealed class InMemoryItemBroker : IItemBroker
     }
 
     /// <inheritdoc />
-    public async Task PublishSnapshotAsync(ItemSnapshotMessage message, CancellationToken cancellationToken = default)
+    public async Task PublishSnapshotAsync(
+        Amium.Items.Item item,
+        bool retained = true,
+        string? sourceClientId = null,
+        string? correlationId = null,
+        CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(message);
+        ArgumentNullException.ThrowIfNull(item);
 
-        var normalized = message with { Path = ItemBrokerPath.Normalize(message.Path) };
-        if (ShouldRetain(normalized))
+        var normalizedPath = ItemBrokerItemPath.Resolve(item);
+        var ownerClientId = NormalizeClientId(sourceClientId)
+            ?? throw new InvalidOperationException($"A source client id is required to register ownership for '{normalizedPath}'.");
+        EnsureSnapshotOwnership(normalizedPath, ownerClientId);
+
+        var normalized = new ItemSnapshotMessage(
+            Path: normalizedPath,
+            Item: item,
+            SourceClientId: ownerClientId,
+            CorrelationId: correlationId,
+            Timestamp: _clock.GetUtcNow());
+        if (retained)
         {
             _store.UpsertSnapshot(normalized);
         }
 
-        TrackPublisher(normalized.Path, normalized.SourceClientId);
+        _ownersByPath[normalized.Path] = ownerClientId;
         await RouteToSubscribersAsync(normalized, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public async Task PublishValueChangedAsync(ItemValueChangedMessage message, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(message);
+    public Task<ItemBrokerAckMessage> UpdateValueAsync(
+        Amium.Items.Item item,
+        bool retained = false,
+        string? sourceClientId = null,
+        string? correlationId = null,
+        string? replyTo = null,
+        CancellationToken cancellationToken = default)
+        => UpdateParameterAsync(
+            item: item,
+            parameterName: "Value",
+            retained: retained,
+            sourceClientId: sourceClientId,
+            correlationId: correlationId,
+            replyTo: replyTo,
+            cancellationToken: cancellationToken);
 
-        var normalized = message with { Path = ItemBrokerPath.Normalize(message.Path) };
-        if (ShouldRetain(normalized))
+    /// <inheritdoc />
+    public async Task<ItemBrokerAckMessage> UpdateParameterAsync(
+        Amium.Items.Item item,
+        string parameterName,
+        bool retained = false,
+        string? sourceClientId = null,
+        string? correlationId = null,
+        string? replyTo = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        ArgumentException.ThrowIfNullOrWhiteSpace(parameterName);
+
+        var normalizedPath = ItemBrokerItemPath.Resolve(item);
+        var normalizedParameterName = string.IsNullOrWhiteSpace(parameterName) ? "Value" : parameterName.Trim();
+        var ownerRegistration = FindOwnerRegistration(normalizedPath);
+        if (ownerRegistration is null)
         {
-            _store.UpdateValue(normalized);
+            return CreateAck(
+                path: normalizedPath,
+                accepted: false,
+                reason: $"No owner is registered for item path '{normalizedPath}'.",
+                correlationId: correlationId);
         }
 
-        TrackPublisher(normalized.Path, normalized.SourceClientId);
-        await RouteToSubscribersAsync(normalized, cancellationToken).ConfigureAwait(false);
-    }
+        var senderClientId = NormalizeClientId(sourceClientId);
+        var value = string.Equals(normalizedParameterName, "Value", StringComparison.OrdinalIgnoreCase)
+            ? item.Value
+            : item.Params[normalizedParameterName].Value;
 
-    /// <inheritdoc />
-    public async Task PublishParameterChangedAsync(ItemParameterChangedMessage message, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(message);
-
-        var normalized = message with { Path = ItemBrokerPath.Normalize(message.Path) };
-        if (ShouldRetain(normalized))
+        if (string.Equals(ownerRegistration.Value.OwnerClientId, senderClientId, StringComparison.OrdinalIgnoreCase))
         {
-            _store.UpdateParameter(normalized);
+            if (string.Equals(normalizedParameterName, "Value", StringComparison.OrdinalIgnoreCase))
+            {
+                var valueMessage = new ItemValueChangedMessage(
+                    Path: normalizedPath,
+                    Value: value,
+                    SourceClientId: senderClientId,
+                    CorrelationId: correlationId,
+                    Timestamp: _clock.GetUtcNow());
+                if (retained)
+                {
+                    _store.UpdateValue(valueMessage);
+                }
+
+                await RouteToSubscribersAsync(valueMessage, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                var parameterMessage = new ItemParameterChangedMessage(
+                    Path: normalizedPath,
+                    ParameterName: normalizedParameterName,
+                    Value: value,
+                    SourceClientId: senderClientId,
+                    CorrelationId: correlationId,
+                    Timestamp: _clock.GetUtcNow());
+                if (retained)
+                {
+                    _store.UpdateParameter(parameterMessage);
+                }
+
+                await RouteToSubscribersAsync(parameterMessage, cancellationToken).ConfigureAwait(false);
+            }
+
+            return CreateAck(path: normalizedPath, accepted: true, reason: null, correlationId: correlationId);
         }
 
-        TrackPublisher(normalized.Path, normalized.SourceClientId);
-        await RouteToSubscribersAsync(normalized, cancellationToken).ConfigureAwait(false);
+        if (!_clients.TryGetValue(ownerRegistration.Value.OwnerClientId, out var ownerClient))
+        {
+            return CreateAck(
+                path: normalizedPath,
+                accepted: false,
+                reason: $"Owner '{ownerRegistration.Value.OwnerClientId}' is not currently available for item path '{normalizedPath}'.",
+                correlationId: correlationId);
+        }
+
+        var writeRequest = new ItemWriteRequestMessage(
+            Path: normalizedPath,
+            ParameterName: normalizedParameterName,
+            Value: value,
+            ReplyTo: replyTo,
+            SourceClientId: senderClientId,
+            CorrelationId: correlationId,
+            Timestamp: _clock.GetUtcNow());
+        await ownerClient.ReceiveAsync(writeRequest, cancellationToken).ConfigureAwait(false);
+
+        return CreateAck(path: normalizedPath, accepted: true, reason: null, correlationId: correlationId);
     }
 
     /// <inheritdoc />
-    public async Task RemoveAsync(ItemRemoveMessage message, CancellationToken cancellationToken = default)
+    public async Task RemoveAsync(
+        Amium.Items.Item item,
+        string? sourceClientId = null,
+        string? correlationId = null,
+        CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(message);
+        ArgumentNullException.ThrowIfNull(item);
 
-        var normalized = message with { Path = ItemBrokerPath.Normalize(message.Path) };
+        var normalizedPath = ItemBrokerItemPath.Resolve(item);
+        EnsureRemoveOwnership(normalizedPath, NormalizeClientId(sourceClientId));
+
+        var normalized = new ItemRemoveMessage(
+            Path: normalizedPath,
+            SourceClientId: sourceClientId,
+            CorrelationId: correlationId,
+            Timestamp: _clock.GetUtcNow());
         _store.Remove(normalized.Path);
 
-        foreach (var path in _lastPublishersByPath.Keys)
+        foreach (var registeredPath in _ownersByPath.Keys)
         {
-            if (ItemBrokerPath.IsSelfOrDescendant(normalized.Path, path))
+            if (ItemBrokerPath.IsSelfOrDescendant(normalized.Path, registeredPath))
             {
-                _lastPublishersByPath.TryRemove(path, out _);
+                _ownersByPath.TryRemove(registeredPath, out _);
             }
         }
 
         await RouteToSubscribersAsync(normalized, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <inheritdoc />
-    public async Task<ItemBrokerAckMessage> WriteAsync(ItemWriteRequestMessage message, CancellationToken cancellationToken = default)
+    private void EnsureSnapshotOwnership(string path, string requestedOwnerClientId)
     {
-        ArgumentNullException.ThrowIfNull(message);
-
-        var normalized = message with
+        foreach (var registration in EnumerateOverlappingOwners(path))
         {
-            Path = ItemBrokerPath.Normalize(message.Path),
-            ParameterName = string.IsNullOrWhiteSpace(message.ParameterName) ? "Value" : message.ParameterName,
-        };
-
-        if (TryGetOwningClient(normalized.Path, out var owner))
-        {
-            await owner.ReceiveAsync(normalized, cancellationToken).ConfigureAwait(false);
-            return new ItemBrokerAckMessage(
-                normalized.Path,
-                Accepted: true,
-                Reason: null,
-                SourceClientId: BrokerClientId,
-                normalized.CorrelationId,
-                _clock.GetUtcNow());
+            if (!string.Equals(registration.OwnerClientId, requestedOwnerClientId, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ItemOwnershipConflictException(
+                    path: path,
+                    existingOwnerClientId: registration.OwnerClientId,
+                    requestedOwnerClientId: requestedOwnerClientId);
+            }
         }
+    }
 
-        var reason = $"No owner is registered for item path '{normalized.Path}'.";
-        return new ItemBrokerAckMessage(
-            normalized.Path,
-            Accepted: false,
-            reason,
+    private void EnsureRemoveOwnership(string path, string? sourceClientId)
+    {
+        foreach (var registration in EnumerateOverlappingOwners(path))
+        {
+            if (string.Equals(registration.OwnerClientId, sourceClientId, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            throw new ItemOwnershipConflictException(
+                path: path,
+                existingOwnerClientId: registration.OwnerClientId,
+                requestedOwnerClientId: sourceClientId ?? string.Empty);
+        }
+    }
+
+    private ItemBrokerAckMessage CreateAck(string path, bool accepted, string? reason, string? correlationId)
+        => new(
+            Path: path,
+            Accepted: accepted,
+            Reason: reason,
             SourceClientId: BrokerClientId,
-            normalized.CorrelationId,
-            _clock.GetUtcNow());
-    }
+            CorrelationId: correlationId,
+            Timestamp: _clock.GetUtcNow());
 
-    private void TrackPublisher(string path, string? sourceClientId)
-    {
-        if (!string.IsNullOrWhiteSpace(sourceClientId))
-        {
-            _lastPublishersByPath[ItemBrokerPath.Normalize(path)] = sourceClientId;
-        }
-    }
-
-    private bool ShouldRetain(ItemBrokerMessage message)
-        => _retentionPolicyResolver.Resolve(message, _clock.GetUtcNow()).ShouldRetain;
-
-    private bool TryGetOwningClient(string path, out IItemBrokerClient client)
+    private OwnershipRegistration? FindOwnerRegistration(string path)
     {
         var normalizedPath = ItemBrokerPath.Normalize(path);
         var currentPath = normalizedPath;
-
         while (true)
         {
-            if (_lastPublishersByPath.TryGetValue(currentPath, out var clientId)
-                && _clients.TryGetValue(clientId, out client!))
+            if (_ownersByPath.TryGetValue(currentPath, out var ownerClientId))
             {
-                return true;
+                return new OwnershipRegistration(currentPath, ownerClientId);
             }
 
             var separatorIndex = currentPath.LastIndexOf('.');
@@ -188,8 +296,20 @@ public sealed class InMemoryItemBroker : IItemBroker
             currentPath = currentPath[..separatorIndex];
         }
 
-        client = null!;
-        return false;
+        return null;
+    }
+
+    private IEnumerable<OwnershipRegistration> EnumerateOverlappingOwners(string path)
+    {
+        var normalizedPath = ItemBrokerPath.Normalize(path);
+        foreach (var entry in _ownersByPath)
+        {
+            if (ItemBrokerPath.IsSelfOrDescendant(normalizedPath, entry.Key)
+                || ItemBrokerPath.IsSelfOrDescendant(entry.Key, normalizedPath))
+            {
+                yield return new OwnershipRegistration(entry.Key, entry.Value);
+            }
+        }
     }
 
     private async Task RouteToSubscribersAsync(ItemBrokerMessage message, CancellationToken cancellationToken)
@@ -207,6 +327,11 @@ public sealed class InMemoryItemBroker : IItemBroker
     {
         _subscriptions.TryRemove(subscriptionId, out _);
     }
+
+    private static string? NormalizeClientId(string? clientId)
+        => string.IsNullOrWhiteSpace(clientId) ? null : clientId.Trim();
+
+    private readonly record struct OwnershipRegistration(string Path, string OwnerClientId);
 
     private sealed class BrokerSubscription : IItemSubscription
     {

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
-using Amium.Item;
+using Amium.Items;
 using Avalonia.Controls;
 using HornetStudio.Editor.Helpers;
 using HornetStudio.Editor.Models;

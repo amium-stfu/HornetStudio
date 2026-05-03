@@ -1,10 +1,10 @@
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text;
-using Amium.Item;
+using Amium.Items;
 using MQTTnet;
 using MQTTnet.Server;
-using ItemModel = Amium.Item.Item;
+using ItemModel = Amium.Items.Item;
 
 namespace Amium.ItemBroker.Mqtt;
 
@@ -14,6 +14,7 @@ namespace Amium.ItemBroker.Mqtt;
 public sealed class MqttItemBrokerAdapter : IItemBrokerTransport, IItemBrokerClient, IMqttMessagePublisher, IAsyncDisposable
 {
     private static readonly TimeSpan InjectedTopicIgnoreWindow = TimeSpan.FromSeconds(2);
+    private const int MaxRejectedWriteDiagnostics = 80;
     private static readonly StringComparer PathComparer = StringComparer.OrdinalIgnoreCase;
     private readonly MqttItemBrokerOptions _options;
     private readonly MqttItemTopicMapper _topicMapper;
@@ -24,6 +25,7 @@ public sealed class MqttItemBrokerAdapter : IItemBrokerTransport, IItemBrokerCli
     private MqttServer? _server;
     private IItemBroker? _broker;
     private IItemSubscription? _subscription;
+    private int _rejectedWriteDiagnosticCount;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MqttItemBrokerAdapter"/> class.
@@ -69,13 +71,12 @@ public sealed class MqttItemBrokerAdapter : IItemBrokerTransport, IItemBrokerCli
 
         _subscription = await broker.SubscribeAsync(
             client: this,
-            message: new ItemSubscribeMessage(
-                _options.SubscriptionRootPath,
-                Recursive: true,
-                IncludeRetained: true,
-                SourceClientId: ClientId,
-                CorrelationId: null,
-                Timestamp: DateTimeOffset.UtcNow),
+            path: _options.SubscriptionRootPath,
+            options: new ItemSubscriptionOptions
+            {
+                Recursive = true,
+                IncludeRetained = true,
+            },
             cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
@@ -163,20 +164,11 @@ public sealed class MqttItemBrokerAdapter : IItemBrokerTransport, IItemBrokerCli
         }
 
         var value = ParsePayload(payload);
-        var timestamp = DateTimeOffset.UtcNow;
         var sourceClientId = mapping.ClientId ?? ClientId;
-        if (IsWritable(mapping.Path, out var state))
+        TrackWritableState(mapping.Path, mapping.ParameterName, value);
+        if (!IsWritable(mapping.Path, out var state))
         {
-            await _broker.WriteAsync(
-                message: new ItemWriteRequestMessage(
-                    state.WritePath ?? mapping.Path,
-                    mapping.ParameterName,
-                    value,
-                    ReplyTo: null,
-                    SourceClientId: sourceClientId,
-                    CorrelationId: null,
-                    Timestamp: timestamp),
-                cancellationToken: cancellationToken).ConfigureAwait(false);
+            ReportRejectedWriteDiagnostic(mapping);
             return;
         }
 
@@ -184,7 +176,8 @@ public sealed class MqttItemBrokerAdapter : IItemBrokerTransport, IItemBrokerCli
         _mqttOriginatedPublishes.AddOrUpdate(originKey, addValue: 1, (_, count) => count + 1);
         try
         {
-            await PublishIncomingMappedMessageAsync(mapping, value, sourceClientId, timestamp, cancellationToken).ConfigureAwait(false);
+            var targetPath = string.IsNullOrWhiteSpace(state.WritePath) ? mapping.Path : state.WritePath;
+            await PublishIncomingMappedMessageAsync(mapping, targetPath, value, sourceClientId, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -204,9 +197,9 @@ public sealed class MqttItemBrokerAdapter : IItemBrokerTransport, IItemBrokerCli
 
     private async Task PublishIncomingMappedMessageAsync(
         MqttTopicMapping mapping,
+        string path,
         object? value,
         string sourceClientId,
-        DateTimeOffset timestamp,
         CancellationToken cancellationToken)
     {
         if (_broker is null)
@@ -216,14 +209,17 @@ public sealed class MqttItemBrokerAdapter : IItemBrokerTransport, IItemBrokerCli
 
         if (string.Equals(mapping.ParameterName, "Value", StringComparison.OrdinalIgnoreCase))
         {
-            await _broker.PublishValueChangedAsync(
-                message: new ItemValueChangedMessage(mapping.Path, value, sourceClientId, null, timestamp),
+            await _broker.UpdateValueAsync(
+                item: new ItemModel(GetLeafName(path), value).Repath(path),
+                sourceClientId: sourceClientId,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
             return;
         }
 
-        await _broker.PublishParameterChangedAsync(
-            message: new ItemParameterChangedMessage(mapping.Path, mapping.ParameterName, value, sourceClientId, null, timestamp),
+        await _broker.UpdateParameterAsync(
+            item: CreateParameterItem(path, mapping.ParameterName, value),
+            parameterName: mapping.ParameterName,
+            sourceClientId: sourceClientId,
             cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
@@ -259,6 +255,8 @@ public sealed class MqttItemBrokerAdapter : IItemBrokerTransport, IItemBrokerCli
 
     private async Task PublishSnapshotAsync(ItemSnapshotMessage snapshot, CancellationToken cancellationToken)
     {
+        await PublishParameterTopicAsync(snapshot.Path, "Value", snapshot.Item.Value, snapshot.SourceClientId, cancellationToken).ConfigureAwait(false);
+
         foreach (var parameter in snapshot.Item.Params.GetDictionary())
         {
             await PublishParameterTopicAsync(snapshot.Path, parameter.Key, parameter.Value.Value, snapshot.SourceClientId, cancellationToken).ConfigureAwait(false);
@@ -341,6 +339,24 @@ public sealed class MqttItemBrokerAdapter : IItemBrokerTransport, IItemBrokerCli
         return normalizedTopic.StartsWith(brokerPrefix, StringComparison.OrdinalIgnoreCase);
     }
 
+    private void ReportRejectedWriteDiagnostic(MqttTopicMapping mapping)
+    {
+        if (!AppContext.TryGetSwitch("Amium.ItemBroker.Mqtt.WriteDiagnostics", out var enabled) || !enabled)
+        {
+            return;
+        }
+
+        var count = Interlocked.Increment(ref _rejectedWriteDiagnosticCount);
+        if (count <= MaxRejectedWriteDiagnostics)
+        {
+            Console.Error.WriteLine($"MQTT write rejected for non-writable item path '{mapping.Path}' parameter '{mapping.ParameterName}'.");
+        }
+        else if (count == MaxRejectedWriteDiagnostics + 1)
+        {
+            Console.Error.WriteLine("MQTT write rejection diagnostics suppressed.");
+        }
+    }
+
     private static string FormatPayload(object? value)
         => value switch
         {
@@ -400,6 +416,20 @@ public sealed class MqttItemBrokerAdapter : IItemBrokerTransport, IItemBrokerCli
             string text when bool.TryParse(text, out var parsed) => parsed,
             _ => false,
         };
+
+    private static string GetLeafName(string path)
+    {
+        var normalizedPath = ItemBrokerPath.Normalize(path);
+        var separatorIndex = normalizedPath.LastIndexOf('.');
+        return separatorIndex >= 0 ? normalizedPath[(separatorIndex + 1)..] : normalizedPath;
+    }
+
+    private static ItemModel CreateParameterItem(string path, string parameterName, object? value)
+    {
+        var item = new ItemModel(GetLeafName(path)).Repath(path);
+        item.Params[parameterName].Value = value is null ? null! : value;
+        return item;
+    }
 
     private sealed class WritableItemState
     {

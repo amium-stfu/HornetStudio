@@ -1,4 +1,4 @@
-using Amium.Item;
+using Amium.Items;
 using Amium.ItemBroker;
 using HornetStudio.Editor.Models;
 using HornetStudio.Editor.Persistence;
@@ -9,6 +9,7 @@ using System.Reflection;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("Custom signal codec parses YAML style nodes", CustomSignalCodecParsesYamlStyleNodes),
     ("Broker widget mode defaults to external", BrokerWidgetModeDefaultsToExternal),
     ("Broker widget mode normalizes values", BrokerWidgetModeNormalizesValues),
     ("Broker widget layout document defaults to external mode", BrokerWidgetLayoutDocumentDefaultsToExternalMode),
@@ -25,6 +26,8 @@ var tests = new (string Name, Action Run)[]
     ("Broker widget attach identity collapses nested MQTT identity", BrokerWidgetAttachIdentityCollapsesNestedMqttIdentity),
     ("Broker attach normalization strips prefix before MQTT identity", BrokerAttachNormalizationStripsPrefixBeforeMqttIdentity),
     ("Broker widget attach selection normalizes legacy shared path", BrokerWidgetAttachSelectionNormalizesLegacySharedPath),
+    ("UDL attach add normalizes and de-duplicates paths", UdlAttachAddNormalizesAndDeduplicatesPaths),
+    ("UDL attach remove clears selected path", UdlAttachRemoveClearsSelectedPath),
     ("Target path normalization uses Studio root", TargetPathNormalizationUsesStudioRoot),
     ("Broker published item codec migrates legacy paths", BrokerPublishedItemCodecMigratesLegacyPaths),
     ("Broker published item codec keeps explicit Studio broker paths", BrokerPublishedItemCodecKeepsExplicitStudioBrokerPaths),
@@ -32,9 +35,11 @@ var tests = new (string Name, Action Run)[]
     ("Broker published item codec roundtrip", BrokerPublishedItemCodecRoundtrip),
     ("Broker published item codec filters active root definitions", BrokerPublishedItemCodecFiltersActiveRootDefinitions),
     ("Broker published item change matcher scopes changes", BrokerPublishedItemChangeMatcherScopesChanges),
+    ("Broker publisher sends value update for unregistered value change", BrokerPublisherSendsValueUpdateForUnregisteredValueChange),
     ("Broker write-back ignores non-writable entries", BrokerWriteBackIgnoresNonWritableEntries),
     ("Broker write-back ignores inactive entries", BrokerWriteBackIgnoresInactiveEntries),
     ("Broker write-back updates writable value", BrokerWriteBackUpdatesWritableValue),
+    ("Broker write-back uses request write target", BrokerWriteBackUsesRequestWriteTarget),
     ("Broker write-back converts numeric value to local type", BrokerWriteBackConvertsNumericValueToLocalType),
     ("Broker write-back blocks protected parameters", BrokerWriteBackBlocksProtectedParameters),
     ("Broker write-back ignores same-value self echoes", BrokerWriteBackIgnoresSameValueSelfEchoes),
@@ -47,6 +52,7 @@ var tests = new (string Name, Action Run)[]
     ("Target parameter field hidden for normal widgets", TargetParameterFieldHiddenForNormalWidgets),
     ("Target parameter defaults to value", TargetParameterDefaultsToValue),
     ("Target parameter protected fallback uses value", TargetParameterProtectedFallbackUsesValue),
+    ("Signal write emits registry value update", SignalWriteEmitsRegistryValueUpdate),
 };
 
 var failures = new List<string>();
@@ -75,6 +81,42 @@ if (failures.Count > 0)
 
 Console.WriteLine($"Editor tests passed: {tests.Length}");
 return 0;
+
+static void CustomSignalCodecParsesYamlStyleNodes()
+{
+        var raw = """
+[
+    {
+        "name": "DummyValue",
+        "mode": "Input",
+        "dataType": "Number",
+        "isWritable": true,
+        "writePath": "",
+        "writeMode": "Direct",
+        "unit": "",
+        "format": "",
+        "valueText": "123",
+        "formula": "",
+        "trigger": "OnSourceChange",
+        "triggerIntervalSeconds": 1,
+        "variables": [],
+        "operation": "Copy",
+        "sourcePath": "",
+        "sourcePath2": "",
+        "sourcePath3": ""
+    },
+    {
+        "name": 42
+    }
+]
+""";
+
+        var parsed = CustomSignalDefinitionCodec.ParseDefinitions(raw);
+        AssertEqual(1, parsed.Count);
+        AssertEqual("DummyValue", parsed[0].Name);
+        AssertEqual("123", parsed[0].ValueText);
+        AssertEqual(CustomSignalMode.Input, parsed[0].Mode);
+}
 
 static void ItemExposureCodecRoundtrip()
 {
@@ -498,6 +540,36 @@ static void BrokerWidgetAttachSelectionNormalizesLegacySharedPath()
     AssertEqual(false, field.AttachItemEntries[0].IsMissing);
 }
 
+static void UdlAttachAddNormalizesAndDeduplicatesPaths()
+{
+    var method = typeof(UdlClientControl).GetMethod("AddAttachedPath", BindingFlags.NonPublic | BindingFlags.Static);
+    if (method is null)
+    {
+        throw new InvalidOperationException("AddAttachedPath was not found.");
+    }
+
+    var updated = (string)method.Invoke(null, ["Project.DefaultLayout.ModuleA", "Studio.DefaultLayout.ModuleA"])!;
+    AssertEqual("Studio.DefaultLayout.ModuleA", updated);
+
+    updated = (string)method.Invoke(null, [updated, "Studio.DefaultLayout.ModuleA.SubItem"])!;
+    AssertEqual("Studio.DefaultLayout.ModuleA", updated);
+}
+
+static void UdlAttachRemoveClearsSelectedPath()
+{
+    var method = typeof(UdlClientControl).GetMethod("RemoveAttachedPath", BindingFlags.NonPublic | BindingFlags.Static);
+    if (method is null)
+    {
+        throw new InvalidOperationException("RemoveAttachedPath was not found.");
+    }
+
+    var updated = (string)method.Invoke(null, ["Studio.DefaultLayout.ModuleA\r\nStudio.DefaultLayout.ModuleB", "Project.DefaultLayout.ModuleA"])!;
+    AssertEqual("Studio.DefaultLayout.ModuleB", updated);
+
+    updated = (string)method.Invoke(null, [updated, "Studio.DefaultLayout.ModuleB"])!;
+    AssertEqual(string.Empty, updated);
+}
+
 static void TargetPathNormalizationUsesStudioRoot()
 {
     var helperType = typeof(MainWindowViewModel).Assembly.GetType("HornetStudio.Editor.Helpers.TargetPathHelper");
@@ -686,6 +758,81 @@ static void BrokerPublishedItemChangeMatcherScopesChanges()
         Resolve));
 }
 
+static void BrokerPublisherSendsValueUpdateForUnregisteredValueChange()
+{
+    var localPath = "Runtime.BrokerPublisher.Set.Request";
+    var brokerPath = "Studio.Folder1.UdlClient1.m300.Set.Request";
+    HostRegistries.Data.UpsertSnapshot(localPath, new Item("Request", 1).Repath(localPath));
+
+    var widget = new FolderItemModel
+    {
+        Kind = ControlKind.BrokerWidget,
+        Name = "BrokerPublisher",
+        BrokerPublishedItemPaths = BrokerPublishedItemDefinitionCodec.SerializeDefinitions(
+        [
+            new BrokerPublishedItemDefinition
+            {
+                LocalRootPath = localPath,
+                LocalPath = localPath,
+                BrokerPath = brokerPath,
+                PublishMode = BrokerPublishedItemPublishModes.OnChanged,
+                Active = true,
+                Writable = true,
+            }
+        ])
+    };
+
+    var client = new FakeHostItemBrokerClient();
+    using var publisher = CreateBrokerPublisher(widget, client);
+    StartBrokerPublisher(publisher, publishInitialSnapshots: false);
+
+    AssertTrue(HostRegistries.Data.UpdateValue(localPath, 42));
+
+    AssertEqual(0, client.PublishedSnapshots.Count);
+    AssertEqual(1, client.ValueUpdates.Count);
+    AssertEqual(brokerPath, client.ValueUpdates[0].Path);
+    AssertEqual(42, client.ValueUpdates[0].Value);
+}
+
+static void SignalWriteEmitsRegistryValueUpdate()
+{
+    var targetPath = "Studio.EditorTests.SignalWrite.Demo1";
+    var target = new Item("Demo1", 80d).Repath(targetPath);
+    target.Params["Writable"].Value = true;
+    HostRegistries.Data.UpsertSnapshot(targetPath, target);
+
+    var signal = new FolderItemModel
+    {
+        Kind = ControlKind.Signal,
+        Name = "Demo1",
+        TargetPath = targetPath,
+    };
+
+    var valueUpdateCount = 0;
+    HostRegistries.Data.ItemChanged += OnItemChanged;
+    try
+    {
+        AssertTrue(signal.TryUpdateTargetParameterValue(10d, out var error));
+        AssertEqual(string.Empty, error);
+        AssertTrue(HostRegistries.Data.TryResolve(targetPath, out var resolved));
+        AssertEqual(10d, resolved?.Value);
+        AssertEqual(1, valueUpdateCount);
+    }
+    finally
+    {
+        HostRegistries.Data.ItemChanged -= OnItemChanged;
+    }
+
+    void OnItemChanged(object? sender, DataChangedEventArgs e)
+    {
+        if (e.ChangeKind == DataChangeKind.ValueUpdated
+            && string.Equals(e.Key, targetPath, StringComparison.OrdinalIgnoreCase))
+        {
+            valueUpdateCount++;
+        }
+    }
+}
+
 static void BrokerWriteBackIgnoresNonWritableEntries()
 {
     var client = new FakeHostItemBrokerClient();
@@ -730,6 +877,30 @@ static void BrokerWriteBackUpdatesWritableValue()
 
     AssertTrue(HostRegistries.Data.TryResolve(localPath, out var resolved));
     AssertEqual(42, resolved?.Value);
+}
+
+static void BrokerWriteBackUsesRequestWriteTarget()
+{
+    var localPath = "Runtime.BrokerWriteBack.RequestValue";
+    var brokerPath = "Studio.Runtime.BrokerWriteBack.RequestValue";
+    var item = new Item("RequestValue", 1).Repath(localPath);
+    item.AddItem("Request");
+    item["Request"].Value = 1;
+    item.Params["Writable"].Value = true;
+    item.Params["WritePath"].Value = localPath;
+    item.Params["WriteMode"].Value = SignalWriteMode.Request.ToString();
+    HostRegistries.Data.UpsertSnapshot(localPath, item);
+
+    var client = new FakeHostItemBrokerClient();
+    using var writeBack = CreateWriteBackClient(client, localPath, brokerPath, active: true, writable: true);
+    writeBack.StartAsync().GetAwaiter().GetResult();
+
+    client.PublishToSubscription(new ItemValueChangedMessage(brokerPath, 42, "external-client", null, DateTimeOffset.UtcNow));
+
+    AssertTrue(HostRegistries.Data.TryResolve(localPath, out var resolved));
+    AssertEqual(1, resolved?.Value);
+    AssertTrue(HostRegistries.Data.TryResolve($"{localPath}.Request", out var request));
+    AssertEqual(42, request?.Value);
 }
 
 static void BrokerWriteBackConvertsNumericValueToLocalType()
@@ -817,6 +988,27 @@ static HostItemBrokerWriteBackClient CreateWriteBackClient(
             Writable = writable,
         }
     ]);
+
+static IDisposable CreateBrokerPublisher(FolderItemModel item, IHostItemBrokerClient client)
+{
+    var publisherType = typeof(BrokerClientControl).GetNestedType("HostItemBrokerPublisher", BindingFlags.NonPublic)
+        ?? throw new InvalidOperationException("Broker publisher type was not found.");
+    var constructor = publisherType.GetConstructor(
+        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+        binder: null,
+        types: [typeof(FolderItemModel), typeof(IHostItemBrokerClient)],
+        modifiers: null)
+        ?? throw new InvalidOperationException("Broker publisher constructor was not found.");
+
+    return (IDisposable)constructor.Invoke([item, client]);
+}
+
+static void StartBrokerPublisher(IDisposable publisher, bool publishInitialSnapshots)
+{
+    var method = publisher.GetType().GetMethod("Start", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+        ?? throw new InvalidOperationException("Broker publisher start method was not found.");
+    method.Invoke(publisher, [publishInitialSnapshots]);
+}
 
 static void ItemExposurePublisherAppliesBitHelpers()
 {
@@ -953,6 +1145,9 @@ static bool ContainsTreePath(IEnumerable<HornetStudio.ViewModels.ItemTreeNodeVie
 
 sealed class FakeHostItemBrokerClient : IHostItemBrokerClient
 {
+    private Action<string>? _diagnostic;
+    private Action? _itemsChanged;
+
     public string ClientIdValue { get; set; } = "broker-widget-test";
 
     public string Name => "BrokerWidgetTest";
@@ -971,13 +1166,43 @@ sealed class FakeHostItemBrokerClient : IHostItemBrokerClient
 
     public List<FakeItemSubscription> Subscriptions { get; } = [];
 
-    public event Action<string>? Diagnostic;
+    public List<Item> PublishedSnapshots { get; } = [];
 
-    public event Action? ItemsChanged;
+    public List<Item> ValueUpdates { get; } = [];
+
+    public List<(Item Item, string ParameterName)> ParameterUpdates { get; } = [];
+
+    public event Action<string>? Diagnostic
+    {
+        add => _diagnostic += value;
+        remove => _diagnostic -= value;
+    }
+
+    public event Action? ItemsChanged
+    {
+        add => _itemsChanged += value;
+        remove => _itemsChanged -= value;
+    }
 
     public IReadOnlyDictionary<string, Item> GetItemSnapshots() => new Dictionary<string, Item>();
 
-    public Task PublishItemAsync(Item item, string path, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    public Task PublishSnapshotAsync(Item item, CancellationToken cancellationToken = default)
+    {
+        PublishedSnapshots.Add(item.Clone());
+        return Task.CompletedTask;
+    }
+
+    public Task<ItemBrokerAckMessage> UpdateValueAsync(Item item, CancellationToken cancellationToken = default)
+    {
+        ValueUpdates.Add(item.Clone());
+        return Task.FromResult(CreateAcknowledgement(item));
+    }
+
+    public Task<ItemBrokerAckMessage> UpdateParameterAsync(Item item, string parameterName, CancellationToken cancellationToken = default)
+    {
+        ParameterUpdates.Add((item.Clone(), parameterName));
+        return Task.FromResult(CreateAcknowledgement(item));
+    }
 
     public Task<IItemSubscription> SubscribeAsync(
         string path,
@@ -1003,6 +1228,15 @@ sealed class FakeHostItemBrokerClient : IHostItemBrokerClient
             subscription.HandleAsync(message).GetAwaiter().GetResult();
         }
     }
+
+    private ItemBrokerAckMessage CreateAcknowledgement(Item item)
+        => new(
+            Path: item.Path ?? string.Empty,
+            Accepted: true,
+            Reason: null,
+            SourceClientId: ClientId,
+            CorrelationId: null,
+            Timestamp: DateTimeOffset.UtcNow);
 }
 
 sealed class FakeItemSubscription : IItemSubscription

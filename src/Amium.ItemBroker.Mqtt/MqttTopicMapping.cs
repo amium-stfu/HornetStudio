@@ -180,7 +180,7 @@ public sealed class MqttItemTopicMapper
             return false;
         }
 
-        mapping = new MqttTopicMapping(healthPath, "Value", ClientId: null);
+        mapping = new MqttTopicMapping(healthPath, "Value", SharedClientId);
         return true;
     }
 

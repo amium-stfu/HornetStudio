@@ -4,7 +4,7 @@ namespace HornetStudio.Editor.Models;
 
 internal static class BrokerWidgetClientId
 {
-    private const string Prefix = "hornet-studio-";
+    private const string Prefix = $"{BrokerWidgetDefaults.ClientIdDisplay}-";
 
     internal static string Create()
         => $"{Prefix}{Guid.NewGuid():N}"[..(Prefix.Length + 8)];

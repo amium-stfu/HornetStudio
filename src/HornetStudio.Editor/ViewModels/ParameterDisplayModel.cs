@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Avalonia.Media;
-using Amium.Item;
+using Amium.Items;
 
 namespace HornetStudio.Editor.ViewModels;
 

@@ -7,7 +7,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.Loader;
 using HornetStudio.Logging;
-using Amium.Item;
+using Amium.Items;
 using HornetStudio.Host.Helpers;
 using AForge.Video.DirectShow;
 
@@ -397,6 +397,7 @@ public sealed class DataRegistry : IDataRegistry
             return false;
         }
 
+        var oldValue = item.Value;
         if (!TryConvertForExistingValue(value, item.Value, out object? convertedValue))
         {
             HostLogger.Log.Warning(
@@ -405,6 +406,16 @@ public sealed class DataRegistry : IDataRegistry
                 item.Value?.GetType().FullName ?? "<null>",
                 value?.GetType().FullName ?? "<null>");
             return false;
+        }
+
+        if (Equals(oldValue, convertedValue))
+        {
+            if (timestamp.HasValue && item.Params.Has("Value"))
+            {
+                item.Params["Value"].LastUpdate = timestamp.Value;
+            }
+
+            return true;
         }
 
         item.Value = convertedValue!;
@@ -434,6 +445,16 @@ public sealed class DataRegistry : IDataRegistry
                 parameter.Value?.GetType().FullName ?? "<null>",
                 value?.GetType().FullName ?? "<null>");
             return false;
+        }
+
+        if (Equals(parameter.Value, convertedValue))
+        {
+            if (timestamp.HasValue)
+            {
+                parameter.LastUpdate = timestamp.Value;
+            }
+
+            return true;
         }
 
         parameter.Value = convertedValue!;

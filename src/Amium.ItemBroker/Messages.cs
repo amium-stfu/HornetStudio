@@ -1,4 +1,4 @@
-using ItemModel = Amium.Item.Item;
+using  Amium.Items;
 
 namespace Amium.ItemBroker;
 
@@ -25,7 +25,7 @@ public abstract record ItemBrokerMessage(
 /// <param name="Timestamp">The snapshot timestamp.</param>
 public sealed record ItemSnapshotMessage(
     string Path,
-    ItemModel Item,
+    Item Item,
     string? SourceClientId,
     string? CorrelationId,
     DateTimeOffset Timestamp)

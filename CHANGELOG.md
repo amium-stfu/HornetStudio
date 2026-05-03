@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Added `Amium.ItemBroker.MqttDemoWinForms`, a WinForms MQTT demo with local service start/stop, two live demo publishers, one writable demo item, and in-app status/log output.
+- Reorganized `AGENTS.md` into a shorter priority-based structure and replaced the flat handoff/debug guidance with `docs/workitems/<timestamp>-<slug>/...` workitem rules triggered by `PLAN`.
+- Added `TODO` mode guidance for creating standalone backlog entries under `docs/todos/`.
+- Reduced remaining redundancy in `AGENTS.md` by consolidating overlapping scope and workflow guidance.
+- Tightened `PLAN` and implementation handoff guidance so plans remain human-readable while handoffs are more execution-ready for other models.
 - Added the initial `Amium.ItemBroker` project with transport-neutral broker contracts, message contracts, retained in-memory state, subscription routing, and write routing.
 - Added `Amium.ItemBroker.Client` SDK scaffolding, broker publish/retention policy contracts, subscription options, and health path contracts.
 - Added ItemBroker usage documentation covering current in-process usage, retained data guidance, and planned MQTT inspection.
@@ -31,6 +36,8 @@
 - Changed new Broker widget published item defaults and documentation examples to use `Studio.<LocalPath>` broker paths while preserving existing explicit `HornetStudio.*` paths.
 - Normalized project/runtime item paths to the canonical `Studio.<Folder>...` root while preserving legacy `Project.<Folder>...` resolution.
 - Changed Broker widget received MQTT item registration to use `Studio.<Folder>.<BrokerWidget>.Mqtt...` paths while preserving legacy shared attach selections.
+- Added reusable `MqttItemBrokerHost` and `MqttRemoteItemClient` facades so selfhosted, remote, and hybrid MQTT ItemBroker scenarios are consumable without HornetStudio-specific classes.
+- Slimmed `HostItemBrokerClient` down to a HornetStudio composition layer over the reusable MQTT remote client facade.
 
 ## 2026.04.28.0110
 

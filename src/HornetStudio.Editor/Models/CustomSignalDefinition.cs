@@ -172,6 +172,7 @@ public static class CustomSignalDefinitionCodec
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         Converters = { new JsonStringEnumConverter() }
     };
@@ -187,25 +188,49 @@ public static class CustomSignalDefinitionCodec
         {
             if (JsonNode.Parse(raw) is JsonArray array)
             {
-                return array
-                    .OfType<JsonObject>()
-                    .Select(NormalizeLegacyNode)
-                    .Select(node => node.Deserialize<CustomSignalDefinition>(JsonOptions))
+                var definitions = new List<CustomSignalDefinition>();
+                foreach (var child in array.OfType<JsonObject>())
+                {
+                    if (TryDeserializeDefinition(child, folderName: null, out var definition))
+                    {
+                        definitions.Add(definition);
+                    }
+                }
+
+                return definitions;
+            }
+
+            var parsed = JsonSerializer.Deserialize<List<CustomSignalDefinition>>(raw, JsonOptions);
+            if (parsed is not null)
+            {
+                return parsed
                     .Where(static definition => definition is not null)
                     .Select(static definition => NormalizeLegacyDefinition(definition!))
                     .ToArray();
             }
 
-            var parsed = JsonSerializer.Deserialize<List<CustomSignalDefinition>>(raw, JsonOptions);
-            return parsed?
-                .Where(static definition => definition is not null)
-                .Select(static definition => NormalizeLegacyDefinition(definition!))
+            var documentParsed = JsonSerializer.Deserialize<List<CustomSignalDefinitionDocument>>(raw, JsonOptions);
+            return documentParsed?
+                .Where(static document => document is not null)
+                .Select(document => FromDocument(document!, folderName: null))
                 .ToArray()
                 ?? Array.Empty<CustomSignalDefinition>();
         }
         catch
         {
-            return Array.Empty<CustomSignalDefinition>();
+            try
+            {
+                var documentParsed = JsonSerializer.Deserialize<List<CustomSignalDefinitionDocument>>(raw, JsonOptions);
+                return documentParsed?
+                    .Where(static document => document is not null)
+                    .Select(document => FromDocument(document!, folderName: null))
+                    .ToArray()
+                    ?? Array.Empty<CustomSignalDefinition>();
+            }
+            catch
+            {
+                return Array.Empty<CustomSignalDefinition>();
+            }
         }
     }
 
@@ -260,15 +285,66 @@ public static class CustomSignalDefinitionCodec
     {
         if (node is JsonArray array)
         {
-            var definitions = array
-                .Select(child => child?.Deserialize<CustomSignalDefinitionDocument>(JsonOptions))
-                .Where(static document => document is not null)
-                .Select(document => FromDocument(document!, folderName));
+            var definitions = new List<CustomSignalDefinition>();
+            foreach (var child in array)
+            {
+                if (child is not JsonObject childObject)
+                {
+                    continue;
+                }
+
+                if (TryDeserializeDefinition(childObject, folderName, out var definition))
+                {
+                    definitions.Add(definition);
+                }
+            }
 
             return SerializeDefinitions(definitions);
         }
 
-        return node?.GetValue<string>() ?? string.Empty;
+        return node is JsonValue value && value.TryGetValue<string>(out var rawValue)
+            ? rawValue
+            : string.Empty;
+    }
+
+    private static bool TryDeserializeDefinition(JsonObject node, string? folderName, out CustomSignalDefinition definition)
+    {
+        var normalizedNode = NormalizeLegacyNode(node.DeepClone().AsObject());
+
+        try
+        {
+            var parsedDefinition = normalizedNode.Deserialize<CustomSignalDefinition>(JsonOptions);
+            if (parsedDefinition is not null)
+            {
+                definition = NormalizeLegacyDefinition(parsedDefinition);
+                return true;
+            }
+        }
+        catch (JsonException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+
+        try
+        {
+            var document = normalizedNode.Deserialize<CustomSignalDefinitionDocument>(JsonOptions);
+            if (document is not null)
+            {
+                definition = FromDocument(document, folderName);
+                return true;
+            }
+        }
+        catch (JsonException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+
+        definition = null!;
+        return false;
     }
 
     private static CustomSignalDefinitionDocument ToDocument(CustomSignalDefinition definition, string? folderName)

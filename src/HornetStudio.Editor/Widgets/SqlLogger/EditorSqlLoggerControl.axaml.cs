@@ -11,7 +11,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using HornetStudio.Host;
-using Amium.Item;
+using Amium.Items;
 using HornetStudio.Editor.Controls;
 using HornetStudio.Editor.Models;
 using HornetStudio.Editor.ViewModels;

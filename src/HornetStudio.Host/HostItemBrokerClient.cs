@@ -1,6 +1,7 @@
-using Amium.Item;
+using Amium.Items;
 using Amium.ItemBroker;
 using Amium.ItemBroker.Mqtt.Client;
+using HornetStudio.Logging;
 
 namespace HornetStudio.Host;
 
@@ -54,10 +55,26 @@ public interface IHostItemBrokerClient : IAsyncDisposable
     /// Publishes a local item snapshot to the broker.
     /// </summary>
     /// <param name="item">The item snapshot.</param>
-    /// <param name="path">The broker path.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task PublishItemAsync(Item item, string path, CancellationToken cancellationToken = default);
+    Task PublishSnapshotAsync(Item item, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Publishes a value update for a previously registered broker item.
+    /// </summary>
+    /// <param name="item">The item containing the broker path and value.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The broker acknowledgement.</returns>
+    Task<ItemBrokerAckMessage> UpdateValueAsync(Item item, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Publishes a parameter update for a previously registered broker item.
+    /// </summary>
+    /// <param name="item">The item containing the broker path and parameter value.</param>
+    /// <param name="parameterName">The parameter name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The broker acknowledgement.</returns>
+    Task<ItemBrokerAckMessage> UpdateParameterAsync(Item item, string parameterName, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Subscribes to broker updates for one item path.
@@ -104,8 +121,7 @@ public interface IHostItemBrokerClient : IAsyncDisposable
 public sealed class HostItemBrokerClient : IHostItemBrokerClient
 {
     private readonly object _sync = new();
-    private readonly HashSet<string> _publishedBrokerPaths = new(StringComparer.OrdinalIgnoreCase);
-    private MqttItemBrokerClientSession? _session;
+    private readonly MqttRemoteItemClient _remoteClient;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HostItemBrokerClient"/> class.
@@ -128,6 +144,15 @@ public sealed class HostItemBrokerClient : IHostItemBrokerClient
         BaseTopic = baseTopic.Trim();
         ClientId = clientId.Trim();
         Items = new ItemDictionary($"Runtime.ItemBroker.{Name}");
+        _remoteClient = new MqttRemoteItemClient(new MqttItemBrokerClientOptions
+        {
+            Host = Host,
+            Port = Port,
+            BaseTopic = BaseTopic,
+            ClientId = ClientId,
+        });
+        _remoteClient.Diagnostic += OnRemoteDiagnostic;
+        _remoteClient.RemoteItemsChanged += OnRemoteItemsChanged;
     }
 
     /// <inheritdoc />
@@ -150,10 +175,7 @@ public sealed class HostItemBrokerClient : IHostItemBrokerClient
     {
         get
         {
-            lock (_sync)
-            {
-                return _session is not null;
-            }
+            return _remoteClient.IsConnected;
         }
     }
 
@@ -171,20 +193,38 @@ public sealed class HostItemBrokerClient : IHostItemBrokerClient
     }
 
     /// <inheritdoc />
-    public Task PublishItemAsync(Item item, string path, CancellationToken cancellationToken = default)
+    public Task PublishSnapshotAsync(Item item, CancellationToken cancellationToken = default)
     {
-        MqttItemBrokerClientSession? session;
-        lock (_sync)
-        {
-            session = _session;
-        }
+        HostLogger.Log.Debug(
+            "[HostItemBrokerClientPublish] kind=snapshot client={ClientId} path={Path} value={Value}",
+            ClientId,
+            item.Path ?? string.Empty,
+            item.Value);
+        return _remoteClient.PublishSnapshotAsync(item, cancellationToken);
+    }
 
-        if (session is null)
-        {
-            throw new InvalidOperationException("Cannot publish an item before the broker client is connected.");
-        }
+    /// <inheritdoc />
+    public Task<ItemBrokerAckMessage> UpdateValueAsync(Item item, CancellationToken cancellationToken = default)
+    {
+        HostLogger.Log.Debug(
+            "[HostItemBrokerClientPublish] kind=value client={ClientId} path={Path} value={Value}",
+            ClientId,
+            item.Path ?? string.Empty,
+            item.Value);
+        return _remoteClient.UpdateValueAsync(item, cancellationToken);
+    }
 
-        return PublishItemAndTrackAsync(session, item, path, cancellationToken);
+    /// <inheritdoc />
+    public Task<ItemBrokerAckMessage> UpdateParameterAsync(Item item, string parameterName, CancellationToken cancellationToken = default)
+    {
+        var value = item.Params.Has(parameterName) ? item.Params[parameterName].Value : null;
+        HostLogger.Log.Debug(
+            "[HostItemBrokerClientPublish] kind=parameter client={ClientId} path={Path} parameter={Parameter} value={Value}",
+            ClientId,
+            item.Path ?? string.Empty,
+            parameterName,
+            value);
+        return _remoteClient.UpdateParameterAsync(item, parameterName, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -194,18 +234,12 @@ public sealed class HostItemBrokerClient : IHostItemBrokerClient
         ItemSubscriptionOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        MqttItemBrokerClientSession? session;
-        lock (_sync)
-        {
-            session = _session;
-        }
-
-        if (session is null)
-        {
-            throw new InvalidOperationException("Cannot subscribe before the broker client is connected.");
-        }
-
-        return session.SubscribeAsync(
+        HostLogger.Log.Debug(
+            "[HostItemBrokerClientSubscribe] client={ClientId} path={Path} recursive={Recursive}",
+            ClientId,
+            path,
+            options?.Recursive ?? true);
+        return _remoteClient.SubscribeAsync(
             path: path,
             handler: handler,
             options: options,
@@ -221,69 +255,10 @@ public sealed class HostItemBrokerClient : IHostItemBrokerClient
     /// <inheritdoc />
     public async Task ConnectAsync(CancellationToken cancellationToken = default)
     {
+        await _remoteClient.ConnectAsync(cancellationToken).ConfigureAwait(false);
         lock (_sync)
         {
-            if (_session is not null)
-            {
-                return;
-            }
-        }
-
-        var session = new MqttItemBrokerClientSession(new MqttItemBrokerClientOptions
-        {
-            Host = Host,
-            Port = Port,
-            BaseTopic = BaseTopic,
-            ClientId = ClientId,
-        });
-        session.RemoteItems.Changed += OnRemoteItemsChanged;
-        lock (_sync)
-        {
-            _session = session;
-        }
-
-        try
-        {
-            await session.ConnectAsync(cancellationToken).ConfigureAwait(false);
-            var isCurrentSession = false;
-            lock (_sync)
-            {
-                isCurrentSession = ReferenceEquals(_session, session);
-            }
-
-            if (!isCurrentSession)
-            {
-                session.RemoteItems.Changed -= OnRemoteItemsChanged;
-                await session.DisposeAsync().ConfigureAwait(false);
-                return;
-            }
-
-            lock (_sync)
-            {
-                RebuildItems();
-            }
-        }
-        catch
-        {
-            lock (_sync)
-            {
-                if (ReferenceEquals(_session, session))
-                {
-                    _session = null;
-                }
-            }
-
-            session.RemoteItems.Changed -= OnRemoteItemsChanged;
-            try
-            {
-                await session.DisposeAsync().ConfigureAwait(false);
-            }
-            catch (Exception disposeException)
-            {
-                RaiseDiagnostic($"dispose after connect failure failed: {disposeException.Message}");
-            }
-
-            throw;
+            RebuildItems();
         }
 
         ItemsChanged?.Invoke();
@@ -293,20 +268,12 @@ public sealed class HostItemBrokerClient : IHostItemBrokerClient
     /// <inheritdoc />
     public async Task DisconnectAsync(CancellationToken cancellationToken = default)
     {
-        MqttItemBrokerClientSession? session;
+        await _remoteClient.DisconnectAsync(cancellationToken).ConfigureAwait(false);
         lock (_sync)
         {
-            session = _session;
-            _session = null;
+            Items.Clear();
         }
 
-        if (session is null)
-        {
-            return;
-        }
-
-        session.RemoteItems.Changed -= OnRemoteItemsChanged;
-        await session.DisposeAsync().ConfigureAwait(false);
         RaiseDiagnostic("disconnected");
     }
 
@@ -316,39 +283,11 @@ public sealed class HostItemBrokerClient : IHostItemBrokerClient
         await DisconnectAsync().ConfigureAwait(false);
     }
 
-    private void OnRemoteItemsChanged(object? sender, MqttRemoteItemChangedEventArgs e)
+    private void OnRemoteItemsChanged()
     {
-        if (e.Kind == MqttRemoteItemChangeKind.Diagnostic)
-        {
-            RaiseDiagnostic(e.Message ?? string.Empty);
-            return;
-        }
-
-        if (e.Item is null || string.IsNullOrWhiteSpace(e.RemoteClientId))
-        {
-            return;
-        }
-
-        if (string.Equals(e.RemoteClientId.Trim(), ClientId, StringComparison.OrdinalIgnoreCase))
-        {
-            lock (_sync)
-            {
-                RebuildItems();
-            }
-
-            return;
-        }
-
-        int rootCount;
         lock (_sync)
         {
             RebuildItems();
-            rootCount = Items.GetDictionary().Count;
-        }
-
-        if (e.Kind is MqttRemoteItemChangeKind.ClientStatus)
-        {
-            RaiseDiagnostic($"remote kind={e.Kind} clientId={e.RemoteClientId} path={e.Path} rootCount={rootCount}");
         }
 
         ItemsChanged?.Invoke();
@@ -357,91 +296,14 @@ public sealed class HostItemBrokerClient : IHostItemBrokerClient
     private void RebuildItems()
     {
         Items.Clear();
-        if (_session is null)
+        foreach (var root in _remoteClient.GetRemoteItemSnapshots())
         {
-            return;
-        }
-
-        foreach (var root in _session.RemoteItems.GetClientRoots())
-        {
-            if (string.Equals(root.Key, ClientId, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            var visibleRoot = root.Value.Clone();
-            foreach (var publishedPath in _publishedBrokerPaths)
-            {
-                RemoveDescendant(visibleRoot, publishedPath);
-            }
-
-            if (visibleRoot.GetDictionary().Count > 0 || visibleRoot.Params.GetDictionary().Count > 0 || visibleRoot.Value is not null)
-            {
-                Items[root.Key] = visibleRoot;
-            }
-        }
-
-    }
-
-    private async Task PublishItemAndTrackAsync(MqttItemBrokerClientSession session, Item item, string path, CancellationToken cancellationToken)
-    {
-        await session.PublishItemAsync(item, path, retained: true, cancellationToken: cancellationToken).ConfigureAwait(false);
-        lock (_sync)
-        {
-            _publishedBrokerPaths.Add(NormalizePath(path));
-            RebuildItems();
-        }
-
-        ItemsChanged?.Invoke();
-    }
-
-    private static void RemoveDescendant(Item root, string path)
-    {
-        var segments = SplitPathSegments(path);
-        if (segments.Count == 0)
-        {
-            return;
-        }
-
-        var current = root;
-        for (var index = 0; index < segments.Count - 1; index++)
-        {
-            var segment = segments[index];
-            var matchingChildName = current.GetDictionary().Keys
-                .FirstOrDefault(key => string.Equals(key, segment, StringComparison.OrdinalIgnoreCase));
-            if (matchingChildName is null)
-            {
-                return;
-            }
-
-            current = current.GetDictionary()[matchingChildName];
-        }
-
-        var leafName = current.GetDictionary().Keys
-            .FirstOrDefault(key => string.Equals(key, segments[^1], StringComparison.OrdinalIgnoreCase));
-        if (leafName is not null)
-        {
-            current.Remove(leafName);
+            Items[root.Key] = root.Value.Clone();
         }
     }
 
-    private static string NormalizePath(string? path)
-        => string.Join('.', SplitPathSegments(path));
-
-    private static IReadOnlyList<string> SplitPathSegments(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            return [];
-        }
-
-        return path
-            .Trim()
-            .Replace('\\', '.')
-            .Replace('/', '.')
-            .Trim('.')
-            .Split(['.'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-    }
+    private void OnRemoteDiagnostic(string message)
+        => RaiseDiagnostic(message);
 
     private void RaiseDiagnostic(string message)
     {

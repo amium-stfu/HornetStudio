@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.Json;
-using Amium.Item;
+using Amium.Items;
 using HornetStudio.Editor.Models;
 
 namespace HornetStudio.Host;

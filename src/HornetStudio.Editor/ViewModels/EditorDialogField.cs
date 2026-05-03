@@ -6,7 +6,7 @@ using System.Linq;
 using Avalonia.Media;
 using HornetStudio.Host;
 using HornetStudio.Host.Python.Client;
-using Amium.Item;
+using Amium.Items;
 using HornetStudio.Editor.Helpers;
 using HornetStudio.Editor.Models;
 

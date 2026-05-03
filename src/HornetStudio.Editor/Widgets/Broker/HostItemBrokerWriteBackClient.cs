@@ -124,13 +124,24 @@ public sealed class HostItemBrokerWriteBackClient : IDisposable, IAsyncDisposabl
             return Task.CompletedTask;
         }
 
-        if (IsEcho(localItem, definition.BrokerPath, parameterName, value))
+        var writeTargetPath = definition.LocalPath;
+        var echoItem = localItem;
+        if (string.Equals(parameterName, "Value", StringComparison.OrdinalIgnoreCase))
+        {
+            writeTargetPath = ResolveValueWriteTargetPath(localItem, definition.LocalPath);
+            if (HostRegistries.Data.TryResolve(writeTargetPath, out var writeTargetItem) && writeTargetItem is not null)
+            {
+                echoItem = writeTargetItem;
+            }
+        }
+
+        if (IsEcho(echoItem, definition.BrokerPath, parameterName, value, message.SourceClientId))
         {
             return Task.CompletedTask;
         }
 
         var updated = string.Equals(parameterName, "Value", StringComparison.OrdinalIgnoreCase)
-            ? HostRegistries.Data.UpdateValue(definition.LocalPath, value)
+            ? HostRegistries.Data.UpdateValue(writeTargetPath, value)
             : TryUpdateParameter(definition.LocalPath, parameterName, value);
 
         if (updated)
@@ -180,21 +191,77 @@ public sealed class HostItemBrokerWriteBackClient : IDisposable, IAsyncDisposabl
         return HostRegistries.Data.TryUpdateUserParameter(localPath, parameterName, value);
     }
 
-    private bool IsEcho(Amium.Item.Item localItem, string brokerPath, string parameterName, object? value)
+    private static string ResolveValueWriteTargetPath(Amium.Items.Item sourceItem, string fallbackPath)
     {
-        if (string.Equals(parameterName, "Value", StringComparison.OrdinalIgnoreCase))
+        if (TryResolveDeclaredWriteTarget(sourceItem, out var declaredTarget))
         {
-            return ValuesEqual(localItem.Value, value)
-                || (_lastAppliedValues.TryGetValue(GetStateKey(brokerPath, parameterName), out var lastValue) && ValuesEqual(lastValue, value));
+            return declaredTarget.Path ?? fallbackPath;
         }
 
-        if (localItem.Params.Has(parameterName) && ValuesEqual(localItem.Params[parameterName].Value, value))
+        if (sourceItem.Has("Request"))
+        {
+            return sourceItem["Request"].Path ?? fallbackPath;
+        }
+
+        return sourceItem.Path ?? fallbackPath;
+    }
+
+    private static bool TryResolveDeclaredWriteTarget(Amium.Items.Item sourceItem, out Amium.Items.Item writeTargetItem)
+    {
+        writeTargetItem = null!;
+        if (!sourceItem.Params.Has("WritePath"))
+        {
+            return false;
+        }
+
+        var writePath = sourceItem.Params["WritePath"].Value?.ToString()?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(writePath))
+        {
+            return false;
+        }
+
+        if (!HostRegistries.Data.TryResolve(writePath, out Amium.Items.Item? resolvedItem) || resolvedItem is null)
+        {
+            return false;
+        }
+
+        var writeMode = SignalWriteMode.Direct;
+        object? rawWriteMode = sourceItem.Params.Has("WriteMode")
+            ? sourceItem.Params["WriteMode"].Value
+            : null;
+        var writeModeText = rawWriteMode?.ToString();
+        if (sourceItem.Params.Has("WriteMode")
+            && Enum.TryParse<SignalWriteMode>(writeModeText, true, out SignalWriteMode parsedMode))
+        {
+            writeMode = parsedMode;
+        }
+
+        var nonNullResolvedItem = resolvedItem!;
+        writeTargetItem = writeMode == SignalWriteMode.Request && nonNullResolvedItem.Has("Request")
+            ? nonNullResolvedItem["Request"]!
+            : nonNullResolvedItem;
+        return true;
+    }
+
+    private bool IsEcho(Amium.Items.Item localItem, string brokerPath, string parameterName, object? value, string? sourceClientId)
+    {
+        var stateKey = GetStateKey(brokerPath, parameterName);
+        if (_lastAppliedValues.TryGetValue(stateKey, out var lastValue) && ValuesEqual(lastValue, value))
         {
             return true;
         }
 
-        return _lastAppliedValues.TryGetValue(GetStateKey(brokerPath, parameterName), out var lastParameterValue)
-            && ValuesEqual(lastParameterValue, value);
+        if (!string.Equals(sourceClientId, _client.ClientId, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (string.Equals(parameterName, "Value", StringComparison.OrdinalIgnoreCase))
+        {
+            return ValuesEqual(localItem.Value, value);
+        }
+
+        return localItem.Params.Has(parameterName) && ValuesEqual(localItem.Params[parameterName].Value, value);
     }
 
     private static string GetStateKey(string brokerPath, string parameterName)

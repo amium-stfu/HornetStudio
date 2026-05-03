@@ -1,4 +1,4 @@
-using Amium.Item;
+using Amium.Items;
 using Amium.ItemBroker.Mqtt.Client;
 
 await using var session = new MqttItemBrokerClientSession(new MqttItemBrokerClientOptions
@@ -69,8 +69,8 @@ internal sealed class DemoItemPublisher
             _temperature.Value = temperature;
             _pressure.Value = pressure;
 
-            await _session.PublishValueAsync(_temperature, cancellationToken: cancellationToken).ConfigureAwait(false);
-            await _session.PublishValueAsync(_pressure, cancellationToken: cancellationToken).ConfigureAwait(false);
+            await _session.UpdateValueAsync(_temperature, cancellationToken: cancellationToken).ConfigureAwait(false);
+            await _session.UpdateValueAsync(_pressure, cancellationToken: cancellationToken).ConfigureAwait(false);
 
             Console.Write($"\rTemperature: {temperature,5:0.0} degC | Pressure: {pressure,6:0.0} hPa");
         }
@@ -78,7 +78,7 @@ internal sealed class DemoItemPublisher
 
     private async Task PublishSnapshotsAsync(CancellationToken cancellationToken)
     {
-        await _session.PublishItemAsync(_temperature, cancellationToken: cancellationToken, retained: true).ConfigureAwait(false);
-        await _session.PublishItemAsync(_pressure, cancellationToken: cancellationToken, retained: true).ConfigureAwait(false);
+        await _session.PublishSnapshotAsync(_temperature, retained: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+        await _session.PublishSnapshotAsync(_pressure, retained: true, cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 }

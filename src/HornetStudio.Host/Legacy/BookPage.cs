@@ -1,6 +1,6 @@
 using System;
 using HornetStudio.Logging;
-using Amium.Item;
+using Amium.Items;
 
 namespace HornetStudio.Host;
 

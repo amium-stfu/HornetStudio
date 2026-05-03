@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -12,7 +13,8 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
-using Amium.Item;
+using Avalonia.VisualTree;
+using Amium.Items;
 using Amium.ItemBroker;
 using Amium.ItemBroker.Mqtt;
 using HornetStudio.Editor.Controls;
@@ -30,6 +32,21 @@ public partial class BrokerClientControl : EditorTemplateControl
 {
     private const string MqttTransportSegment = "Mqtt";
     private const string SharedBrokerRootSegment = "shared";
+    private static readonly string[] BrokerReconnectPropertyNames =
+    [
+        nameof(FolderItemModel.BrokerHost),
+        nameof(FolderItemModel.BrokerPort),
+        nameof(FolderItemModel.BrokerBaseTopic),
+        nameof(FolderItemModel.BrokerClientId),
+        nameof(FolderItemModel.BrokerMode)
+    ];
+    private static readonly string[] BrokerRuntimeRefreshPropertyNames =
+    [
+        nameof(FolderItemModel.BrokerAttachedItemPaths),
+        nameof(FolderItemModel.ItemExposures),
+        nameof(FolderItemModel.Name),
+        nameof(FolderItemModel.BrokerPublishedItemPaths)
+    ];
 
     public static readonly DirectProperty<BrokerClientControl, string> ConnectionStateTextProperty =
         AvaloniaProperty.RegisterDirect<BrokerClientControl, string>(nameof(ConnectionStateText), control => control.ConnectionStateText);
@@ -66,10 +83,11 @@ public partial class BrokerClientControl : EditorTemplateControl
     private OwnedBrokerRuntime? _ownedBrokerRuntime;
     private HostItemBrokerPublisher? _hostItemPublisher;
     private HostItemBrokerWriteBackClient? _hostItemWriteBackClient;
+    private bool _isAttachedToVisualTree;
     private bool _isConnecting;
     private string _connectionStateText = "Disconnected";
-    private string _endpointText = "127.0.0.1:1883";
-    private string _clientText = "BaseTopic hornet | MQTT Client hornet-studio";
+    private string _endpointText = $"{BrokerWidgetDefaults.Host}:{BrokerWidgetDefaults.Port}";
+    private string _clientText = $"BaseTopic {BrokerWidgetDefaults.BaseTopic} | MQTT Client {BrokerWidgetDefaults.ClientIdDisplay}";
     private string _itemCountText = "0 items";
     private bool _hasNoAttachedItems = true;
     private bool _hasNoPublishedItems = true;
@@ -173,6 +191,13 @@ public partial class BrokerClientControl : EditorTemplateControl
 
     private Control CreateHeaderActionsContent()
     {
+        var actionsPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
         var statusText = new TextBlock
         {
             FontSize = 11,
@@ -199,12 +224,34 @@ public partial class BrokerClientControl : EditorTemplateControl
             Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
             Content = statusBorder
         };
+        button.PointerPressed += static (_, e) => e.Handled = true;
         button.Click += OnToggleConnectionClicked;
+        actionsPanel.Children.Add(button);
+        actionsPanel.Children.Add(CreateHeaderActionButton("Attach", OnHeaderAttachClicked));
+        actionsPanel.Children.Add(CreateHeaderActionButton("Publish", OnHeaderPublishClicked));
+        return actionsPanel;
+    }
+
+    private Button CreateHeaderActionButton(string text, EventHandler<RoutedEventArgs> clickHandler)
+    {
+        var button = new Button
+        {
+            Classes = { "toolbar" },
+            Padding = new Thickness(8, 2),
+            Content = new TextBlock
+            {
+                FontSize = 11,
+                Text = text
+            }
+        };
+        button.PointerPressed += static (_, e) => e.Handled = true;
+        button.Click += clickHandler;
         return button;
     }
 
     private void OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
+        _isAttachedToVisualTree = true;
         HookObservedItem();
         RefreshPresentation();
         if (Item?.BrokerAutoConnect == true)
@@ -215,9 +262,10 @@ public partial class BrokerClientControl : EditorTemplateControl
 
     private void OnDetachedFromVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
+        _isAttachedToVisualTree = false;
         _runtimeUpdateTimer.Stop();
         UnhookObservedItem();
-        DisconnectInternal();
+        _ = DisconnectInternalAsync();
         RemovePublishedRuntimeItems(Item);
         RemovePublishedAttachOptionItems();
         _publishedRuntimeKeys.Clear();
@@ -226,6 +274,11 @@ public partial class BrokerClientControl : EditorTemplateControl
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
         HookObservedItem();
+        if (!CanUpdateUi())
+        {
+            return;
+        }
+
         RefreshPresentation();
     }
 
@@ -263,21 +316,14 @@ public partial class BrokerClientControl : EditorTemplateControl
             return;
         }
 
-        if (e.PropertyName is nameof(FolderItemModel.BrokerAttachedItemPaths)
-            or nameof(FolderItemModel.ItemExposures)
-            or nameof(FolderItemModel.Name)
-            or nameof(FolderItemModel.BrokerHost)
-            or nameof(FolderItemModel.BrokerPort)
-            or nameof(FolderItemModel.BrokerBaseTopic)
-            or nameof(FolderItemModel.BrokerClientId)
-            or nameof(FolderItemModel.BrokerMode)
-            or nameof(FolderItemModel.BrokerPublishedItemPaths))
+        if (!CanUpdateUi())
         {
-            if (e.PropertyName is nameof(FolderItemModel.BrokerHost)
-                or nameof(FolderItemModel.BrokerPort)
-                or nameof(FolderItemModel.BrokerBaseTopic)
-                or nameof(FolderItemModel.BrokerClientId)
-                or nameof(FolderItemModel.BrokerMode))
+            return;
+        }
+
+        if (IsBrokerPresentationProperty(e.PropertyName))
+        {
+            if (IsBrokerReconnectProperty(e.PropertyName))
             {
                 ReconnectIfAutoConnectEnabled();
             }
@@ -290,6 +336,14 @@ public partial class BrokerClientControl : EditorTemplateControl
             RefreshPresentation();
         }
 
+        if (e.PropertyName is nameof(FolderItemModel.EffectiveBodyBackground)
+            or nameof(FolderItemModel.EffectiveBodyBorder)
+            or nameof(FolderItemModel.EffectiveBodyForeground)
+            or nameof(FolderItemModel.EffectiveMutedForeground))
+        {
+            RefreshBrokerRowThemes();
+        }
+
         if (e.PropertyName == nameof(FolderItemModel.BrokerAutoConnect))
         {
             if (Item?.BrokerAutoConnect == true)
@@ -298,7 +352,7 @@ public partial class BrokerClientControl : EditorTemplateControl
             }
             else
             {
-                DisconnectInternal();
+                _ = DisconnectInternalAsync();
             }
 
             RefreshPresentation();
@@ -313,16 +367,23 @@ public partial class BrokerClientControl : EditorTemplateControl
         }
         else
         {
-            DisconnectInternal();
+            _ = DisconnectInternalAsync();
         }
 
         e.Handled = true;
     }
 
+    private static bool IsBrokerPresentationProperty(string? propertyName)
+        => IsBrokerReconnectProperty(propertyName)
+            || BrokerRuntimeRefreshPropertyNames.Contains(propertyName, StringComparer.Ordinal);
+
+    private static bool IsBrokerReconnectProperty(string? propertyName)
+        => BrokerReconnectPropertyNames.Contains(propertyName, StringComparer.Ordinal);
+
     private async void ConnectInternal()
     {
         var item = Item;
-        if (item is null || _client is not null || _isConnecting)
+        if (item is null || _client is not null || _isConnecting || !CanUpdateUi())
         {
             return;
         }
@@ -445,7 +506,7 @@ public partial class BrokerClientControl : EditorTemplateControl
         RefreshPresentation();
     }
 
-    private async void DisconnectInternal()
+    private async Task DisconnectInternalAsync()
     {
         _runtimeUpdateTimer.Stop();
         RemovePublishedRuntimeItems(Item);
@@ -514,6 +575,11 @@ public partial class BrokerClientControl : EditorTemplateControl
             }
         }
 
+        if (!CanUpdateUi())
+        {
+            return;
+        }
+
         ConnectionStateText = "Disconnected";
         ConnectionStatusBackground = Brushes.Black;
         RefreshPresentation();
@@ -523,11 +589,11 @@ public partial class BrokerClientControl : EditorTemplateControl
     {
         if (Item?.BrokerAutoConnect != true)
         {
-            DisconnectInternal();
+            _ = DisconnectInternalAsync();
             return;
         }
 
-        DisconnectInternal();
+        _ = DisconnectInternalAsync();
         ConnectInternal();
     }
 
@@ -616,6 +682,11 @@ public partial class BrokerClientControl : EditorTemplateControl
 
     private void OnClientItemsChanged()
     {
+        if (!CanUpdateUi())
+        {
+            return;
+        }
+
         if (!Dispatcher.UIThread.CheckAccess())
         {
             Dispatcher.UIThread.Post(ScheduleRuntimeUpdate);
@@ -632,7 +703,7 @@ public partial class BrokerClientControl : EditorTemplateControl
 
     private void ScheduleRuntimeUpdate()
     {
-        if (_runtimeUpdateTimer.IsEnabled)
+        if (!CanUpdateUi() || _runtimeUpdateTimer.IsEnabled)
         {
             return;
         }
@@ -643,12 +714,22 @@ public partial class BrokerClientControl : EditorTemplateControl
     private void OnRuntimeUpdateTimerTick(object? sender, EventArgs e)
     {
         _runtimeUpdateTimer.Stop();
+        if (!CanUpdateUi())
+        {
+            return;
+        }
+
         PublishRuntimeItems();
         RefreshPresentation();
     }
 
     private void PublishRuntimeItems()
     {
+        if (!CanUpdateUi())
+        {
+            return;
+        }
+
         if (Item is null || _client is null)
         {
             RemoveStaleRuntimeItems(new HashSet<string>(StringComparer.OrdinalIgnoreCase));
@@ -708,6 +789,11 @@ public partial class BrokerClientControl : EditorTemplateControl
 
     private void RefreshPresentation()
     {
+        if (!CanUpdateUi())
+        {
+            return;
+        }
+
         var item = Item;
         if (item is null)
         {
@@ -732,11 +818,29 @@ public partial class BrokerClientControl : EditorTemplateControl
         HasNoPublishedItems = PublishedItems.Count == 0;
     }
 
+    private void RefreshBrokerRowThemes()
+    {
+        foreach (var row in AttachedItems)
+        {
+            row.RefreshTheme();
+        }
+
+        foreach (var row in PublishedItems)
+        {
+            row.RefreshTheme();
+        }
+    }
+
     private void RebuildAttachedItemRows()
     {
         if (!Dispatcher.UIThread.CheckAccess())
         {
             Dispatcher.UIThread.Post(RebuildAttachedItemRows);
+            return;
+        }
+
+        if (!CanUpdateUi())
+        {
             return;
         }
 
@@ -777,6 +881,7 @@ public partial class BrokerClientControl : EditorTemplateControl
             var helperCount = ResolveConfiguredHelperCount(definition);
             var isLive = _client is not null && livePaths.Contains(path);
             AttachedItems.Add(new BrokerAttachedItemRow(
+                item,
                 path,
                 string.IsNullOrWhiteSpace(displayParts.Name) ? path : displayParts.Name,
                 BuildAttachedItemSummary(isLive, helperCount, definition),
@@ -792,6 +897,11 @@ public partial class BrokerClientControl : EditorTemplateControl
         if (!Dispatcher.UIThread.CheckAccess())
         {
             Dispatcher.UIThread.Post(RebuildPublishedItemRows);
+            return;
+        }
+
+        if (!CanUpdateUi())
+        {
             return;
         }
 
@@ -831,6 +941,7 @@ public partial class BrokerClientControl : EditorTemplateControl
         {
             var displayParts = GetBrokerPublishDisplayParts(root.LocalRootPath);
             PublishedItems.Add(new BrokerPublishedRootRow(
+                item,
                 root.LocalRootPath,
                 string.IsNullOrWhiteSpace(displayParts.Name) ? root.LocalRootPath : displayParts.Name,
                 BuildPublishedRootSummary(root.ActiveCount, root.DefinitionCount),
@@ -1236,6 +1347,22 @@ public partial class BrokerClientControl : EditorTemplateControl
         e.Handled = true;
     }
 
+    private async void OnHeaderAttachClicked(object? sender, RoutedEventArgs e)
+    {
+        if (!TryGetDialogContext(out var item, out var viewModel, out var owner))
+        {
+            return;
+        }
+
+        var field = CreateBrokerAttachEditorField(item);
+        var dialog = new AttachItemsEditorDialogWindow(viewModel, field);
+        await dialog.ShowDialog(owner);
+        field.Definition.Apply(item, field.Value);
+        PublishRuntimeItems();
+        RebuildAttachedItemRows();
+        e.Handled = true;
+    }
+
     private async void OnDeleteAttachedItemClicked(object? sender, RoutedEventArgs e)
     {
         if (Item is null
@@ -1291,6 +1418,22 @@ public partial class BrokerClientControl : EditorTemplateControl
         e.Handled = true;
     }
 
+    private async void OnHeaderPublishClicked(object? sender, RoutedEventArgs e)
+    {
+        if (!TryGetDialogContext(out var item, out var viewModel, out var owner))
+        {
+            return;
+        }
+
+        var field = CreateBrokerPublishEditorField(item);
+        var dialog = new AttachItemsEditorDialogWindow(viewModel, field);
+        await dialog.ShowDialog(owner);
+        field.Definition.Apply(item, field.Value);
+        RestartHostItemPublisher(publishInitialSnapshots: false);
+        RebuildPublishedItemRows();
+        e.Handled = true;
+    }
+
     private async void OnDeletePublishedItemClicked(object? sender, RoutedEventArgs e)
     {
         if (Item is null
@@ -1333,6 +1476,140 @@ public partial class BrokerClientControl : EditorTemplateControl
     private static string GetAttachOptionsBasePath(FolderItemModel item)
         => $"Studio.{item.FolderName}.{NormalizeWidgetName(item)}.Status.AttachOptions";
 
+    private bool TryGetDialogContext(
+        out FolderItemModel item,
+        out HornetStudio.Editor.ViewModels.MainWindowViewModel viewModel,
+        out Window owner)
+    {
+        item = Item!;
+        viewModel = null!;
+        owner = null!;
+
+        if (Item is null
+            || TopLevel.GetTopLevel(this) is not Window { DataContext: HornetStudio.Editor.ViewModels.MainWindowViewModel mainWindowViewModel } window)
+        {
+            return false;
+        }
+
+        item = Item;
+        viewModel = mainWindowViewModel;
+        owner = window;
+        return true;
+    }
+
+    private static HornetStudio.Editor.ViewModels.EditorDialogField CreateBrokerAttachEditorField(FolderItemModel item)
+    {
+        var definition = new HornetStudio.Editor.ViewModels.EditorDialogBindingDefinition(
+            key: "BrokerAttachedItemPaths",
+            label: "AttachToUi",
+            propertyType: HornetStudio.Editor.ViewModels.EditorPropertyType.AttachItemList,
+            readValue: static current => current.BrokerAttachedItemPaths,
+            applyValue: static (current, value) =>
+            {
+                current.BrokerAttachedItemPaths = value;
+                return null;
+            },
+            optionsFactory: GetBrokerAttachItemOptions);
+        return definition.CreateField(item);
+    }
+
+    private static HornetStudio.Editor.ViewModels.EditorDialogField CreateBrokerPublishEditorField(FolderItemModel item)
+    {
+        var definition = new HornetStudio.Editor.ViewModels.EditorDialogBindingDefinition(
+            key: "BrokerPublishedItemPaths",
+            label: "PublishItems",
+            propertyType: HornetStudio.Editor.ViewModels.EditorPropertyType.AttachItemList,
+            readValue: static current => current.BrokerPublishedItemPaths,
+            applyValue: static (current, value) =>
+            {
+                current.BrokerPublishedItemPaths = BrokerPublishedItemDefinitionCodec.SerializeDefinitions(BrokerPublishedItemDefinitionCodec.ParseDefinitions(value));
+                return null;
+            },
+            optionsFactory: GetBrokerPublishItemOptions);
+        return definition.CreateField(item);
+    }
+
+    private static IEnumerable<string> GetBrokerPublishItemOptions(FolderItemModel item)
+        => HostRegistries.Data.GetKeysByCapability(DataRegistryItemCapabilities.BrokerPublish)
+            .Select(TargetPathHelper.NormalizeConfiguredTargetPath)
+            .Where(static path => !string.IsNullOrWhiteSpace(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private static IEnumerable<string> GetBrokerAttachItemOptions(FolderItemModel item)
+    {
+        var normalizedName = string.IsNullOrWhiteSpace(item.Name)
+            ? "BrokerWidget"
+            : TargetPathHelper.NormalizeConfiguredTargetPath(item.Name).Replace('.', '_');
+        var prefixes = new[]
+        {
+            $"Studio.{item.FolderName}.{normalizedName}.Status.AttachOptions",
+            $"Project.{item.FolderName}.{normalizedName}.Status.AttachOptions",
+            $"UdlProject.{item.FolderName}.{normalizedName}.Status.AttachOptions"
+        };
+
+        return HostRegistries.Data.GetAllKeys()
+            .SelectMany(key => prefixes.Select(prefix => TryGetBrokerAttachRuntimePath(key, prefix)))
+            .Where(static path => !string.IsNullOrWhiteSpace(path))
+            .Select(static path => path!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static string? TryGetPathSuffix(string path, string prefix)
+    {
+        if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(prefix))
+        {
+            return null;
+        }
+
+        if (string.Equals(path, prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        if (!path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var suffix = path[prefix.Length..].TrimStart('/', '.', '\\');
+        return string.IsNullOrWhiteSpace(suffix) ? null : suffix;
+    }
+
+    private static string? TryGetBrokerAttachRuntimePath(string registryKey, string prefix)
+    {
+        var suffix = TryGetPathSuffix(registryKey, prefix);
+        return ExtractBrokerAttachPath(suffix);
+    }
+
+    private static string? ExtractBrokerAttachPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
+        var normalizedPath = TargetPathHelper.NormalizeConfiguredTargetPath(path);
+        var markerIndex = normalizedPath.IndexOf("Runtime.ItemBroker.", StringComparison.OrdinalIgnoreCase);
+        if (markerIndex < 0)
+        {
+            return null;
+        }
+
+        var runtimePath = normalizedPath[markerIndex..];
+        var segments = TargetPathHelper.SplitPathSegments(runtimePath);
+        if (segments.Count < 4)
+        {
+            return null;
+        }
+
+        var brokerPath = string.Join('.', segments.Skip(3));
+        return TargetPathHelper.ToBrokerReceivedAttachIdentity(brokerPath);
+    }
+
     private static void RemovePublishedRuntimeItems(FolderItemModel? item)
     {
         if (item is null)
@@ -1365,6 +1642,8 @@ public partial class BrokerClientControl : EditorTemplateControl
         private readonly FolderItemModel _item;
         private readonly IHostItemBrokerClient _client;
         private readonly Dictionary<int, DispatcherTimer> _intervalTimers = new();
+        private readonly object _registrationSync = new();
+        private readonly HashSet<string> _registeredBrokerPaths = new(StringComparer.OrdinalIgnoreCase);
         private IReadOnlyList<BrokerPublishedItemDefinition> _definitions = [];
         private bool _disposed;
 
@@ -1396,7 +1675,7 @@ public partial class BrokerClientControl : EditorTemplateControl
         {
             foreach (var definition in BrokerPublishedItemDefinitionCodec.GetActiveDefinitionsForRoot(_definitions, localRootPath))
             {
-                PublishDefinitionIfAvailable(definition);
+                PublishDefinitionIfAvailable(definition, PublishIntent.Snapshot);
             }
         }
 
@@ -1422,7 +1701,7 @@ public partial class BrokerClientControl : EditorTemplateControl
         {
             foreach (var definition in _definitions)
             {
-                PublishDefinitionIfAvailable(definition);
+                PublishDefinitionIfAvailable(definition, PublishIntent.Snapshot);
             }
         }
 
@@ -1464,7 +1743,7 @@ public partial class BrokerClientControl : EditorTemplateControl
                          string.Equals(definition.PublishMode, BrokerPublishedItemPublishModes.Interval, StringComparison.OrdinalIgnoreCase)
                          && Math.Max(1, definition.PublishIntervalMs) == interval))
             {
-                PublishDefinitionIfAvailable(definition);
+                PublishDefinitionIfAvailable(definition, PublishIntent.IntervalUpdate);
             }
         }
 
@@ -1479,7 +1758,7 @@ public partial class BrokerClientControl : EditorTemplateControl
                          string.Equals(definition.PublishMode, BrokerPublishedItemPublishModes.OnChanged, StringComparison.OrdinalIgnoreCase)
                          && BrokerPublishedItemChangeMatcher.ShouldPublish(definition, e, ResolveLocalItem)))
             {
-                PublishDefinitionIfAvailable(definition);
+                PublishDefinitionIfAvailable(definition, PublishIntent.ChangeUpdate, e);
             }
         }
 
@@ -1496,7 +1775,10 @@ public partial class BrokerClientControl : EditorTemplateControl
             return null;
         }
 
-        private void PublishDefinitionIfAvailable(BrokerPublishedItemDefinition definition)
+        private void PublishDefinitionIfAvailable(
+            BrokerPublishedItemDefinition definition,
+            PublishIntent intent,
+            DataChangedEventArgs? change = null)
         {
             if (_disposed || string.IsNullOrWhiteSpace(definition.LocalPath) || string.IsNullOrWhiteSpace(definition.BrokerPath))
             {
@@ -1510,19 +1792,210 @@ public partial class BrokerClientControl : EditorTemplateControl
             }
 
             var snapshot = localItem.Clone().Repath(definition.BrokerPath);
-            _ = PublishSnapshotAsync(snapshot, definition.BrokerPath);
+            var brokerPath = NormalizeBrokerPath(definition.BrokerPath);
+            if (intent == PublishIntent.ChangeUpdate && change is not null && TryCreateChangedBrokerItem(definition, change, out var changedItem))
+            {
+                var changedBrokerPath = NormalizeBrokerPath(changedItem.Path);
+                if (!string.IsNullOrWhiteSpace(changedBrokerPath))
+                {
+                    if (change.ChangeKind == DataChangeKind.ValueUpdated)
+                    {
+                        _ = PublishValueUpdateAsync(changedItem, changedBrokerPath);
+                        return;
+                    }
+
+                    if (change.ChangeKind == DataChangeKind.ParameterUpdated && !string.IsNullOrWhiteSpace(change.ParameterName))
+                    {
+                        _ = PublishParameterUpdateAsync(changedItem, change.ParameterName, changedBrokerPath);
+                        return;
+                    }
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(brokerPath) || !IsRegisteredBrokerPath(brokerPath))
+            {
+                _ = PublishSnapshotAsync(snapshot, brokerPath);
+                return;
+            }
+
+            if (intent == PublishIntent.IntervalUpdate)
+            {
+                if (snapshot.GetDictionary().Count == 0)
+                {
+                    _ = PublishValueUpdateAsync(snapshot, brokerPath);
+                }
+                else
+                {
+                    _ = PublishSnapshotAsync(snapshot, brokerPath);
+                }
+
+                return;
+            }
+
+            _ = PublishSnapshotAsync(snapshot, brokerPath);
         }
 
         private async Task PublishSnapshotAsync(Item snapshot, string brokerPath)
         {
             try
             {
-                await _client.PublishItemAsync(snapshot, brokerPath).ConfigureAwait(false);
+                HostLogger.Log.Debug(
+                    "[BrokerWidgetPublish] kind=snapshot widget={WidgetName} brokerPath={BrokerPath} value={Value}",
+                    _item.Name,
+                    brokerPath,
+                    snapshot.Value);
+                await _client.PublishSnapshotAsync(snapshot).ConfigureAwait(false);
+                RegisterBrokerPaths(snapshot);
             }
             catch (Exception ex)
             {
                 HostLogger.Log.Warning(ex, "[BrokerWidgetPublish] Failed to publish local item LocalPath={LocalPath} BrokerPath={BrokerPath}.", snapshot.Path ?? string.Empty, brokerPath);
             }
+        }
+
+        private async Task PublishValueUpdateAsync(Item item, string brokerPath)
+        {
+            try
+            {
+                HostLogger.Log.Debug(
+                    "[BrokerWidgetPublish] kind=value widget={WidgetName} brokerPath={BrokerPath} value={Value}",
+                    _item.Name,
+                    brokerPath,
+                    item.Value);
+                await _client.UpdateValueAsync(item).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                HostLogger.Log.Warning(ex, "[BrokerWidgetPublish] Failed to update local item value LocalPath={LocalPath} BrokerPath={BrokerPath}.", item.Path ?? string.Empty, brokerPath);
+            }
+        }
+
+        private async Task PublishParameterUpdateAsync(Item item, string parameterName, string brokerPath)
+        {
+            try
+            {
+                var value = item.Params.Has(parameterName) ? item.Params[parameterName].Value : null;
+                HostLogger.Log.Debug(
+                    "[BrokerWidgetPublish] kind=parameter widget={WidgetName} brokerPath={BrokerPath} parameter={Parameter} value={Value}",
+                    _item.Name,
+                    brokerPath,
+                    parameterName,
+                    value);
+                await _client.UpdateParameterAsync(item, parameterName).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                HostLogger.Log.Warning(
+                    ex,
+                    "[BrokerWidgetPublish] Failed to update local item parameter LocalPath={LocalPath} BrokerPath={BrokerPath} Parameter={Parameter}.",
+                    item.Path ?? string.Empty,
+                    brokerPath,
+                    parameterName);
+            }
+        }
+
+        private static bool TryCreateChangedBrokerItem(
+            BrokerPublishedItemDefinition definition,
+            DataChangedEventArgs change,
+            out Item changedItem)
+        {
+            changedItem = null!;
+
+            if (change.ChangeKind is not (DataChangeKind.ValueUpdated or DataChangeKind.ParameterUpdated))
+            {
+                return false;
+            }
+
+            var localPath = TargetPathHelper.NormalizeConfiguredTargetPath(definition.LocalPath);
+            var changedPath = TargetPathHelper.NormalizeConfiguredTargetPath(change.Key);
+            var brokerPath = NormalizeBrokerPath(definition.BrokerPath);
+            if (string.IsNullOrWhiteSpace(localPath)
+                || string.IsNullOrWhiteSpace(changedPath)
+                || string.IsNullOrWhiteSpace(brokerPath))
+            {
+                return false;
+            }
+
+            if (string.Equals(localPath, changedPath, StringComparison.OrdinalIgnoreCase))
+            {
+                changedItem = change.Item.Clone().Repath(brokerPath);
+                return HasChangedParameter(changedItem, change);
+            }
+
+            if (!TryGetPathSuffix(changedPath, localPath, out var suffix))
+            {
+                return false;
+            }
+
+            changedItem = change.Item.Clone().Repath($"{brokerPath}.{suffix}");
+            return HasChangedParameter(changedItem, change);
+        }
+
+        private static bool HasChangedParameter(Item item, DataChangedEventArgs change)
+            => change.ChangeKind == DataChangeKind.ValueUpdated
+                || (!string.IsNullOrWhiteSpace(change.ParameterName) && item.Params.Has(change.ParameterName));
+
+        private static bool TryGetPathSuffix(string path, string prefix, out string suffix)
+        {
+            suffix = string.Empty;
+            if (string.Equals(path, prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (!path.StartsWith(prefix + ".", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            suffix = path[(prefix.Length + 1)..];
+            return !string.IsNullOrWhiteSpace(suffix);
+        }
+
+        private static IEnumerable<string> EnumerateBrokerPaths(Item item)
+        {
+            var path = NormalizeBrokerPath(item.Path);
+            if (!string.IsNullOrWhiteSpace(path))
+            {
+                yield return path;
+            }
+
+            foreach (var child in item.GetDictionary().Values)
+            {
+                foreach (var childPath in EnumerateBrokerPaths(child))
+                {
+                    yield return childPath;
+                }
+            }
+        }
+
+        private static string NormalizeBrokerPath(string? brokerPath)
+            => TargetPathHelper.NormalizeConfiguredTargetPath(brokerPath);
+
+        private bool IsRegisteredBrokerPath(string brokerPath)
+        {
+            lock (_registrationSync)
+            {
+                return _registeredBrokerPaths.Contains(brokerPath);
+            }
+        }
+
+        private void RegisterBrokerPaths(Item snapshot)
+        {
+            lock (_registrationSync)
+            {
+                foreach (var path in EnumerateBrokerPaths(snapshot))
+                {
+                    _registeredBrokerPaths.Add(path);
+                }
+            }
+        }
+
+        private enum PublishIntent
+        {
+            Snapshot,
+            IntervalUpdate,
+            ChangeUpdate
         }
 
     }
@@ -1552,6 +2025,9 @@ public partial class BrokerClientControl : EditorTemplateControl
             await _adapter.DisposeAsync().ConfigureAwait(false);
         }
     }
+
+    private bool CanUpdateUi()
+        => _isAttachedToVisualTree && this.GetVisualRoot() is not null;
 }
 
 /// <summary>
@@ -1616,17 +2092,22 @@ public static class BrokerPublishedItemChangeMatcher
 /// Represents one attached broker item shown in the Broker widget body.
 /// </summary>
 public sealed class BrokerAttachedItemRow
+    : INotifyPropertyChanged
 {
+    private readonly FolderItemModel _ownerItem;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="BrokerAttachedItemRow"/> class.
     /// </summary>
+    /// <param name="ownerItem">The owning widget item.</param>
     /// <param name="itemPath">The flat broker item path.</param>
     /// <param name="displayName">The display name.</param>
     /// <param name="summaryText">The summary text.</param>
     /// <param name="alertText">The alert text.</param>
     /// <param name="isLive">Whether the attached item is currently live.</param>
-    public BrokerAttachedItemRow(string itemPath, string displayName, string summaryText, string alertText, bool isLive)
+    public BrokerAttachedItemRow(FolderItemModel ownerItem, string itemPath, string displayName, string summaryText, string alertText, bool isLive)
     {
+        _ownerItem = ownerItem ?? throw new ArgumentNullException(nameof(ownerItem));
         ItemPath = TargetPathHelper.ToFlatItemBrokerPath(itemPath);
         DisplayName = displayName;
         SummaryText = summaryText;
@@ -1635,9 +2116,19 @@ public sealed class BrokerAttachedItemRow
     }
 
     /// <summary>
+    /// Occurs when a row property changes.
+    /// </summary>
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    /// <summary>
     /// Gets the flat broker item path.
     /// </summary>
     public string ItemPath { get; }
+
+    /// <summary>
+    /// Gets the compact path text shown in the row.
+    /// </summary>
+    public string PathText => ItemPath;
 
     /// <summary>
     /// Gets the display name.
@@ -1653,6 +2144,11 @@ public sealed class BrokerAttachedItemRow
     /// Gets the alert text.
     /// </summary>
     public string AlertText { get; }
+
+    /// <summary>
+    /// Gets the row tooltip text.
+    /// </summary>
+    public string ToolTipText => BuildToolTipText(SummaryText, AlertText);
 
     /// <summary>
     /// Gets a value indicating whether an alert should be shown.
@@ -1672,35 +2168,57 @@ public sealed class BrokerAttachedItemRow
     /// <summary>
     /// Gets the row border brush.
     /// </summary>
-    public IBrush RowBorderBrush => IsLive ? Brushes.SlateGray : Brushes.DimGray;
+    public IBrush RowBorderBrush => _ownerItem.EffectiveBodyBorderBrush;
 
     /// <summary>
     /// Gets the primary foreground brush.
     /// </summary>
-    public IBrush PrimaryForeground => Brushes.White;
+    public IBrush PrimaryForeground => _ownerItem.EffectiveBodyForegroundBrush;
 
     /// <summary>
-    /// Gets the secondary foreground brush.
+    /// Gets the traffic-light status indicator brush.
     /// </summary>
-    public IBrush SecondaryForeground => IsLive ? Brushes.LightSteelBlue : Brushes.Gray;
+    public IBrush StatusIndicatorBrush => IsLive ? Brushes.ForestGreen : Brushes.Firebrick;
+
+    /// <summary>
+    /// Raises property changed notifications for theme-dependent row values.
+    /// </summary>
+    public void RefreshTheme()
+    {
+        RaisePropertyChanged(nameof(RowBorderBrush));
+        RaisePropertyChanged(nameof(PrimaryForeground));
+    }
+
+    private static string BuildToolTipText(string summaryText, string alertText)
+        => string.IsNullOrWhiteSpace(alertText)
+            ? summaryText
+            : $"{summaryText}{Environment.NewLine}{alertText}";
+
+    private void RaisePropertyChanged([CallerMemberName] string? propertyName = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 }
 
 /// <summary>
 /// Represents one local registry root configured for broker publishing.
 /// </summary>
 public sealed class BrokerPublishedRootRow
+    : INotifyPropertyChanged
 {
+    private readonly FolderItemModel _ownerItem;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="BrokerPublishedRootRow"/> class.
     /// </summary>
+    /// <param name="ownerItem">The owning widget item.</param>
     /// <param name="localRootPath">The local registry root path.</param>
     /// <param name="displayName">The display name.</param>
     /// <param name="summaryText">The summary text.</param>
     /// <param name="alertText">The alert text.</param>
     /// <param name="hasActiveEntries">Whether the root has active publish entries.</param>
     /// <param name="exists">Whether the local root currently exists.</param>
-    public BrokerPublishedRootRow(string localRootPath, string displayName, string summaryText, string alertText, bool hasActiveEntries, bool exists)
+    public BrokerPublishedRootRow(FolderItemModel ownerItem, string localRootPath, string displayName, string summaryText, string alertText, bool hasActiveEntries, bool exists)
     {
+        _ownerItem = ownerItem ?? throw new ArgumentNullException(nameof(ownerItem));
         LocalRootPath = TargetPathHelper.NormalizeConfiguredTargetPath(localRootPath);
         DisplayName = displayName;
         SummaryText = summaryText;
@@ -1710,9 +2228,19 @@ public sealed class BrokerPublishedRootRow
     }
 
     /// <summary>
+    /// Occurs when a row property changes.
+    /// </summary>
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    /// <summary>
     /// Gets the local registry root path.
     /// </summary>
     public string LocalRootPath { get; }
+
+    /// <summary>
+    /// Gets the compact path text shown in the row.
+    /// </summary>
+    public string PathText => LocalRootPath;
 
     /// <summary>
     /// Gets the display name.
@@ -1728,6 +2256,11 @@ public sealed class BrokerPublishedRootRow
     /// Gets the alert text.
     /// </summary>
     public string AlertText { get; }
+
+    /// <summary>
+    /// Gets the row tooltip text.
+    /// </summary>
+    public string ToolTipText => BuildToolTipText(SummaryText, AlertText);
 
     /// <summary>
     /// Gets a value indicating whether an alert should be shown.
@@ -1752,15 +2285,36 @@ public sealed class BrokerPublishedRootRow
     /// <summary>
     /// Gets the row border brush.
     /// </summary>
-    public IBrush RowBorderBrush => HasActiveEntries ? Brushes.ForestGreen : Brushes.DimGray;
+    public IBrush RowBorderBrush => _ownerItem.EffectiveBodyBorderBrush;
 
     /// <summary>
     /// Gets the primary foreground brush.
     /// </summary>
-    public IBrush PrimaryForeground => Brushes.White;
+    public IBrush PrimaryForeground => _ownerItem.EffectiveBodyForegroundBrush;
 
     /// <summary>
-    /// Gets the secondary foreground brush.
+    /// Gets the traffic-light status indicator brush.
     /// </summary>
-    public IBrush SecondaryForeground => Exists ? Brushes.LightSteelBlue : Brushes.Gray;
+    public IBrush StatusIndicatorBrush => !Exists
+        ? Brushes.Firebrick
+        : HasActiveEntries
+            ? Brushes.ForestGreen
+            : Brushes.DarkOrange;
+
+    /// <summary>
+    /// Raises property changed notifications for theme-dependent row values.
+    /// </summary>
+    public void RefreshTheme()
+    {
+        RaisePropertyChanged(nameof(RowBorderBrush));
+        RaisePropertyChanged(nameof(PrimaryForeground));
+    }
+
+    private static string BuildToolTipText(string summaryText, string alertText)
+        => string.IsNullOrWhiteSpace(alertText)
+            ? summaryText
+            : $"{summaryText}{Environment.NewLine}{alertText}";
+
+    private void RaisePropertyChanged([CallerMemberName] string? propertyName = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 }

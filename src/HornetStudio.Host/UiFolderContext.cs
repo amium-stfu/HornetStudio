@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using Amium.Item;
+using Amium.Items;
 
 namespace HornetStudio.Host;
 
@@ -120,8 +120,11 @@ public sealed class UiFolderContext : IDisposable
             {
                 if (!string.Equals(e.Item.Path, _source.Path, StringComparison.Ordinal))
                 {
-                    var treeSnapshot = _source.Clone().Repath(_targetPath);
-                    HostRegistries.Data.UpsertSnapshot(_targetPath, treeSnapshot, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
+                    if (TryGetSourceRelativePath(e.Item, out var relativePath))
+                    {
+                        SyncSourceChildChangeToTarget(relativePath, e);
+                    }
+
                     return;
                 }
 
@@ -147,6 +150,51 @@ public sealed class UiFolderContext : IDisposable
             {
                 _isSyncingFromSource = false;
             }
+        }
+
+        private void SyncSourceChildChangeToTarget(string relativePath, ItemChangedEventArgs e)
+        {
+            var targetChildPath = $"{_targetPath}.{relativePath}";
+            var parameterName = e.ParameterName;
+            if (string.Equals(parameterName, "Value", StringComparison.Ordinal))
+            {
+                var valueTimestamp = e.Item.Params.Has("Value") ? e.Item.Params["Value"].LastUpdate : (ulong?)null;
+                if (!HostRegistries.Data.UpdateValue(targetChildPath, e.Item.Value, valueTimestamp))
+                {
+                    var treeSnapshot = _source.Clone().Repath(_targetPath);
+                    HostRegistries.Data.UpsertSnapshot(_targetPath, treeSnapshot, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
+                }
+
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(parameterName)
+                && !IsStructuralParameter(parameterName)
+                && e.Item.Params.Has(parameterName))
+            {
+                var sourceParameter = e.Item.Params[parameterName];
+                if (!HostRegistries.Data.UpdateParameter(targetChildPath, parameterName, sourceParameter.Value, sourceParameter.LastUpdate))
+                {
+                    var treeSnapshot = _source.Clone().Repath(_targetPath);
+                    HostRegistries.Data.UpsertSnapshot(_targetPath, treeSnapshot, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
+                }
+            }
+        }
+
+        private bool TryGetSourceRelativePath(Item item, out string relativePath)
+        {
+            relativePath = string.Empty;
+            var sourcePath = _source.Path;
+            var itemPath = item.Path;
+            if (string.IsNullOrWhiteSpace(sourcePath)
+                || string.IsNullOrWhiteSpace(itemPath)
+                || !itemPath.StartsWith(sourcePath + ".", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            relativePath = itemPath[(sourcePath.Length + 1)..];
+            return !string.IsNullOrWhiteSpace(relativePath);
         }
 
         private void OnTargetChanged(object? sender, DataChangedEventArgs e)

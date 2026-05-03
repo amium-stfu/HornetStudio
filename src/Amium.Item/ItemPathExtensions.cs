@@ -1,6 +1,6 @@
 using System;
 
-namespace Amium.Item;
+namespace Amium.Items;
 
 /// <summary>
 /// Provides helpers for updating item paths recursively.

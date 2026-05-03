@@ -12,7 +12,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using HornetStudio.Editor.Controls;
 using HornetStudio.Host;
-using Amium.Item;
+using Amium.Items;
 using HornetStudio.Editor.Helpers;
 using HornetStudio.Editor.Models;
 using HornetStudio.Editor.ViewModels;

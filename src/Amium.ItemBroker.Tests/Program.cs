@@ -1,11 +1,15 @@
-using Amium.Item;
+using Amium.Items;
 using Amium.ItemBroker;
 using Amium.ItemBroker.Client;
 using Amium.ItemBroker.Mqtt;
+using Amium.ItemBroker.Mqtt.Client;
+using MQTTnet;
 using MQTTnet.Server;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using HostMqttItemTopicMapper = Amium.ItemBroker.Mqtt.MqttItemTopicMapper;
+using ClientMqttItemTopicMapper = Amium.ItemBroker.Mqtt.Client.MqttItemTopicMapper;
 using MqttClientOptions = Amium.ItemBroker.Mqtt.Client.MqttItemBrokerClientOptions;
 using MqttClientSession = Amium.ItemBroker.Mqtt.Client.MqttItemBrokerClientSession;
 
@@ -20,21 +24,27 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Recursive subscription", RecursiveSubscription),
     ("Remove clears descendants", RemoveClearsDescendants),
     ("Write request routing", WriteRequestRouting),
+    ("Snapshot same owner refresh succeeds", SnapshotSameOwnerRefreshSucceeds),
+    ("Snapshot different owner conflict is rejected", SnapshotDifferentOwnerConflictIsRejected),
     ("Retention policy decisions", RetentionPolicyDecisions),
     ("Publish policy snapshot and delta decisions", PublishPolicySnapshotAndDeltaDecisions),
     ("Client publish path normalization", ClientPublishPathNormalization),
     ("Client publish item value", ClientPublishItemValue),
     ("Client publish item parameter", ClientPublishItemParameter),
     ("High frequency latest retained value", HighFrequencyLatestRetainedValue),
-    ("MQTT topic mapping", MqttTopicMapping),
-    ("MQTT topic mapping with base topic", MqttTopicMappingWithBaseTopic),
-    ("MQTT shared topic mapping ignores client id", MqttSharedTopicMappingIgnoresClientId),
+    ("MQTT topic mapping", MqttTopicMappingBehavior),
+    ("MQTT topic mapping with base topic", MqttTopicMappingWithBaseTopicBehavior),
+    ("MQTT shared topic mapping ignores client id", MqttSharedTopicMappingIgnoresClientIdBehavior),
     ("MQTT remote registry rebuild", MqttRemoteRegistryRebuild),
     ("MQTT remote registry converts numeric payloads", MqttRemoteRegistryConvertsNumericPayloads),
     ("MQTT retained publish behavior", MqttRetainedPublishBehavior),
     ("MQTT incoming write mapping", MqttIncomingWriteMapping),
+    ("MQTT incoming non-writable write is blocked", MqttIncomingNonWritableWriteIsBlocked),
     ("MQTT client recursive item publish", MqttClientRecursiveItemPublish),
     ("MQTT client live subscription rebuild", MqttClientLiveSubscriptionRebuild),
+    ("MQTT remote client value update refreshes retained state", MqttRemoteClientValueUpdateRefreshesRetainedState),
+    ("MQTT selfhosted host publishes health", MqttSelfhostedHostPublishesHealth),
+    ("MQTT remote client hides self-published items", MqttRemoteClientHidesSelfPublishedItems),
 };
 
 var failures = new List<string>();
@@ -78,12 +88,20 @@ static async Task SnapshotPublishAndRetainedState()
     var broker = new InMemoryItemBroker();
     var publisher = new RecordingClient("publisher");
     var subscriber = new RecordingClient("subscriber");
-    await broker.SubscribeAsync(publisher, Subscribe("Runtime.Device", recursive: true, publisher.ClientId));
+    await broker.SubscribeAsync(
+        client: publisher,
+        path: "Runtime.Device",
+        options: SubscribeOptions(recursive: true));
 
     var item = new Item("Device", 1).Repath("Runtime.Device");
-    await broker.PublishSnapshotAsync(new ItemSnapshotMessage("Runtime.Device", item, publisher.ClientId, null, DateTimeOffset.UtcNow));
+    await broker.PublishSnapshotAsync(
+        item: item,
+        sourceClientId: publisher.ClientId);
 
-    await broker.SubscribeAsync(subscriber, Subscribe(@"runtime/device", recursive: false, subscriber.ClientId));
+    await broker.SubscribeAsync(
+        client: subscriber,
+        path: @"runtime/device",
+        options: SubscribeOptions(recursive: false));
 
     var retained = AssertSingle<ItemSnapshotMessage>(subscriber.Messages);
     AssertEqual("Runtime.Device", retained.Path);
@@ -94,9 +112,17 @@ static async Task ValueUpdateRouting()
 {
     var broker = new InMemoryItemBroker();
     var subscriber = new RecordingClient("subscriber");
-    await broker.SubscribeAsync(subscriber, Subscribe("Runtime.Device.Read", recursive: false, subscriber.ClientId));
+    await broker.SubscribeAsync(
+        client: subscriber,
+        path: "Runtime.Device.Read",
+        options: SubscribeOptions(recursive: false));
 
-    await broker.PublishValueChangedAsync(new ItemValueChangedMessage(@"runtime/device/read", 7, "publisher", null, DateTimeOffset.UtcNow));
+    await broker.PublishSnapshotAsync(
+        item: new Item("Read", 0).Repath("Runtime.Device.Read"),
+        sourceClientId: "publisher");
+    await broker.UpdateValueAsync(
+        item: new Item("Read", 7).Repath(@"runtime/device/read"),
+        sourceClientId: "publisher");
 
     var message = AssertSingle<ItemValueChangedMessage>(subscriber.Messages);
     AssertEqual("runtime.device.read", message.Path);
@@ -110,9 +136,18 @@ static async Task RetainedValueUpdateConvertsNumericPayloads()
     var subscriber = new RecordingClient("subscriber");
     var item = new Item("Read", 1.5).Repath("Runtime.Device.Read");
 
-    await broker.PublishSnapshotAsync(new ItemSnapshotMessage("Runtime.Device.Read", item, publisher.ClientId, null, DateTimeOffset.UtcNow));
-    await broker.PublishValueChangedAsync(new ItemValueChangedMessage("Runtime.Device.Read", 2L, "mqtt", null, DateTimeOffset.UtcNow));
-    await broker.SubscribeAsync(subscriber, Subscribe("Runtime.Device.Read", recursive: false, subscriber.ClientId));
+    await broker.PublishSnapshotAsync(
+        item: item,
+        sourceClientId: publisher.ClientId);
+    item.Value = 2.0;
+    await broker.UpdateValueAsync(
+        item: item,
+        retained: true,
+        sourceClientId: publisher.ClientId);
+    await broker.SubscribeAsync(
+        client: subscriber,
+        path: "Runtime.Device.Read",
+        options: SubscribeOptions(recursive: false));
 
     var retained = AssertSingle<ItemSnapshotMessage>(subscriber.Messages);
     AssertEqual(2.0, retained.Item.Value);
@@ -122,9 +157,20 @@ static async Task ParameterUpdateRouting()
 {
     var broker = new InMemoryItemBroker();
     var subscriber = new RecordingClient("subscriber");
-    await broker.SubscribeAsync(subscriber, Subscribe("Runtime.Device.Read", recursive: false, subscriber.ClientId));
+    await broker.SubscribeAsync(
+        client: subscriber,
+        path: "Runtime.Device.Read",
+        options: SubscribeOptions(recursive: false));
 
-    await broker.PublishParameterChangedAsync(new ItemParameterChangedMessage("Runtime.Device.Read", "Unit", "V", "publisher", null, DateTimeOffset.UtcNow));
+    var item = new Item("Read", 0).Repath("Runtime.Device.Read");
+    item.Params["Unit"].Value = "V";
+    await broker.PublishSnapshotAsync(
+        item: item,
+        sourceClientId: "publisher");
+    await broker.UpdateParameterAsync(
+        item: item,
+        parameterName: "Unit",
+        sourceClientId: "publisher");
 
     var message = AssertSingle<ItemParameterChangedMessage>(subscriber.Messages);
     AssertEqual("Unit", message.ParameterName);
@@ -139,9 +185,19 @@ static async Task RetainedParameterUpdateConvertsNumericPayloads()
     var item = new Item("Read", 0).Repath("Runtime.Device.Read");
     item.Params["Scale"].Value = 1.5;
 
-    await broker.PublishSnapshotAsync(new ItemSnapshotMessage("Runtime.Device.Read", item, publisher.ClientId, null, DateTimeOffset.UtcNow));
-    await broker.PublishParameterChangedAsync(new ItemParameterChangedMessage("Runtime.Device.Read", "Scale", 2L, "mqtt", null, DateTimeOffset.UtcNow));
-    await broker.SubscribeAsync(subscriber, Subscribe("Runtime.Device.Read", recursive: false, subscriber.ClientId));
+    await broker.PublishSnapshotAsync(
+        item: item,
+        sourceClientId: publisher.ClientId);
+    item.Params["Scale"].Value = 2.0;
+    await broker.UpdateParameterAsync(
+        item: item,
+        parameterName: "Scale",
+        retained: true,
+        sourceClientId: publisher.ClientId);
+    await broker.SubscribeAsync(
+        client: subscriber,
+        path: "Runtime.Device.Read",
+        options: SubscribeOptions(recursive: false));
 
     var retained = AssertSingle<ItemSnapshotMessage>(subscriber.Messages);
     AssertEqual(2.0, retained.Item.Params["Scale"].Value);
@@ -151,9 +207,17 @@ static async Task RecursiveSubscription()
 {
     var broker = new InMemoryItemBroker();
     var subscriber = new RecordingClient("subscriber");
-    await broker.SubscribeAsync(subscriber, Subscribe("Runtime.Device", recursive: true, subscriber.ClientId));
+    await broker.SubscribeAsync(
+        client: subscriber,
+        path: "Runtime.Device",
+        options: SubscribeOptions(recursive: true));
 
-    await broker.PublishValueChangedAsync(new ItemValueChangedMessage("Runtime.Device.Read", 3, "publisher", null, DateTimeOffset.UtcNow));
+    await broker.PublishSnapshotAsync(
+        item: new Item("Read", 0).Repath("Runtime.Device.Read"),
+        sourceClientId: "publisher");
+    await broker.UpdateValueAsync(
+        item: new Item("Read", 3).Repath("Runtime.Device.Read"),
+        sourceClientId: "publisher");
 
     AssertSingle<ItemValueChangedMessage>(subscriber.Messages);
 }
@@ -163,11 +227,21 @@ static async Task RemoveClearsDescendants()
     var broker = new InMemoryItemBroker();
     var publisher = new RecordingClient("publisher");
     var subscriber = new RecordingClient("subscriber");
-    await broker.SubscribeAsync(publisher, Subscribe("Runtime.Device", recursive: true, publisher.ClientId));
+    await broker.SubscribeAsync(
+        client: publisher,
+        path: "Runtime.Device",
+        options: SubscribeOptions(recursive: true));
 
-    await broker.PublishSnapshotAsync(new ItemSnapshotMessage("Runtime.Device.Read", new Item("Read", 2).Repath("Runtime.Device.Read"), publisher.ClientId, null, DateTimeOffset.UtcNow));
-    await broker.RemoveAsync(new ItemRemoveMessage("Runtime.Device", publisher.ClientId, null, DateTimeOffset.UtcNow));
-    await broker.SubscribeAsync(subscriber, Subscribe("Runtime.Device", recursive: true, subscriber.ClientId));
+    await broker.PublishSnapshotAsync(
+        item: new Item("Read", 2).Repath("Runtime.Device.Read"),
+        sourceClientId: publisher.ClientId);
+    await broker.RemoveAsync(
+        item: new Item("Device").Repath("Runtime.Device"),
+        sourceClientId: publisher.ClientId);
+    await broker.SubscribeAsync(
+        client: subscriber,
+        path: "Runtime.Device",
+        options: SubscribeOptions(recursive: true));
 
     AssertEqual(0, subscriber.Messages.Count);
 }
@@ -176,10 +250,18 @@ static async Task WriteRequestRouting()
 {
     var broker = new InMemoryItemBroker();
     var owner = new RecordingClient("owner");
-    await broker.SubscribeAsync(owner, Subscribe("Runtime.Device", recursive: true, owner.ClientId));
-    await broker.PublishSnapshotAsync(new ItemSnapshotMessage("Runtime.Device", new Item("Device").Repath("Runtime.Device"), owner.ClientId, null, DateTimeOffset.UtcNow));
+    await broker.SubscribeAsync(
+        client: owner,
+        path: "Runtime.Device",
+        options: SubscribeOptions(recursive: true));
+    await broker.PublishSnapshotAsync(
+        item: new Item("Device").Repath("Runtime.Device"),
+        sourceClientId: owner.ClientId);
 
-    var ack = await broker.WriteAsync(new ItemWriteRequestMessage("Runtime.Device.Read", "", 9, null, "writer", "c1", DateTimeOffset.UtcNow));
+    var ack = await broker.UpdateValueAsync(
+        item: new Item("Read", 9).Repath("Runtime.Device.Read"),
+        sourceClientId: "writer",
+        correlationId: "c1");
 
     AssertTrue(ack.Accepted);
     var write = AssertSingle<ItemWriteRequestMessage>(owner.Messages.OfType<ItemWriteRequestMessage>().ToList());
@@ -209,6 +291,37 @@ static Task RetentionPolicyDecisions()
     return Task.CompletedTask;
 }
 
+static async Task SnapshotSameOwnerRefreshSucceeds()
+{
+    var broker = new InMemoryItemBroker();
+    var first = new Item("Read", 1).Repath("Runtime.Device.Read");
+    var second = new Item("Read", 2).Repath("Runtime.Device.Read");
+
+    await broker.PublishSnapshotAsync(first, sourceClientId: "publisher");
+    await broker.PublishSnapshotAsync(second, sourceClientId: "publisher");
+
+    var subscriber = new RecordingClient("subscriber");
+    await broker.SubscribeAsync(
+        client: subscriber,
+        path: "Runtime.Device.Read",
+        options: SubscribeOptions(recursive: false));
+
+    var retained = AssertSingle<ItemSnapshotMessage>(subscriber.Messages);
+    AssertEqual(2, retained.Item.Value);
+}
+
+static async Task SnapshotDifferentOwnerConflictIsRejected()
+{
+    var broker = new InMemoryItemBroker();
+    await broker.PublishSnapshotAsync(
+        item: new Item("Read", 1).Repath("Runtime.Device.Read"),
+        sourceClientId: "owner-a");
+
+    await AssertThrowsAsync<ItemOwnershipConflictException>(() => broker.PublishSnapshotAsync(
+        item: new Item("Read", 2).Repath("Runtime.Device.Read"),
+        sourceClientId: "owner-b"));
+}
+
 static Task PublishPolicySnapshotAndDeltaDecisions()
 {
     var resolver = new DefaultItemPublishPolicyResolver();
@@ -229,9 +342,13 @@ static async Task ClientPublishPathNormalization()
     var broker = new InMemoryItemBroker();
     var session = new ItemBrokerClientSession("publisher", broker);
     var subscriber = new RecordingClient("subscriber");
-    await broker.SubscribeAsync(subscriber, Subscribe("Runtime.Device.Read", recursive: false, subscriber.ClientId));
+    await broker.SubscribeAsync(
+        client: subscriber,
+        path: "Runtime.Device.Read",
+        options: SubscribeOptions(recursive: false));
 
-    await session.PublishValueAsync(@"Runtime/Device\Read", 5);
+    await session.PublishSnapshotAsync(new Item("Read", 0).Repath("Runtime.Device.Read"));
+    await session.UpdateValueAsync(new Item("Read", 5).Repath(@"Runtime/Device\Read"));
 
     var message = AssertSingle<ItemValueChangedMessage>(subscriber.Messages);
     AssertEqual("Runtime.Device.Read", message.Path);
@@ -244,10 +361,14 @@ static async Task ClientPublishItemValue()
     var session = new ItemBrokerClientSession("publisher", broker);
     var subscriber = new RecordingClient("subscriber");
     var item = new Item("Read", 5, "Runtime.Device");
-    await broker.SubscribeAsync(subscriber, Subscribe("Runtime.Device.Read", recursive: false, subscriber.ClientId));
+    await broker.SubscribeAsync(
+        client: subscriber,
+        path: "Runtime.Device.Read",
+        options: SubscribeOptions(recursive: false));
 
     item.Value = 6;
-    await session.PublishValueAsync(item);
+    await session.PublishSnapshotAsync(item);
+    await session.UpdateValueAsync(item);
 
     var message = AssertSingle<ItemValueChangedMessage>(subscriber.Messages);
     AssertEqual("Runtime.Device.Read", message.Path);
@@ -261,9 +382,13 @@ static async Task ClientPublishItemParameter()
     var subscriber = new RecordingClient("subscriber");
     var item = new Item("Read", 5, "Runtime.Device");
     item.Params["Unit"].Value = "V";
-    await broker.SubscribeAsync(subscriber, Subscribe("Runtime.Device.Read", recursive: false, subscriber.ClientId));
+    await broker.SubscribeAsync(
+        client: subscriber,
+        path: "Runtime.Device.Read",
+        options: SubscribeOptions(recursive: false));
 
-    await session.PublishParameterAsync(item, "Unit");
+    await session.PublishSnapshotAsync(item);
+    await session.UpdateParameterAsync(item, "Unit");
 
     var message = AssertSingle<ItemParameterChangedMessage>(subscriber.Messages);
     AssertEqual("Runtime.Device.Read", message.Path);
@@ -276,28 +401,34 @@ static async Task HighFrequencyLatestRetainedValue()
     var broker = new InMemoryItemBroker();
     var publisher = new ItemBrokerClientSession("publisher", broker);
     var subscriber = new RecordingClient("subscriber");
+    await publisher.PublishSnapshotAsync(new Item("Fast", -1).Repath("Runtime.Device.Fast"));
 
     for (var value = 0; value < 25; value++)
     {
-        await publisher.PublishValueAsync("Runtime.Device.Fast", value);
+        await publisher.UpdateValueAsync(
+            new Item("Fast", value).Repath("Runtime.Device.Fast"),
+            retained: true);
     }
 
-    await broker.SubscribeAsync(subscriber, Subscribe("Runtime.Device.Fast", recursive: false, subscriber.ClientId));
+    await broker.SubscribeAsync(
+        client: subscriber,
+        path: "Runtime.Device.Fast",
+        options: SubscribeOptions(recursive: false));
 
     var retained = AssertSingle<ItemSnapshotMessage>(subscriber.Messages);
     AssertEqual(24, retained.Item.Value);
 }
 
-static Task MqttTopicMapping()
+static Task MqttTopicMappingBehavior()
 {
-    var mapper = new MqttItemTopicMapper("hornet");
+    var mapper = new HostMqttItemTopicMapper("hornet");
     var healthTopic = mapper.ToTopic("Runtime.Health.ItemBroker.Heartbeat", "Value", "itembroker");
 
     AssertEqual("hornet/broker/heartbeat", healthTopic);
     AssertTrue(mapper.TryMapTopic(healthTopic, out var healthMapping));
     AssertEqual("Runtime.Health.ItemBroker.Heartbeat", healthMapping.Path);
     AssertEqual("Value", healthMapping.ParameterName);
-    AssertEqual(null, healthMapping.ClientId);
+    AssertEqual("shared", healthMapping.ClientId);
 
     var valueTopic = mapper.ToTopic("Runtime.Device.Read", "Value", "device-client");
     AssertEqual("hornet/Runtime/Device/Read", valueTopic);
@@ -320,9 +451,9 @@ static Task MqttTopicMapping()
     return Task.CompletedTask;
 }
 
-static Task MqttTopicMappingWithBaseTopic()
+static Task MqttTopicMappingWithBaseTopicBehavior()
 {
-    var mapper = new Amium.ItemBroker.Mqtt.Client.MqttItemTopicMapper("/plant/hornet/");
+    var mapper = new ClientMqttItemTopicMapper("/plant/hornet/");
     var topic = mapper.ToTopic("Runtime.Device.Read", "Value", "client a");
 
     AssertEqual("plant/hornet/Runtime/Device/Read", topic);
@@ -334,9 +465,9 @@ static Task MqttTopicMappingWithBaseTopic()
     return Task.CompletedTask;
 }
 
-static Task MqttSharedTopicMappingIgnoresClientId()
+static Task MqttSharedTopicMappingIgnoresClientIdBehavior()
 {
-    var mapper = new MqttItemTopicMapper("hornet");
+    var mapper = new HostMqttItemTopicMapper("hornet");
 
     AssertEqual(
         mapper.ToTopic("Studio.Project.DefaultLayout.UdlClient1.m400.Set.Request", "Value", "client-a"),
@@ -348,7 +479,7 @@ static Task MqttSharedTopicMappingIgnoresClientId()
 
 static Task MqttRemoteRegistryRebuild()
 {
-    var mapper = new Amium.ItemBroker.Mqtt.Client.MqttItemTopicMapper("hornet");
+    var mapper = new ClientMqttItemTopicMapper("hornet");
     var registry = new Amium.ItemBroker.Mqtt.Client.MqttRemoteItemRegistry();
 
     AssertTrue(mapper.TryMapTopic("hornet/Plant/Line1/Temperature", out var valueMapping));
@@ -372,7 +503,7 @@ static Task MqttRemoteRegistryRebuild()
 
 static Task MqttRemoteRegistryConvertsNumericPayloads()
 {
-    var mapper = new Amium.ItemBroker.Mqtt.Client.MqttItemTopicMapper("hornet");
+    var mapper = new ClientMqttItemTopicMapper("hornet");
     var registry = new Amium.ItemBroker.Mqtt.Client.MqttRemoteItemRegistry();
 
     AssertTrue(mapper.TryMapTopic("hornet/Plant/Line1/Temperature", out var valueMapping));
@@ -407,8 +538,13 @@ static async Task MqttIncomingWriteMapping()
     var broker = new InMemoryItemBroker();
     var owner = new RecordingClient("owner");
     var adapter = new MqttItemBrokerAdapter(new MqttItemBrokerOptions { Enabled = false });
-    await broker.SubscribeAsync(owner, Subscribe("Runtime.Device", recursive: true, owner.ClientId));
-    await broker.PublishSnapshotAsync(new ItemSnapshotMessage("Runtime.Device", new Item("Device").Repath("Runtime.Device"), owner.ClientId, null, DateTimeOffset.UtcNow));
+    await broker.SubscribeAsync(
+        client: owner,
+        path: "Runtime.Device",
+        options: SubscribeOptions(recursive: true));
+    await broker.PublishSnapshotAsync(
+        item: new Item("Device").Repath("Runtime.Device"),
+        sourceClientId: owner.ClientId);
     await adapter.StartAsync(broker);
     await adapter.ReceiveAsync(new ItemParameterChangedMessage("Runtime.Device", "Writable", true, "publisher", null, DateTimeOffset.UtcNow));
 
@@ -419,6 +555,25 @@ static async Task MqttIncomingWriteMapping()
     AssertEqual("Value", write.ParameterName);
     AssertEqual(13L, write.Value);
     AssertEqual("shared", write.SourceClientId);
+}
+
+static async Task MqttIncomingNonWritableWriteIsBlocked()
+{
+    var broker = new InMemoryItemBroker();
+    var owner = new RecordingClient("owner");
+    var adapter = new MqttItemBrokerAdapter(new MqttItemBrokerOptions { Enabled = false });
+    await broker.SubscribeAsync(
+        client: owner,
+        path: "Runtime.Device",
+        options: SubscribeOptions(recursive: true));
+    await broker.PublishSnapshotAsync(
+        item: new Item("Device").Repath("Runtime.Device"),
+        sourceClientId: owner.ClientId);
+    await adapter.StartAsync(broker);
+
+    await adapter.HandleIncomingPublishAsync("hornet/Runtime/Device", "13");
+
+    AssertEqual(0, owner.Messages.OfType<ItemWriteRequestMessage>().Count());
 }
 
 static async Task MqttClientRecursiveItemPublish()
@@ -459,7 +614,7 @@ static async Task MqttClientRecursiveItemPublish()
         item.Params["Unit"].Value = "degC";
         item["Raw"].Value = "0.0";
 
-        await session.PublishItemAsync(item).ConfigureAwait(false);
+        await session.PublishSnapshotAsync(item).ConfigureAwait(false);
 
         await WaitForMqttMessageAsync(publishedMessages, "hornet/Demo/Temperature", "22.0").ConfigureAwait(false);
         await WaitForMqttMessageAsync(publishedMessages, "hornet/Demo/Temperature/params/Unit", "degC").ConfigureAwait(false);
@@ -503,7 +658,7 @@ static async Task MqttClientLiveSubscriptionRebuild()
             ReconnectDelay = TimeSpan.FromMilliseconds(10),
         });
 
-        await publisher.PublishValueAsync("Edm1.Temperature", 23.5).ConfigureAwait(false);
+        await publisher.UpdateValueAsync(new Item("Temperature", 23.5).Repath("Edm1.Temperature")).ConfigureAwait(false);
 
         var deadline = DateTimeOffset.UtcNow.AddSeconds(2);
         while (DateTimeOffset.UtcNow < deadline)
@@ -527,8 +682,131 @@ static async Task MqttClientLiveSubscriptionRebuild()
     }
 }
 
-static ItemSubscribeMessage Subscribe(string path, bool recursive, string clientId)
-    => new(path, recursive, IncludeRetained: true, clientId, null, DateTimeOffset.UtcNow);
+static async Task MqttRemoteClientValueUpdateRefreshesRetainedState()
+{
+    var port = GetAvailableTcpPort();
+    var server = new MqttServerFactory().CreateMqttServer(new MqttServerOptionsBuilder()
+        .WithDefaultEndpoint()
+        .WithDefaultEndpointBoundIPAddress(IPAddress.Loopback)
+        .WithDefaultEndpointPort(port)
+        .Build());
+
+    await server.StartAsync().ConfigureAwait(false);
+    try
+    {
+        await using var publisher = new MqttRemoteItemClient(new MqttClientOptions
+        {
+            Host = IPAddress.Loopback.ToString(),
+            Port = port,
+            ClientId = "retained-update-publisher",
+            BaseTopic = "hornet",
+            ReconnectDelay = TimeSpan.FromMilliseconds(10),
+        });
+
+        await publisher.ConnectAsync().ConfigureAwait(false);
+        await publisher.PublishSnapshotAsync(new Item("Request", 1).Repath("Studio.Folder1.UdlClient1.m300.Set.Request")).ConfigureAwait(false);
+        await publisher.UpdateValueAsync(new Item("Request", 42).Repath("Studio.Folder1.UdlClient1.m300.Set.Request")).ConfigureAwait(false);
+
+        var retainedPayload = await ReadRetainedMqttPayloadAsync(
+            host: IPAddress.Loopback.ToString(),
+            port: port,
+            topic: "hornet/Studio/Folder1/UdlClient1/m300/Set/Request").ConfigureAwait(false);
+
+        AssertEqual("42", retainedPayload);
+    }
+    finally
+    {
+        await server.StopAsync().ConfigureAwait(false);
+        server.Dispose();
+    }
+}
+
+static async Task MqttSelfhostedHostPublishesHealth()
+{
+    var port = GetAvailableTcpPort();
+    await using var host = new MqttItemBrokerHost(new MqttItemBrokerOptions
+    {
+        Host = IPAddress.Loopback.ToString(),
+        Port = port,
+        BaseTopic = "hornet",
+        ClientId = "selfhosted-broker",
+        HealthPublishInterval = TimeSpan.FromMilliseconds(100),
+    });
+
+    await host.StartAsync().ConfigureAwait(false);
+    try
+    {
+        await using var client = new MqttRemoteItemClient(new MqttClientOptions
+        {
+            Host = IPAddress.Loopback.ToString(),
+            Port = port,
+            BaseTopic = "hornet",
+            ClientId = "health-client",
+            ReconnectDelay = TimeSpan.FromMilliseconds(10),
+        });
+        await client.ConnectAsync().ConfigureAwait(false);
+
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(2);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            var roots = client.GetRemoteItemSnapshots();
+            if (roots.TryGetValue("shared", out var root)
+                && root["Runtime"]["Health"]["ItemBroker"]["Heartbeat"].Value is not null)
+            {
+                return;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(25)).ConfigureAwait(false);
+        }
+
+        throw new InvalidOperationException("Selfhosted MQTT host did not publish health items.");
+    }
+    finally
+    {
+        await host.StopAsync().ConfigureAwait(false);
+    }
+}
+
+static async Task MqttRemoteClientHidesSelfPublishedItems()
+{
+    var port = GetAvailableTcpPort();
+    var server = new MqttServerFactory().CreateMqttServer(new MqttServerOptionsBuilder()
+        .WithDefaultEndpoint()
+        .WithDefaultEndpointBoundIPAddress(IPAddress.Loopback)
+        .WithDefaultEndpointPort(port)
+        .Build());
+
+    await server.StartAsync().ConfigureAwait(false);
+    try
+    {
+        await using var client = new MqttRemoteItemClient(new MqttClientOptions
+        {
+            Host = IPAddress.Loopback.ToString(),
+            Port = port,
+            BaseTopic = "hornet",
+            ClientId = "self-hide-client",
+            ReconnectDelay = TimeSpan.FromMilliseconds(10),
+        });
+
+        await client.ConnectAsync().ConfigureAwait(false);
+        await client.PublishSnapshotAsync(new Item("Pressure", 12.5).Repath("Studio.SelfEcho.Pressure")).ConfigureAwait(false);
+        await Task.Delay(TimeSpan.FromMilliseconds(250)).ConfigureAwait(false);
+
+        AssertFalse(client.GetRemoteItemSnapshots().Values.Any(root => ContainsItemPath(root, "Studio.SelfEcho.Pressure")));
+    }
+    finally
+    {
+        await server.StopAsync().ConfigureAwait(false);
+        server.Dispose();
+    }
+}
+
+static ItemSubscriptionOptions SubscribeOptions(bool recursive)
+    => new()
+    {
+        Recursive = recursive,
+        IncludeRetained = true,
+    };
 
 static int GetAvailableTcpPort()
 {
@@ -541,6 +819,53 @@ static int GetAvailableTcpPort()
     finally
     {
         listener.Stop();
+    }
+}
+
+static async Task<string> ReadRetainedMqttPayloadAsync(string host, int port, string topic)
+{
+    var completion = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+    var client = new MqttClientFactory().CreateMqttClient();
+    client.ApplicationMessageReceivedAsync += args =>
+    {
+        if (string.Equals(args.ApplicationMessage.Topic, topic, StringComparison.OrdinalIgnoreCase))
+        {
+            var payload = args.ApplicationMessage.Payload.IsEmpty
+                ? string.Empty
+                : Encoding.UTF8.GetString(args.ApplicationMessage.Payload);
+            completion.TrySetResult(payload);
+        }
+
+        return Task.CompletedTask;
+    };
+
+    await client.ConnectAsync(new MqttClientOptionsBuilder()
+        .WithClientId($"retained-reader-{Guid.NewGuid():N}")
+        .WithTcpServer(host, port)
+        .Build()).ConfigureAwait(false);
+
+    try
+    {
+        await client.SubscribeAsync(new MqttClientSubscribeOptionsBuilder()
+            .WithTopicFilter(topic)
+            .Build()).ConfigureAwait(false);
+
+        var completed = await Task.WhenAny(completion.Task, Task.Delay(TimeSpan.FromSeconds(2))).ConfigureAwait(false);
+        if (!ReferenceEquals(completed, completion.Task))
+        {
+            throw new InvalidOperationException($"No retained MQTT payload was received for topic '{topic}'.");
+        }
+
+        return await completion.Task.ConfigureAwait(false);
+    }
+    finally
+    {
+        if (client.IsConnected)
+        {
+            await client.DisconnectAsync().ConfigureAwait(false);
+        }
+
+        client.Dispose();
     }
 }
 
@@ -612,6 +937,41 @@ static async Task WaitForMqttMessageAsync(IReadOnlyList<RecordedMqttMessage> mes
     }
 
     AssertContainsMessage(messages, topic, payload);
+}
+
+static async Task AssertThrowsAsync<TException>(Func<Task> action)
+    where TException : Exception
+{
+    try
+    {
+        await action().ConfigureAwait(false);
+    }
+    catch (TException)
+    {
+        return;
+    }
+
+    throw new InvalidOperationException($"Expected exception '{typeof(TException).Name}'.");
+}
+
+static bool ContainsItemPath(Item root, string path)
+{
+    var segments = path
+        .Split(['.', '/', '\\'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    var current = root;
+    foreach (var segment in segments)
+    {
+        var matchingChildName = current.GetDictionary().Keys
+            .FirstOrDefault(key => string.Equals(key, segment, StringComparison.OrdinalIgnoreCase));
+        if (matchingChildName is null)
+        {
+            return false;
+        }
+
+        current = current.GetDictionary()[matchingChildName];
+    }
+
+    return true;
 }
 
 sealed class RecordingClient : IItemBrokerClient

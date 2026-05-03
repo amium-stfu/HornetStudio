@@ -13,7 +13,7 @@ using Avalonia.Interactivity;
 using Avalonia.Threading;
 using HornetStudio.Editor.Controls;
 using HornetStudio.Host;
-using Amium.Item;
+using Amium.Items;
 using HornetStudio.Editor.Helpers;
 using HornetStudio.Editor.Models;
 using HornetStudio.Editor.ViewModels;
@@ -197,6 +197,21 @@ public partial class CustomSignalsControl : EditorTemplateControl
         PublishSignals(preserveInputValues: true);
     }
 
+    private void ApplyCustomSignalDefinitions(FolderItemModel ownerItem, string rawDefinitions, bool queuePersist)
+    {
+        ownerItem.CustomSignalDefinitions = rawDefinitions;
+
+        if (!queuePersist)
+        {
+            return;
+        }
+
+        if (ViewModel is { } viewModel && !viewModel.TrySaveOwningPageYaml(ownerItem, out _))
+        {
+            viewModel.QueueSaveOwningPageYaml(ownerItem);
+        }
+    }
+
     private void PublishSignals(bool preserveInputValues)
     {
         var item = _observedItem;
@@ -267,7 +282,7 @@ public partial class CustomSignalsControl : EditorTemplateControl
         item.Params["WriteMode"].Value = definition.WriteMode.ToString();
         item.Params["Owner"].Value = ownerItem.Name ?? string.Empty;
         item.Params["Value"].Value = value ?? string.Empty;
-        HostRegistries.Data.UpsertSnapshot(registryPath, item);
+        HostRegistries.Data.UpsertSnapshot(registryPath, item, DataRegistryItemMetadata.PublicData());
     }
 
     private void PublishManualTriggerSnapshot(FolderItemModel ownerItem, CustomSignalDefinition definition, string registryPath)
@@ -286,7 +301,7 @@ public partial class CustomSignalsControl : EditorTemplateControl
         item.Params["Writable"].Value = true;
         item.Params["Owner"].Value = ownerItem.Name ?? string.Empty;
         item.Params["Value"].Value = false;
-        HostRegistries.Data.UpsertSnapshot(triggerPath, item);
+        HostRegistries.Data.UpsertSnapshot(triggerPath, item, DataRegistryItemMetadata.PublicCommand());
     }
 
     private object? EvaluateValue(FolderItemModel ownerItem, CustomSignalDefinition definition, string registryPath, bool preserveInputValues)
@@ -461,7 +476,7 @@ public partial class CustomSignalsControl : EditorTemplateControl
 
         var definitions = CustomSignalDefinitionCodec.ParseDefinitions(ownerItem.CustomSignalDefinitions).ToList();
         definitions.Add(definition);
-        ownerItem.CustomSignalDefinitions = CustomSignalDefinitionCodec.SerializeDefinitions(definitions);
+        ApplyCustomSignalDefinitions(ownerItem, CustomSignalDefinitionCodec.SerializeDefinitions(definitions), queuePersist: true);
         e.Handled = true;
     }
 
@@ -495,7 +510,7 @@ public partial class CustomSignalsControl : EditorTemplateControl
         if (index >= 0)
         {
             definitions[index] = updated;
-            ownerItem.CustomSignalDefinitions = CustomSignalDefinitionCodec.SerializeDefinitions(definitions);
+            ApplyCustomSignalDefinitions(ownerItem, CustomSignalDefinitionCodec.SerializeDefinitions(definitions), queuePersist: true);
         }
 
         e.Handled = true;
@@ -523,7 +538,7 @@ public partial class CustomSignalsControl : EditorTemplateControl
         var definitions = CustomSignalDefinitionCodec.ParseDefinitions(ownerItem.CustomSignalDefinitions)
             .Where(definition => !string.Equals(definition.Name, row.Definition.Name, StringComparison.OrdinalIgnoreCase))
             .ToArray();
-        ownerItem.CustomSignalDefinitions = CustomSignalDefinitionCodec.SerializeDefinitions(definitions);
+        ApplyCustomSignalDefinitions(ownerItem, CustomSignalDefinitionCodec.SerializeDefinitions(definitions), queuePersist: true);
         e.Handled = true;
     }
 
@@ -607,8 +622,9 @@ public partial class CustomSignalsControl : EditorTemplateControl
     internal static string BuildRegistryPath(FolderItemModel ownerItem, CustomSignalDefinition definition)
     {
         var folderName = SanitizeSegment(ownerItem.FolderName, "Folder");
+        var widgetName = SanitizeSegment(ownerItem.Name, "CustomSignals");
         var signalName = SanitizeSegment(definition.Name, "Signal");
-        return $"Studio.{folderName}.CustomSignals.{signalName}";
+        return $"Studio.{folderName}.{widgetName}.{signalName}";
     }
 
     internal static string BuildManualTriggerPath(FolderItemModel ownerItem, CustomSignalDefinition definition)

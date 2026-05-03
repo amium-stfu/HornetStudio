@@ -2,7 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 
-namespace Amium.Item
+namespace Amium.Items
 {
     /// <summary>
     /// Provides data for item change notifications.
