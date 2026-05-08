@@ -10,11 +10,11 @@ Dieses Dokument beschreibt den Datenfluss im Host, wie Messwerte aktualisiert we
   - Baumstruktur von Messpunkten und Gruppen.
   - Wichtige Parameter (`Item.Params[...]`):
     - `Name` – Anzeigename des Items
-    - `Path` – kanonischer Pfad des Items (z.B. `UdlBook.Page1.udl1.m310.Set.Request`)
+    - `Path` – kanonischer Pfad des Items (z.B. `udl_book.Page1.udl1.m310.set.request`)
     - `Value` – aktueller Wert (dynamic)
     - `Unit` – Einheit (z.B. `V`, `°C`, `rpm`)
     - `Format` – Formatstring für Darstellung/Logging (z.B. `0.###`)
-- `HornetStudio.Host.DataRegistry` (`IDataRegistry`)
+- `Hornetstudio.Host.DataRegistry` (`IDataRegistry`)
   - Zentrale Registry, in der alle Root-`Item`s registriert werden.
   - Wichtige Methoden:
     - `UpsertSnapshot(string key, Item snapshot, bool pruneMissingMembers = false)`
@@ -63,13 +63,13 @@ Normale Item- und Signal-Widgets zeigen im Eigenschaftsdialog nur noch die `Uri`
 
 Interne Runtime-Pfade duerfen weiterhin `UpdateParameter(...)` verwenden, um Systemmetadaten zu pflegen. UI-, Layout-, YAML- oder Remote-Schreibpfade muessen fuer Parameterwrites `TryUpdateUserParameter(...)` nutzen. `Value` ist nicht geschuetzt und bleibt fuer normale Wertschreibungen erlaubt.
 
-Fuer zukuenftige MQTT-Anbindungen gilt dieselbe Struktur: ein Topic wird auf `Item.Path + Parameter` abgebildet, z.B. `Runtime.Mqtt.Device01.Read` mit `Params["Value"]` und optional `Params["Unit"]`. Transportdetails duerfen keine zweite Pfadlogik neben `TryResolve(...)` einfuehren.
+Fuer zukuenftige MQTT-Anbindungen gilt dieselbe Struktur: ein Topic wird auf `Item.Path + Parameter` abgebildet, z.B. `runtime.Mqtt.Device01.Read` mit `Params["Value"]` und optional `Params["Unit"]`. Transportdetails duerfen keine zweite Pfadlogik neben `TryResolve(...)` einfuehren.
 
 ## 2. Signalschicht (ISignal, SignalDescriptor)
 
 Um Widgets und Skripte von der internen Item-Struktur zu entkoppeln, gibt es eine gemeinsame Signalschicht in den Contracts.
 
-**Typen in `src/HornetStudio.Contracts/Signals.cs`**
+**Typen in `src/Hornetstudio.Contracts/Signals.cs`**
 
 - `SignalDataType`
   - `Unknown`, `Boolean`, `Integer`, `Float`, `String`, `Object` – abgeleitet aus dem aktuellen Wert.
@@ -101,7 +101,7 @@ Um Widgets und Skripte von der internen Item-Struktur zu entkoppeln, gibt es ein
 
 Im Host gibt es eine konkrete Implementierung, die auf `DataRegistry` aufsetzt.
 
-**SignalRegistry in `src/HornetStudio.Host/SignalRegistry.cs`**
+**SignalRegistry in `src/Hornetstudio.Host/SignalRegistry.cs`**
 
 - `SignalRegistry : ISignalRegistry`
   - Konstruktor: `new SignalRegistry(IDataRegistry dataRegistry)` – registriert sich bei `dataRegistry.ItemChanged`.
@@ -163,7 +163,7 @@ UI-Controls (Signals, Buttons, Charts, CsvLogger, etc.) arbeiten mit `TargetPath
 
 Beispiele:
 
-- `UdlBook/Page1/udl1/m310/Set/Request`
+- `UdlBook/Page1/udl1/m310/set/request`
 - `this` (relativ zur aktuellen Seite/Folder)
 
 Auflösung:
@@ -200,7 +200,7 @@ Der RealtimeChart arbeitet aktuell noch **Item-basiert**, nutzt aber dieselben T
 
 - `FolderItemModel.ChartSeriesDefinitions` enthält pro Zeile eine Definition:
   - Format: `TargetPath|YAxis|Style`
-  - Beispiel: `UdlBook/Page1/udl1/m310/Set/Request|Y1|Line`
+  - Beispiel: `UdlBook/Page1/udl1/m310/set/request|Y1|Line`
 - `ParseSeriesDefinitions(...)` erzeugt daraus `ChartSeriesConfiguration`:
   - `TargetPath` – normalisiert mit `TargetPathHelper.NormalizeConfiguredTargetPath`.
   - `PageName` – Seite, auf der der Chart liegt.
@@ -292,14 +292,14 @@ Unter dem veröffentlichten Filtermodul wird ein `Kalman`-Zweig publiziert. Dort
 ### 8.5. Statistics
 
 - Optional kann ein EnhancedSignal einen `Statistics`-Zweig publizieren.
-- Die Statistikberechnung arbeitet auf der vorhandenen Sample-Historie der Runtime. `Min`, `Max` und `Average` verwenden das aktuell retained sample window.
+- Die Statistikberechnung arbeitet auf der vorhandenen Sample-Historie der runtime. `Min`, `Max` und `Average` verwenden das aktuell retained sample window.
 - `Min` und `Max` publizieren jeweils den Wert selbst sowie ein SubItem `TimeStamp` als Unix-Zeitstempel in Millisekunden.
 - `StdDev` verwendet ein eigenes konfigurierbares Zeitfenster `StdDevWindowMs`, damit die Rauschbewertung nicht an die Hauptfilterzeit gekoppelt bleiben muss.
 - `Integral` wird zeitbasiert aus den echten Zeitdeltas zwischen akzeptierten Samples kumulativ seit Statistikstart bzw. `Statistics.Reset` berechnet und danach durch `IntegralDivisorMs` geteilt. Damit lassen sich z.B. Durchflusswerte in `l/min` ueber einen Divisor `60000` in ein Volumen in `l` umrechnen.
 - Unter `Statistics.Params` stehen die aktiven Publish-Flags sowie `RetentionWindowMs`, `StdDevWindowMs` und `IntegralDivisorMs` fuer Diagnose und Nachvollziehbarkeit zur Verfuegung.
 - `Statistics.Reset` ist ein Bool-Trigger. Ein Schreibzugriff mit `true` setzt nur die Statistik lokal zurueck, ohne die gemeinsame Sample-Historie der restlichen Filterpfade zu loeschen, und springt danach automatisch wieder auf `false`.
 
-Der Teach-Mode wird ueber `Studio.<Folder>.EnhancedSignals.<SignalName>.Kalman.Request` gesteuert:
+Der Teach-Mode wird ueber `studio.<Folder>.EnhancedSignals.<SignalName>.Kalman.Request` gesteuert:
 
 - `StartTeach`
 - `StopTeach`

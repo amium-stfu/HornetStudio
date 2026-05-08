@@ -13,6 +13,7 @@ using Avalonia.Interactivity;
 using Avalonia.Threading;
 using HornetStudio.Editor.Controls;
 using HornetStudio.Host;
+using ItemModel = Amium.Items.Item;
 using Amium.Items;
 using HornetStudio.Editor.Helpers;
 using HornetStudio.Editor.Models;
@@ -41,7 +42,7 @@ public partial class CustomSignalsControl : EditorTemplateControl
         private set => SetAndRaise(HasNoSignalsProperty, ref _hasNoSignals, value);
     }
 
-    private FolderItemModel? Item => DataContext as FolderItemModel;
+    private FolderItemModel? ItemModel => DataContext as FolderItemModel;
 
     private MainWindowViewModel? ViewModel
         => TopLevel.GetTopLevel(this)?.DataContext as MainWindowViewModel;
@@ -77,13 +78,13 @@ public partial class CustomSignalsControl : EditorTemplateControl
 
     private void HookObservedItem()
     {
-        if (ReferenceEquals(_observedItem, Item))
+        if (ReferenceEquals(_observedItem, ItemModel))
         {
             return;
         }
 
         UnhookObservedItem();
-        _observedItem = Item;
+        _observedItem = ItemModel;
         if (_observedItem is not null)
         {
             _observedItem.PropertyChanged += OnObservedItemPropertyChanged;
@@ -270,18 +271,18 @@ public partial class CustomSignalsControl : EditorTemplateControl
         var name = segments.LastOrDefault() ?? definition.Name;
         var parentPath = segments.Count > 1 ? string.Join('.', segments.Take(segments.Count - 1)) : null;
 
-        var item = new Item(name, value, parentPath);
-        item.Params["Kind"].Value = "CustomSignal";
-        item.Params["Title"].Value = definition.Name;
-        item.Params["Text"].Value = definition.Name;
-        item.Params["Unit"].Value = definition.Unit;
-        item.Params["Format"].Value = definition.Format;
-        item.Params["Mode"].Value = definition.Mode.ToString();
-        item.Params["Writable"].Value = definition.Mode == CustomSignalMode.Input && definition.IsWritable;
-        item.Params["WritePath"].Value = definition.Mode == CustomSignalMode.Input ? definition.WritePath : string.Empty;
-        item.Params["WriteMode"].Value = definition.WriteMode.ToString();
-        item.Params["Owner"].Value = ownerItem.Name ?? string.Empty;
-        item.Params["Value"].Value = value ?? string.Empty;
+        var item = new ItemModel(name, value, parentPath);
+        item.Properties["kind"].Value = "CustomSignal";
+        item.Properties["title"].Value = definition.Name;
+        item.Properties["text"].Value = definition.Name;
+        item.Properties["unit"].Value = definition.Unit;
+        item.Properties["format"].Value = definition.Format;
+        item.Properties["mode"].Value = definition.Mode.ToString();
+        item.Properties["writable"].Value = definition.Mode == CustomSignalMode.Input && definition.IsWritable;
+        item.Properties["write_path"].Value = definition.Mode == CustomSignalMode.Input ? definition.WritePath : string.Empty;
+        item.Properties["write_mode"].Value = definition.WriteMode.ToString();
+        item.Properties["owner"].Value = ownerItem.Name ?? string.Empty;
+        item.Properties["value"].Value = value ?? string.Empty;
         HostRegistries.Data.UpsertSnapshot(registryPath, item, DataRegistryItemMetadata.PublicData());
     }
 
@@ -293,14 +294,14 @@ public partial class CustomSignalsControl : EditorTemplateControl
         }
 
         var triggerPath = BuildManualTriggerPath(registryPath);
-        var item = new Item("Trigger", false, registryPath);
-        item.Params["Kind"].Value = "CustomSignalManualTrigger";
-        item.Params["Title"].Value = $"{definition.Name} Trigger";
-        item.Params["Text"].Value = "Trigger";
-        item.Params["Mode"].Value = definition.Mode.ToString();
-        item.Params["Writable"].Value = true;
-        item.Params["Owner"].Value = ownerItem.Name ?? string.Empty;
-        item.Params["Value"].Value = false;
+        var item = new ItemModel("trigger", false, registryPath);
+        item.Properties["kind"].Value = "CustomSignalManualTrigger";
+        item.Properties["title"].Value = $"{definition.Name} Trigger";
+        item.Properties["text"].Value = "Trigger";
+        item.Properties["mode"].Value = definition.Mode.ToString();
+        item.Properties["writable"].Value = true;
+        item.Properties["owner"].Value = ownerItem.Name ?? string.Empty;
+        item.Properties["value"].Value = false;
         HostRegistries.Data.UpsertSnapshot(triggerPath, item, DataRegistryItemMetadata.PublicCommand());
     }
 
@@ -310,7 +311,7 @@ public partial class CustomSignalsControl : EditorTemplateControl
         {
             if (preserveInputValues && HostRegistries.Data.TryGet(registryPath, out var existing) && existing is not null)
             {
-                return ConvertToDataType(existing.Params.Has("Value") ? existing.Params["Value"].Value : existing.Value, definition.DataType);
+                return ConvertToDataType(existing.Properties.Has("value") ? existing.Properties["value"].Value : existing.Value, definition.DataType);
             }
 
             return ParseLiteral(definition.ValueText, definition.DataType);
@@ -320,7 +321,7 @@ public partial class CustomSignalsControl : EditorTemplateControl
         {
             if (HostRegistries.Data.TryGet(registryPath, out var existing) && existing is not null)
             {
-                return ConvertToDataType(existing.Params.Has("Value") ? existing.Params["Value"].Value : existing.Value, definition.DataType);
+                return ConvertToDataType(existing.Properties.Has("value") ? existing.Properties["value"].Value : existing.Value, definition.DataType);
             }
 
             return definition.DataType == CustomSignalDataType.Boolean ? false : 0d;
@@ -398,7 +399,7 @@ public partial class CustomSignalsControl : EditorTemplateControl
                 continue;
             }
 
-            return item.Params.Has("Value") ? item.Params["Value"].Value : item.Value;
+            return item.Properties.Has("value") ? item.Properties["value"].Value : item.Value;
         }
 
         return null;
@@ -411,7 +412,7 @@ public partial class CustomSignalsControl : EditorTemplateControl
             return;
         }
 
-        var shouldTrigger = ToBool(triggerItem.Params.Has("Value") ? triggerItem.Params["Value"].Value : triggerItem.Value);
+        var shouldTrigger = ToBool(triggerItem.Properties.Has("value") ? triggerItem.Properties["value"].Value : triggerItem.Value);
         if (!shouldTrigger)
         {
             return;
@@ -440,7 +441,7 @@ public partial class CustomSignalsControl : EditorTemplateControl
                 continue;
             }
 
-            row.CurrentValue = item.Params.Has("Value") ? item.Params["Value"].Value : item.Value;
+            row.CurrentValue = item.Properties.Has("value") ? item.Properties["value"].Value : item.Value;
         }
     }
 
@@ -621,23 +622,19 @@ public partial class CustomSignalsControl : EditorTemplateControl
 
     internal static string BuildRegistryPath(FolderItemModel ownerItem, CustomSignalDefinition definition)
     {
-        var folderName = SanitizeSegment(ownerItem.FolderName, "Folder");
-        var widgetName = SanitizeSegment(ownerItem.Name, "CustomSignals");
-        var signalName = SanitizeSegment(definition.Name, "Signal");
-        return $"Studio.{folderName}.{widgetName}.{signalName}";
+        var folderName = string.IsNullOrWhiteSpace(ownerItem.FolderName)
+            ? "folder"
+            : TargetPathHelper.NormalizeConfiguredTargetPath(ownerItem.FolderName);
+        var widgetName = TargetPathHelper.NormalizePathSegment(ownerItem.Name, "custom_signals");
+        var signalName = TargetPathHelper.NormalizePathSegment(definition.Name, "signal");
+        return $"studio.{folderName}.{widgetName}.{signalName}";
     }
 
     internal static string BuildManualTriggerPath(FolderItemModel ownerItem, CustomSignalDefinition definition)
         => BuildManualTriggerPath(BuildRegistryPath(ownerItem, definition));
 
     internal static string BuildManualTriggerPath(string registryPath)
-        => $"{registryPath}.Trigger";
-
-    private static string SanitizeSegment(string? value, string fallback)
-    {
-        var trimmed = (value ?? string.Empty).Trim().Trim('.', '/', '\\');
-        return string.IsNullOrWhiteSpace(trimmed) ? fallback : trimmed;
-    }
+        => $"{registryPath}.trigger";
 
     internal static object? ParseLiteral(string? valueText, CustomSignalDataType dataType)
     {
@@ -718,11 +715,11 @@ public partial class CustomSignalsControl : EditorTemplateControl
         }
     }
 
-    private static bool TryResolveWriteTarget(string configuredPath, string? folderName, out Item item)
+    private static bool TryResolveWriteTarget(string configuredPath, string? folderName, out ItemModel item)
     {
         foreach (var candidate in TargetPathHelper.EnumerateResolutionCandidates(configuredPath, folderName))
         {
-            Item? resolvedItem;
+            ItemModel? resolvedItem;
             if (HostRegistries.Data.TryGet(candidate, out resolvedItem) && resolvedItem is not null)
             {
                 item = resolvedItem;

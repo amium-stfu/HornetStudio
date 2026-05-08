@@ -1,8 +1,9 @@
+using ItemModel = Amium.Items.Item;
 using Amium.Items;
 
 namespace HornetStudio.Host;
 
-public sealed class ExtendedSignalModule : Item
+public sealed class ExtendedSignalModule : ItemModel
 {
     private const string RequestItemName = "Request";
     private const string RawItemName = "Raw";
@@ -17,9 +18,9 @@ public sealed class ExtendedSignalModule : Item
     public ExtendedSignalModule(string name, string? path = null)
         : base(name, path: path)
     {
-        Params["Kind"].Value = "ExtendedSignalModule";
-        Params["Text"].Value = name;
-        Params["Unit"].Value = string.Empty;
+        Properties["kind"].Value = "ExtendedSignalModule";
+        Properties["text"].Value = name;
+        Properties["unit"].Value = string.Empty;
 
         AddItem(RawItemName);
         AddRequestChannel(ReadItemName);
@@ -31,36 +32,36 @@ public sealed class ExtendedSignalModule : Item
         AddItem(ConfigItemName);
     }
 
-    public Item Raw => this[RawItemName];
+    public ItemModel Raw => this[RawItemName];
 
-    public Item Read => this[ReadItemName];
+    public ItemModel Read => this[ReadItemName];
 
-    public Item ReadRequest => Read[RequestItemName];
+    public ItemModel ReadRequest => Read[RequestItemName];
 
-    public Item Set => this[SetItemName];
+    public ItemModel Set => this[SetItemName];
 
-    public Item SetRequest => Set[RequestItemName];
+    public ItemModel SetRequest => Set[RequestItemName];
 
-    public Item Out => this[OutItemName];
+    public ItemModel Out => this[OutItemName];
 
-    public Item OutRequest => Out[RequestItemName];
+    public ItemModel OutRequest => Out[RequestItemName];
 
-    public Item State => this[StateItemName];
+    public ItemModel State => this[StateItemName];
 
-    public Item Alert => this[AlertItemName];
+    public ItemModel Alert => this[AlertItemName];
 
-    public Item Command => this[CommandItemName];
+    public ItemModel Command => this[CommandItemName];
 
-    public Item CommandRequest => Command[RequestItemName];
+    public ItemModel CommandRequest => Command[RequestItemName];
 
-    public Item Config => this[ConfigItemName];
+    public ItemModel Config => this[ConfigItemName];
 
     private void AddRequestChannel(string name)
     {
         AddItem(name);
         var channel = this[name];
         channel.AddItem(RequestItemName);
-        channel[RequestItemName].Params["Text"].Value = $"{name} Request";
+        channel[RequestItemName].Properties["text"].Value = $"{name} Request";
         channel[RequestItemName].Value = channel.Value;
     }
 }

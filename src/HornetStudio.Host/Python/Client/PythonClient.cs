@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using ItemModel = Amium.Items.Item;
 using Amium.Items;
 using HornetStudio.Logging;
 
@@ -906,7 +907,7 @@ public sealed class PythonClient : IAsyncDisposable
         return segments.Length == 0 ? string.Empty : segments[^1];
     }
 
-    private Item BuildValueSnapshot(string fullPath, string title, string? unit, object? initialValue, string? valueType)
+    private ItemModel BuildValueSnapshot(string fullPath, string title, string? unit, object? initialValue, string? valueType)
     {
         var segments = NormalizeRegistryPath(fullPath)
             .Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -922,16 +923,16 @@ public sealed class PythonClient : IAsyncDisposable
             : null;
 
         var current = string.IsNullOrWhiteSpace(parentPath)
-            ? new Item(leafName, initialValue)
-            : new Item(leafName, initialValue, parentPath);
+            ? new ItemModel(leafName, initialValue)
+            : new ItemModel(leafName, initialValue, parentPath);
 
-        current.Params["Path"].Value = fullPath;
-        current.Params["Kind"].Value = string.IsNullOrWhiteSpace(valueType) ? "PythonValue" : valueType!;
-        current.Params["Text"].Value = title;
-        current.Params["Title"].Value = title;
+        current.Properties["path"].Value = fullPath;
+        current.Properties["kind"].Value = string.IsNullOrWhiteSpace(valueType) ? "PythonValue" : valueType!;
+        current.Properties["text"].Value = title;
+        current.Properties["title"].Value = title;
         if (!string.IsNullOrWhiteSpace(unit))
         {
-            current.Params["Unit"].Value = unit;
+            current.Properties["unit"].Value = unit;
         }
 
         return current;
@@ -962,7 +963,7 @@ public sealed class PythonClient : IAsyncDisposable
         return definitions;
     }
 
-    private void CollectHostValueDefinitions(Item item, string currentPath, ICollection<HostValueDefinitionPayload> definitions)
+    private void CollectHostValueDefinitions(ItemModel item, string currentPath, ICollection<HostValueDefinitionPayload> definitions)
     {
         if (!ShouldProjectHostValuePath(currentPath))
         {
@@ -971,7 +972,7 @@ public sealed class PythonClient : IAsyncDisposable
 
         var children = item.GetDictionary();
         var hasChildren = children.Count > 0;
-        var currentValue = item.Params.Has("Value") ? item.Params["Value"].Value : item.Value;
+        var currentValue = item.Properties.Has("value") ? item.Properties["value"].Value : item.Value;
 
         if (!hasChildren || currentValue is not null)
         {
@@ -1025,7 +1026,7 @@ public sealed class PythonClient : IAsyncDisposable
 
         if (e.ChangeKind == DataChangeKind.ValueUpdated)
         {
-            SendProjectedHostValueUpdate(e.Key, e.Item, e.Timestamp);
+            SendProjectedHostValueUpdate(e.Key, e.ItemModel, e.Timestamp);
             return;
         }
 
@@ -1045,14 +1046,14 @@ public sealed class PythonClient : IAsyncDisposable
         }
     }
 
-    private void SendProjectedHostValueUpdate(string path, Item item, ulong? timestamp)
+    private void SendProjectedHostValueUpdate(string path, ItemModel item, ulong? timestamp)
     {
         if (!_hostValuesByPath.TryGetValue(path, out var projected))
         {
             return;
         }
 
-        var currentValue = item.Params.Has("Value") ? item.Params["Value"].Value : item.Value;
+        var currentValue = item.Properties.Has("value") ? item.Properties["value"].Value : item.Value;
         projected.Value = ConvertValueToJsonNode(currentValue);
 
         _ = SendAsync(new PythonMessageEnvelope
@@ -1153,15 +1154,15 @@ public sealed class PythonClient : IAsyncDisposable
         };
     }
 
-    private static string GetItemDisplayTitle(Item item, string path)
+    private static string GetItemDisplayTitle(ItemModel item, string path)
         => GetOptionalItemParameter(item, "Title")
             ?? GetOptionalItemParameter(item, "Text")
             ?? item.Name
             ?? GetLastPathSegment(path);
 
-    private static string? GetOptionalItemParameter(Item item, string parameterName)
-        => item.Params.Has(parameterName)
-            ? item.Params[parameterName].Value?.ToString()
+    private static string? GetOptionalItemParameter(ItemModel item, string parameterName)
+        => item.Properties.Has(parameterName)
+            ? item.Properties[parameterName].Value?.ToString()
             : null;
 
     private static string InferHostValueType(object? value)

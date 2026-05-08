@@ -1,5 +1,6 @@
+using ItemModel = Amium.Items.Item;
 using Amium.Items;
-using Amium.ItemBroker;
+using Amium.Item.Server;
 using HornetStudio.Editor.Models;
 using HornetStudio.Editor.Persistence;
 using HornetStudio.Editor.ViewModels;
@@ -10,6 +11,14 @@ using System.Reflection;
 var tests = new (string Name, Action Run)[]
 {
     ("Custom signal codec parses YAML style nodes", CustomSignalCodecParsesYamlStyleNodes),
+    ("Path identity validation accepts only snake_case", PathIdentityValidationAcceptsOnlySnakeCase),
+    ("Folder identity validation accepts only snake_case", FolderIdentityValidationAcceptsOnlySnakeCase),
+    ("Folder identity defaults use snake_case", FolderIdentityDefaultsUseSnakeCase),
+    ("Custom signal editor defaults to snake_case name", CustomSignalEditorDefaultsToSnakeCaseName),
+    ("Custom signal editor rejects uppercase name", CustomSignalEditorRejectsUppercaseName),
+    ("Custom signal manual trigger path uses lowercase suffix", CustomSignalManualTriggerPathUsesLowercaseSuffix),
+    ("Enhanced signal editor defaults to snake_case name", EnhancedSignalEditorDefaultsToSnakeCaseName),
+    ("Enhanced signal editor rejects uppercase name", EnhancedSignalEditorRejectsUppercaseName),
     ("Broker widget mode defaults to external", BrokerWidgetModeDefaultsToExternal),
     ("Broker widget mode normalizes values", BrokerWidgetModeNormalizesValues),
     ("Broker widget layout document defaults to external mode", BrokerWidgetLayoutDocumentDefaultsToExternalMode),
@@ -18,7 +27,7 @@ var tests = new (string Name, Action Run)[]
     ("Broker widget publish options use metadata", BrokerWidgetPublishOptionsUseMetadata),
     ("Broker widget publish options exclude broker received items", BrokerWidgetPublishOptionsExcludeBrokerReceivedItems),
     ("Broker widget publish options de-duplicate legacy roots", BrokerWidgetPublishOptionsDeduplicateLegacyRoots),
-    ("Item tree visibility uses display metadata", ItemTreeVisibilityUsesDisplayMetadata),
+    ("ItemModel tree visibility uses display metadata", ItemTreeVisibilityUsesDisplayMetadata),
     ("Broker attach options use internal discovery", BrokerAttachOptionsUseInternalDiscovery),
     ("Broker widget publish items renders flat attach rows", BrokerWidgetPublishItemsRendersFlatAttachRows),
     ("Broker widget received path uses MQTT branch", BrokerWidgetReceivedPathUsesMqttBranch),
@@ -41,17 +50,17 @@ var tests = new (string Name, Action Run)[]
     ("Broker write-back updates writable value", BrokerWriteBackUpdatesWritableValue),
     ("Broker write-back uses request write target", BrokerWriteBackUsesRequestWriteTarget),
     ("Broker write-back converts numeric value to local type", BrokerWriteBackConvertsNumericValueToLocalType),
-    ("Broker write-back blocks protected parameters", BrokerWriteBackBlocksProtectedParameters),
+    ("Broker write-back blocks protected properties", BrokerWriteBackBlocksProtectedProperties),
     ("Broker write-back ignores same-value self echoes", BrokerWriteBackIgnoresSameValueSelfEchoes),
     ("Broker write-back cleanup disposes subscriptions", BrokerWriteBackCleanupDisposesSubscriptions),
-    ("Item exposure codec roundtrip", ItemExposureCodecRoundtrip),
-    ("Item exposure codec upsert and remove", ItemExposureCodecUpsertAndRemove),
-    ("Item exposure codec normalizes runtime broker paths", ItemExposureCodecNormalizesRuntimeBrokerPaths),
-    ("Item exposure publisher applies bit helpers", ItemExposurePublisherAppliesBitHelpers),
-    ("Target parameter options hide protected parameters", TargetParameterOptionsHideProtectedParameters),
-    ("Target parameter field hidden for normal widgets", TargetParameterFieldHiddenForNormalWidgets),
-    ("Target parameter defaults to value", TargetParameterDefaultsToValue),
-    ("Target parameter protected fallback uses value", TargetParameterProtectedFallbackUsesValue),
+    ("ItemModel exposure codec roundtrip", ItemExposureCodecRoundtrip),
+    ("ItemModel exposure codec upsert and remove", ItemExposureCodecUpsertAndRemove),
+    ("ItemModel exposure codec normalizes runtime broker paths", ItemExposureCodecNormalizesRuntimeBrokerPaths),
+    ("ItemModel exposure publisher applies bit helpers", ItemExposurePublisherAppliesBitHelpers),
+    ("Target property options hide protected properties", TargetPropertyOptionsHideProtectedProperties),
+    ("Target property field hidden for normal widgets", TargetPropertyFieldHiddenForNormalWidgets),
+    ("Target property defaults to value", TargetPropertyDefaultsToValue),
+    ("Target property protected fallback uses value", TargetPropertyProtectedFallbackUsesValue),
     ("Signal write emits registry value update", SignalWriteEmitsRegistryValueUpdate),
 };
 
@@ -118,6 +127,132 @@ static void CustomSignalCodecParsesYamlStyleNodes()
         AssertEqual(CustomSignalMode.Input, parsed[0].Mode);
 }
 
+static void PathIdentityValidationAcceptsOnlySnakeCase()
+{
+    var helperType = typeof(MainWindowViewModel).Assembly.GetType("HornetStudio.Editor.Helpers.TargetPathHelper");
+    if (helperType is null)
+    {
+        throw new InvalidOperationException("TargetPathHelper was not found.");
+    }
+
+    var method = helperType.GetMethod("IsValidPathIdentityName", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+    if (method is null)
+    {
+        throw new InvalidOperationException("IsValidPathIdentityName was not found.");
+    }
+
+    AssertEqual(true, method.Invoke(null, ["custom_signal_1"]));
+    AssertEqual(true, method.Invoke(null, ["signal1"]));
+    AssertEqual(false, method.Invoke(null, ["CustomSignal1"]));
+    AssertEqual(false, method.Invoke(null, ["custom-signal-1"]));
+}
+
+static void FolderIdentityValidationAcceptsOnlySnakeCase()
+{
+    var method = typeof(HornetStudio.ViewModels.MainWindowViewModel).GetMethod("TryValidateFolderIdentityName", BindingFlags.NonPublic | BindingFlags.Static);
+    if (method is null)
+    {
+        throw new InvalidOperationException("TryValidateFolderIdentityName was not found.");
+    }
+
+    var arguments = new object?[] { "main", null, null };
+    AssertEqual(true, method.Invoke(null, arguments));
+    AssertEqual("main", arguments[1]);
+
+    arguments = ["page_1", null, null];
+    AssertEqual(true, method.Invoke(null, arguments));
+    AssertEqual("page_1", arguments[1]);
+
+    arguments = ["Folder1", null, null];
+    AssertEqual(false, method.Invoke(null, arguments));
+    AssertTrue(((string)arguments[2]!).Contains("snake_case", StringComparison.Ordinal));
+
+    arguments = ["main-page", null, null];
+    AssertEqual(false, method.Invoke(null, arguments));
+    AssertTrue(((string)arguments[2]!).Contains("snake_case", StringComparison.Ordinal));
+}
+
+static void FolderIdentityDefaultsUseSnakeCase()
+{
+    var method = typeof(HornetStudio.ViewModels.MainWindowViewModel).GetMethod("GetDefaultFolderIdentityName", BindingFlags.NonPublic | BindingFlags.Static);
+    if (method is null)
+    {
+        throw new InvalidOperationException("GetDefaultFolderIdentityName was not found.");
+    }
+
+    AssertEqual("folder_1", method.Invoke(null, [1]));
+    AssertEqual("folder_2", method.Invoke(null, [2]));
+}
+
+static void CustomSignalEditorDefaultsToSnakeCaseName()
+{
+    var ownerItem = new FolderItemModel
+    {
+        CustomSignalDefinitions = CustomSignalDefinitionCodec.SerializeDefinitions(
+        [
+            new CustomSignalDefinition { Name = "signal_1" },
+            new CustomSignalDefinition { Name = "signal_2" }
+        ])
+    };
+
+    var viewModel = new CustomSignalEditorDialogViewModel(mainWindowViewModel: null, ownerItem, definition: null);
+
+    AssertEqual("signal_3", viewModel.Name);
+}
+
+static void CustomSignalEditorRejectsUppercaseName()
+{
+    var viewModel = new CustomSignalEditorDialogViewModel(mainWindowViewModel: null, new FolderItemModel(), definition: null)
+    {
+        Name = "CustomSignal1"
+    };
+
+    AssertFalse(viewModel.TryBuildDefinition(out _, out var errorMessage));
+    AssertTrue(errorMessage.Contains("snake_case", StringComparison.Ordinal));
+}
+
+static void CustomSignalManualTriggerPathUsesLowercaseSuffix()
+{
+    var method = typeof(CustomSignalsControl).GetMethod("BuildManualTriggerPath", BindingFlags.NonPublic | BindingFlags.Static, null, [typeof(string)], null);
+    if (method is null)
+    {
+        throw new InvalidOperationException("BuildManualTriggerPath was not found.");
+    }
+
+    AssertEqual("studio.default_layout.custom_signals.signal_1.trigger", method.Invoke(null, ["studio.default_layout.custom_signals.signal_1"]));
+}
+
+static void EnhancedSignalEditorDefaultsToSnakeCaseName()
+{
+    var ownerItem = new FolderItemModel
+    {
+        EnhancedSignalDefinitions = ExtendedSignalDefinitionCodec.SerializeDefinitions(
+        [
+            new ExtendedSignalDefinition
+            {
+                Name = "enhanced_signal_1",
+                SourcePath = "studio.default_layout.signal_1"
+            }
+        ])
+    };
+
+    var viewModel = new EnhancedSignalEditorDialogViewModel(mainWindowViewModel: null, ownerItem, definition: null);
+
+    AssertEqual("enhanced_signal_2", viewModel.Name);
+}
+
+static void EnhancedSignalEditorRejectsUppercaseName()
+{
+    var viewModel = new EnhancedSignalEditorDialogViewModel(mainWindowViewModel: null, new FolderItemModel(), definition: null)
+    {
+        Name = "EnhancedSignal1",
+        SourcePath = "studio.default_layout.signal_1"
+    };
+
+    AssertFalse(viewModel.TryBuildDefinition(out _, out var errorMessage));
+    AssertTrue(errorMessage.Contains("snake_case", StringComparison.Ordinal));
+}
+
 static void ItemExposureCodecRoundtrip()
 {
     var serialized = ItemExposureDefinitionCodec.SerializeDefinitions(
@@ -143,32 +278,32 @@ static void ItemExposureCodecRoundtrip()
     AssertEqual("Bit0=Ready", parsed[0].BitLabels);
 }
 
-static void TargetParameterOptionsHideProtectedParameters()
+static void TargetPropertyOptionsHideProtectedProperties()
 {
-    var item = new Item("Device").Repath("Runtime.PolicyPicker.Device");
-    item.Params["Value"].Value = 1;
-    item.Params["Unit"].Value = "V";
-    item.Params["Writable"].Value = true;
-    item.Params["WritePath"].Value = "Runtime.PolicyPicker.Device.Request";
-    HostRegistries.Data.UpsertSnapshot("Runtime.PolicyPicker.Device", item);
+    var item = new ItemModel("Device").Repath("runtime.PolicyPicker.Device");
+    item.Properties["read"].Value = 1;
+    item.Properties["unit"].Value = "V";
+    item.Properties["writable"].Value = true;
+    item.Properties["write_path"].Value = "runtime.PolicyPicker.Device.Request";
+    HostRegistries.Data.UpsertSnapshot("runtime.PolicyPicker.Device", item);
 
-    var method = typeof(MainWindowViewModel).GetMethod("GetTargetParameterOptions", BindingFlags.NonPublic | BindingFlags.Static);
+    var method = typeof(MainWindowViewModel).GetMethod("GetTargetPropertyOptions", BindingFlags.NonPublic | BindingFlags.Static);
     if (method is null)
     {
-        throw new InvalidOperationException("GetTargetParameterOptions was not found.");
+        throw new InvalidOperationException("GetTargetPropertyOptions was not found.");
     }
 
-    var options = ((IEnumerable<string>)method.Invoke(null, ["Runtime.PolicyPicker.Device", string.Empty])!)
+    var options = ((IEnumerable<string>)method.Invoke(null, ["runtime.PolicyPicker.Device", string.Empty])!)
         .ToArray();
 
-    AssertTrue(options.Contains("Value", StringComparer.OrdinalIgnoreCase));
-    AssertEqual("Value", options[0]);
+    AssertTrue(options.Contains("read", StringComparer.OrdinalIgnoreCase));
+    AssertEqual("read", options[0]);
     AssertTrue(options.Contains("Unit", StringComparer.OrdinalIgnoreCase));
     AssertFalse(options.Contains("Writable", StringComparer.OrdinalIgnoreCase));
     AssertFalse(options.Contains("WritePath", StringComparer.OrdinalIgnoreCase));
 }
 
-static void TargetParameterFieldHiddenForNormalWidgets()
+static void TargetPropertyFieldHiddenForNormalWidgets()
 {
     var method = typeof(MainWindowViewModel).GetMethod("ShouldShowEditorDialogField", BindingFlags.NonPublic | BindingFlags.Static);
     if (method is null)
@@ -176,37 +311,37 @@ static void TargetParameterFieldHiddenForNormalWidgets()
         throw new InvalidOperationException("ShouldShowEditorDialogField was not found.");
     }
 
-    AssertFalse((bool)method.Invoke(null, [new FolderItemModel { Kind = ControlKind.Item }, "TargetParameterPath"])!);
-    AssertFalse((bool)method.Invoke(null, [new FolderItemModel { Kind = ControlKind.Signal }, "TargetParameterPath"])!);
-    AssertTrue((bool)method.Invoke(null, [new FolderItemModel { Kind = ControlKind.Item }, "TargetPath"])!);
+    AssertFalse((bool)method.Invoke(null, [new FolderItemModel { Kind = ControlKind.ItemModel }, "TargetPropertyPath"])!);
+    AssertFalse((bool)method.Invoke(null, [new FolderItemModel { Kind = ControlKind.Signal }, "TargetPropertyPath"])!);
+    AssertTrue((bool)method.Invoke(null, [new FolderItemModel { Kind = ControlKind.ItemModel }, "TargetPath"])!);
 }
 
-static void TargetParameterDefaultsToValue()
+static void TargetPropertyDefaultsToValue()
 {
-    var target = new Item("Device").Repath("Runtime.PolicyPicker.DefaultDevice");
-    target.Params["Value"].Value = 42;
-    target.Params["Unit"].Value = "V";
-    HostRegistries.Data.UpsertSnapshot("Runtime.PolicyPicker.DefaultDevice", target);
+    var target = new ItemModel("Device").Repath("runtime.PolicyPicker.DefaultDevice");
+    target.Properties["read"].Value = 42;
+    target.Properties["unit"].Value = "V";
+    HostRegistries.Data.UpsertSnapshot("runtime.PolicyPicker.DefaultDevice", target);
 
     var item = new FolderItemModel { Kind = ControlKind.Signal };
-    item.TargetPath = "Runtime.PolicyPicker.DefaultDevice";
+    item.TargetPath = "runtime.PolicyPicker.DefaultDevice";
 
-    AssertEqual("Value", item.TargetParameterPath);
+    AssertEqual("read", item.TargetPropertyPath);
 }
 
-static void TargetParameterProtectedFallbackUsesValue()
+static void TargetPropertyProtectedFallbackUsesValue()
 {
-    var target = new Item("Device").Repath("Runtime.PolicyPicker.ProtectedDevice");
-    target.Params["Value"].Value = 7;
-    target.Params["WritePath"].Value = "Runtime.PolicyPicker.ProtectedDevice.Request";
-    HostRegistries.Data.UpsertSnapshot("Runtime.PolicyPicker.ProtectedDevice", target);
+    var target = new ItemModel("Device").Repath("runtime.PolicyPicker.ProtectedDevice");
+    target.Properties["read"].Value = 7;
+    target.Properties["write_path"].Value = "runtime.PolicyPicker.ProtectedDevice.Request";
+    HostRegistries.Data.UpsertSnapshot("runtime.PolicyPicker.ProtectedDevice", target);
 
     var item = new FolderItemModel { Kind = ControlKind.Signal };
-    item.TargetPath = "Runtime.PolicyPicker.ProtectedDevice";
-    item.TargetParameterPath = "WritePath";
+    item.TargetPath = "runtime.PolicyPicker.ProtectedDevice";
+    item.TargetPropertyPath = "WritePath";
 
-    AssertEqual("Value", item.TargetParameterPath);
-    AssertEqual("Value", item.TargetParameterView.Parameter?.Name);
+    AssertEqual("read", item.TargetPropertyPath);
+    AssertEqual("read", item.TargetPropertyView.Property?.Name);
 }
 
 static void BrokerWidgetModeDefaultsToExternal()
@@ -250,10 +385,10 @@ static void BrokerWidgetLayoutPublishItemsDefaultEmpty()
 
 static void BrokerWidgetPublishOptionsUseMetadata()
 {
-    var publicPath = "Studio.MetadataPublish.PublicSignal";
-    var customSignalPath = "Studio.MetadataPublish.CustomSignals.Signal1";
-    var enhancedSignalPath = "Studio.MetadataPublish.EnhancedSignals.Signal1";
-    var internalPath = "Studio.MetadataPublish.Broker.Status.AttachOptions";
+    var publicPath = "studio.metadata_publish.public_signal";
+    var customSignalPath = "studio.metadata_publish.custom_signals.signal1";
+    var enhancedSignalPath = "studio.metadata_publish.enhanced_signals.signal1";
+    var internalPath = "studio.metadata_publish.broker.status.attach_options";
     HostRegistries.Data.Remove(publicPath);
     HostRegistries.Data.Remove(customSignalPath);
     HostRegistries.Data.Remove(enhancedSignalPath);
@@ -261,10 +396,10 @@ static void BrokerWidgetPublishOptionsUseMetadata()
 
     try
     {
-        HostRegistries.Data.UpsertSnapshot(publicPath, new Item("PublicSignal").Repath(publicPath), DataRegistryItemMetadata.PublicData());
-        HostRegistries.Data.UpsertSnapshot(customSignalPath, new Item("Signal1").Repath(customSignalPath), DataRegistryItemMetadata.PublicData());
-        HostRegistries.Data.UpsertSnapshot(enhancedSignalPath, new Item("Signal1").Repath(enhancedSignalPath), DataRegistryItemMetadata.PublicData());
-        HostRegistries.Data.UpsertSnapshot(internalPath, new Item("AttachOptions").Repath(internalPath), DataRegistryItemMetadata.WidgetInternal());
+        HostRegistries.Data.UpsertSnapshot(publicPath, new ItemModel("PublicSignal").Repath(publicPath), DataRegistryItemMetadata.PublicData());
+        HostRegistries.Data.UpsertSnapshot(customSignalPath, new ItemModel("Signal1").Repath(customSignalPath), DataRegistryItemMetadata.PublicData());
+        HostRegistries.Data.UpsertSnapshot(enhancedSignalPath, new ItemModel("Signal1").Repath(enhancedSignalPath), DataRegistryItemMetadata.PublicData());
+        HostRegistries.Data.UpsertSnapshot(internalPath, new ItemModel("AttachOptions").Repath(internalPath), DataRegistryItemMetadata.WidgetInternal());
 
         var method = typeof(MainWindowViewModel).GetMethod("GetBrokerPublishItemOptions", BindingFlags.NonPublic | BindingFlags.Static);
         if (method is null)
@@ -290,15 +425,15 @@ static void BrokerWidgetPublishOptionsUseMetadata()
 
 static void BrokerWidgetPublishOptionsExcludeBrokerReceivedItems()
 {
-    var localPath = "Studio.MetadataPublish.LocalSignal";
-    var receivedPath = "Studio.MetadataPublish.BrokerWidget1.Mqtt.Device.Temperature";
+    var localPath = "studio.metadata_publish.local_signal";
+    var receivedPath = "studio.metadata_publish.broker_widget1.mqtt.device.temperature";
     HostRegistries.Data.Remove(localPath);
     HostRegistries.Data.Remove(receivedPath);
 
     try
     {
-        HostRegistries.Data.UpsertSnapshot(localPath, new Item("LocalSignal").Repath(localPath), DataRegistryItemMetadata.PublicData());
-        HostRegistries.Data.UpsertSnapshot(receivedPath, new Item("Temperature").Repath(receivedPath), DataRegistryItemMetadata.BrokerReceivedData());
+        HostRegistries.Data.UpsertSnapshot(localPath, new ItemModel("LocalSignal").Repath(localPath), DataRegistryItemMetadata.PublicData());
+        HostRegistries.Data.UpsertSnapshot(receivedPath, new ItemModel("Temperature").Repath(receivedPath), DataRegistryItemMetadata.BrokerReceivedData());
 
         AssertTrue(HostRegistries.Data.TryGetMetadata(receivedPath, out var metadata));
         AssertFalse(metadata.Capabilities.HasFlag(DataRegistryItemCapabilities.BrokerPublish));
@@ -326,15 +461,15 @@ static void BrokerWidgetPublishOptionsExcludeBrokerReceivedItems()
 
 static void BrokerWidgetPublishOptionsDeduplicateLegacyRoots()
 {
-    var legacyPath = "Project.MetadataPublish.DeduplicatedSignal";
-    var canonicalPath = "Studio.MetadataPublish.DeduplicatedSignal";
+    var legacyPath = "project.MetadataPublish.DeduplicatedSignal";
+    var canonicalPath = "studio.metadata_publish.deduplicated_signal";
     HostRegistries.Data.Remove(legacyPath);
     HostRegistries.Data.Remove(canonicalPath);
 
     try
     {
-        HostRegistries.Data.UpsertSnapshot(legacyPath, new Item("DeduplicatedSignal").Repath(legacyPath), DataRegistryItemMetadata.PublicData());
-        HostRegistries.Data.UpsertSnapshot(canonicalPath, new Item("DeduplicatedSignal").Repath(canonicalPath), DataRegistryItemMetadata.PublicData());
+        HostRegistries.Data.UpsertSnapshot(legacyPath, new ItemModel("DeduplicatedSignal").Repath(legacyPath), DataRegistryItemMetadata.PublicData());
+        HostRegistries.Data.UpsertSnapshot(canonicalPath, new ItemModel("DeduplicatedSignal").Repath(canonicalPath), DataRegistryItemMetadata.PublicData());
 
         var method = typeof(MainWindowViewModel).GetMethod("GetBrokerPublishItemOptions", BindingFlags.NonPublic | BindingFlags.Static);
         if (method is null)
@@ -343,7 +478,7 @@ static void BrokerWidgetPublishOptionsDeduplicateLegacyRoots()
         }
 
         var options = ((IEnumerable<string>)method.Invoke(null, [new FolderItemModel { Kind = ControlKind.BrokerWidget }])!)
-            .Where(path => path.EndsWith(".MetadataPublish.DeduplicatedSignal", StringComparison.OrdinalIgnoreCase))
+            .Where(path => path.EndsWith(".metadata_publish.deduplicated_signal", StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
         AssertEqual(1, options.Length);
@@ -358,15 +493,15 @@ static void BrokerWidgetPublishOptionsDeduplicateLegacyRoots()
 
 static void ItemTreeVisibilityUsesDisplayMetadata()
 {
-    var internalPath = "Studio.RegistryVisibility.BrokerWidget1.Status.AttachOptions.BrokerWidget1.Mqtt.Edm1.Temperature";
-    var receivedPath = "Studio.RegistryVisibility.BrokerWidget1.Mqtt.Edm1.Temperature";
+    var internalPath = "studio.registry_visibility.broker_widget1.status.attach_options.broker_widget1.mqtt.edm1.temperature";
+    var receivedPath = "studio.registry_visibility.broker_widget1.mqtt.edm1.temperature";
     HostRegistries.Data.Remove(internalPath);
     HostRegistries.Data.Remove(receivedPath);
 
     try
     {
-        HostRegistries.Data.UpsertSnapshot(internalPath, new Item("Temperature").Repath(internalPath), DataRegistryItemMetadata.WidgetInternal());
-        HostRegistries.Data.UpsertSnapshot(receivedPath, new Item("Temperature", 21.5).Repath(receivedPath), DataRegistryItemMetadata.BrokerReceivedData());
+        HostRegistries.Data.UpsertSnapshot(internalPath, new ItemModel("Temperature").Repath(internalPath), DataRegistryItemMetadata.WidgetInternal());
+        HostRegistries.Data.UpsertSnapshot(receivedPath, new ItemModel("Temperature", 21.5).Repath(receivedPath), DataRegistryItemMetadata.BrokerReceivedData());
 
         using var viewModel = new HornetStudio.ViewModels.ItemTreeWindowViewModel();
         var refreshMethod = typeof(HornetStudio.ViewModels.ItemTreeWindowViewModel).GetMethod("RefreshTree", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -389,12 +524,12 @@ static void ItemTreeVisibilityUsesDisplayMetadata()
 
 static void BrokerAttachOptionsUseInternalDiscovery()
 {
-    var attachOptionPath = "Studio.RegistryVisibility.BrokerWidget1.Status.AttachOptions.BrokerWidget1.Mqtt.Edm1.Temperature";
+    var attachOptionPath = "studio.registry_visibility.broker_widget1.status.attach_options.broker_widget1.mqtt.edm1.temperature";
     HostRegistries.Data.Remove(attachOptionPath);
 
     try
     {
-        HostRegistries.Data.UpsertSnapshot(attachOptionPath, new Item("BrokerWidget1.Mqtt.Edm1.Temperature").Repath(attachOptionPath), DataRegistryItemMetadata.WidgetInternal());
+        HostRegistries.Data.UpsertSnapshot(attachOptionPath, new ItemModel("broker_widget1.mqtt.edm1.temperature").Repath(attachOptionPath), DataRegistryItemMetadata.WidgetInternal());
 
         var method = typeof(MainWindowViewModel).GetMethod("GetBrokerAttachItemOptions", BindingFlags.NonPublic | BindingFlags.Static);
         if (method is null)
@@ -411,7 +546,7 @@ static void BrokerAttachOptionsUseInternalDiscovery()
 
         var options = ((IEnumerable<string>)method.Invoke(null, [item])!).ToArray();
 
-        AssertTrue(options.Contains("BrokerWidget1.Mqtt.Edm1.Temperature", StringComparer.OrdinalIgnoreCase));
+        AssertTrue(options.Contains("broker_widget1.mqtt.edm1.temperature", StringComparer.OrdinalIgnoreCase));
     }
     finally
     {
@@ -424,7 +559,7 @@ static void BrokerWidgetPublishItemsRendersFlatAttachRows()
     var item = new FolderItemModel
     {
         Kind = ControlKind.BrokerWidget,
-        BrokerPublishedItemPaths = "Studio.DefaultLayout.Edm1.Pressure"
+        BrokerPublishedItemPaths = "studio.default_layout.Edm1.Pressure"
     };
     var definition = new EditorDialogBindingDefinition(
         "BrokerPublishedItemPaths",
@@ -433,16 +568,16 @@ static void BrokerWidgetPublishItemsRendersFlatAttachRows()
         current => current.BrokerPublishedItemPaths,
         optionsFactory: _ =>
         [
-            "Studio.DefaultLayout.Edm1.Pressure",
-            "Studio.DefaultLayout.Edm1.Temperature"
+            "studio.default_layout.Edm1.Pressure",
+            "studio.default_layout.Edm1.Temperature"
         ]);
 
     var field = definition.CreateField(item);
 
     AssertEqual(2, field.AttachItemEntries.Count);
     AssertTrue(field.AttachItemEntries.All(static row => !row.IsGroup));
-    AssertEqual("Pressure", field.AttachItemEntries[0].DisplayName);
-    AssertEqual("Studio.DefaultLayout.Edm1", field.AttachItemEntries[0].DisplaySource);
+    AssertEqual("pressure", field.AttachItemEntries[0].DisplayName);
+    AssertEqual("studio.default_layout.edm1", field.AttachItemEntries[0].DisplaySource);
     AssertEqual(true, field.AttachItemEntries[0].IsAttached);
     AssertEqual(false, field.AttachItemEntries[1].IsAttached);
 }
@@ -460,11 +595,11 @@ static void BrokerWidgetReceivedPathUsesMqttBranch()
         Kind = ControlKind.BrokerWidget,
         Name = "BrokerWidget1"
     };
-    item.SetHierarchy("DefaultLayout", parentItem: null);
+    item.SetHierarchy("default_layout", parentItem: null);
 
     var path = (string)method.Invoke(null, [item, "shared", "Edm1.Pressure"])!;
 
-    AssertEqual("Studio.DefaultLayout.BrokerWidget1.Mqtt.Edm1.Pressure", path);
+    AssertEqual("studio.default_layout.broker_widget1.mqtt.edm1.pressure", path);
     AssertFalse(path.Contains("shared", StringComparison.OrdinalIgnoreCase));
     AssertFalse(path.Contains("Status.AttachOptions", StringComparison.OrdinalIgnoreCase));
 }
@@ -482,11 +617,11 @@ static void BrokerWidgetReceivedPathCollapsesNestedMqttIdentity()
         Kind = ControlKind.BrokerWidget,
         Name = "BrokerWidget1"
     };
-    item.SetHierarchy("DefaultLayout", parentItem: null);
+    item.SetHierarchy("default_layout", parentItem: null);
 
-    var path = (string)method.Invoke(null, [item, "Edm1.Pressure", "BrokerWidget1.Mqtt.Edm1.Pressure"])!;
+    var path = (string)method.Invoke(null, [item, "Edm1.Pressure", "broker_widget1.mqtt.edm1.pressure"])!;
 
-    AssertEqual("Studio.DefaultLayout.BrokerWidget1.Mqtt.Edm1.Pressure", path);
+    AssertEqual("studio.default_layout.broker_widget1.mqtt.edm1.pressure", path);
     AssertFalse(path.Contains("Edm1.Pressure.BrokerWidget1", StringComparison.OrdinalIgnoreCase));
 }
 
@@ -498,9 +633,9 @@ static void BrokerWidgetAttachIdentityCollapsesNestedMqttIdentity()
         throw new InvalidOperationException("BuildBrokerAttachIdentity was not found.");
     }
 
-    var path = (string)method.Invoke(null, ["BrokerWidget1", "Edm1.Pressure", "BrokerWidget1.Mqtt.Edm1.Pressure"])!;
+    var path = (string)method.Invoke(null, ["broker_widget1", "Edm1.Pressure", "broker_widget1.mqtt.edm1.pressure"])!;
 
-    AssertEqual("BrokerWidget1.Mqtt.Edm1.Pressure", path);
+    AssertEqual("broker_widget1.mqtt.edm1.pressure", path);
     AssertFalse(path.Contains("Edm1.Pressure.BrokerWidget1", StringComparison.OrdinalIgnoreCase));
 }
 
@@ -518,8 +653,8 @@ static void BrokerAttachNormalizationStripsPrefixBeforeMqttIdentity()
         throw new InvalidOperationException("ToBrokerReceivedAttachIdentity was not found.");
     }
 
-    AssertEqual("BrokerWidget1.Mqtt.Edm1.Pressure", method.Invoke(null, ["Edm1.Pressure.BrokerWidget1.Mqtt.Edm1.Pressure"]));
-    AssertEqual("BrokerWidget1.Mqtt.Edm1.Pressure", method.Invoke(null, ["Studio.Folder1.BrokerWidget1.Mqtt.Edm1.Pressure"]));
+    AssertEqual("broker_widget1.mqtt.edm1.pressure", method.Invoke(null, ["Edm1.Pressure.BrokerWidget1.Mqtt.Edm1.Pressure"]));
+    AssertEqual("broker_widget1.mqtt.edm1.pressure", method.Invoke(null, ["studio.Folder1.BrokerWidget1.Mqtt.Edm1.Pressure"]));
 }
 
 static void BrokerWidgetAttachSelectionNormalizesLegacySharedPath()
@@ -529,13 +664,13 @@ static void BrokerWidgetAttachSelectionNormalizesLegacySharedPath()
         "BrokerAttachedItemPaths",
         "AttachToUi",
         EditorPropertyType.AttachItemList,
-        _ => "Runtime.ItemBroker.BrokerWidget1.shared.Edm1.Pressure",
-        optionsFactory: _ => ["BrokerWidget1.Mqtt.Edm1.Pressure"]);
+        _ => "runtime.item_broker.BrokerWidget1.shared.Edm1.Pressure",
+        optionsFactory: _ => ["broker_widget1.mqtt.edm1.pressure"]);
 
     var field = definition.CreateField(item);
 
     AssertEqual(1, field.AttachItemEntries.Count);
-    AssertEqual("BrokerWidget1.Mqtt.Edm1.Pressure", field.AttachItemEntries[0].RelativePath);
+    AssertEqual("broker_widget1.mqtt.edm1.pressure", field.AttachItemEntries[0].RelativePath);
     AssertEqual(true, field.AttachItemEntries[0].IsAttached);
     AssertEqual(false, field.AttachItemEntries[0].IsMissing);
 }
@@ -548,11 +683,11 @@ static void UdlAttachAddNormalizesAndDeduplicatesPaths()
         throw new InvalidOperationException("AddAttachedPath was not found.");
     }
 
-    var updated = (string)method.Invoke(null, ["Project.DefaultLayout.ModuleA", "Studio.DefaultLayout.ModuleA"])!;
-    AssertEqual("Studio.DefaultLayout.ModuleA", updated);
+    var updated = (string)method.Invoke(null, ["project.default_layout.ModuleA", "studio.default_layout.ModuleA"])!;
+    AssertEqual("studio.default_layout.module_a", updated);
 
-    updated = (string)method.Invoke(null, [updated, "Studio.DefaultLayout.ModuleA.SubItem"])!;
-    AssertEqual("Studio.DefaultLayout.ModuleA", updated);
+    updated = (string)method.Invoke(null, [updated, "studio.default_layout.ModuleA.SubItem"])!;
+    AssertEqual("studio.default_layout.module_a", updated);
 }
 
 static void UdlAttachRemoveClearsSelectedPath()
@@ -563,10 +698,10 @@ static void UdlAttachRemoveClearsSelectedPath()
         throw new InvalidOperationException("RemoveAttachedPath was not found.");
     }
 
-    var updated = (string)method.Invoke(null, ["Studio.DefaultLayout.ModuleA\r\nStudio.DefaultLayout.ModuleB", "Project.DefaultLayout.ModuleA"])!;
-    AssertEqual("Studio.DefaultLayout.ModuleB", updated);
+    var updated = (string)method.Invoke(null, ["studio.default_layout.ModuleA\r\nstudio.default_layout.ModuleB", "project.default_layout.ModuleA"])!;
+    AssertEqual("studio.default_layout.module_b", updated);
 
-    updated = (string)method.Invoke(null, [updated, "Studio.DefaultLayout.ModuleB"])!;
+    updated = (string)method.Invoke(null, [updated, "studio.default_layout.ModuleB"])!;
     AssertEqual(string.Empty, updated);
 }
 
@@ -584,19 +719,19 @@ static void TargetPathNormalizationUsesStudioRoot()
         throw new InvalidOperationException("NormalizeConfiguredTargetPath was not found.");
     }
 
-    AssertEqual("Studio.Folder.X", method.Invoke(null, ["Project.Folder.X"]));
-    AssertEqual("Studio.Folder.X", method.Invoke(null, ["Studio.Folder.X"]));
-    AssertEqual("Studio.Folder.X", method.Invoke(null, ["Studio.Project.Folder.X"]));
+    AssertEqual("studio.folder.x", method.Invoke(null, ["project.Folder.X"]));
+    AssertEqual("studio.folder.x", method.Invoke(null, ["studio.Folder.X"]));
+    AssertEqual("studio.folder.x", method.Invoke(null, ["studio.project.Folder.X"]));
 }
 
 static void BrokerPublishedItemCodecMigratesLegacyPaths()
 {
-    var parsed = BrokerPublishedItemDefinitionCodec.ParseDefinitions("Project.DefaultLayout.Edm1.Pressure");
+    var parsed = BrokerPublishedItemDefinitionCodec.ParseDefinitions("project.default_layout.Edm1.Pressure");
 
     AssertEqual(1, parsed.Count);
-    AssertEqual("Studio.DefaultLayout.Edm1.Pressure", parsed[0].LocalPath);
-    AssertEqual("Studio.DefaultLayout.Edm1.Pressure", parsed[0].LocalRootPath);
-    AssertEqual("Studio.DefaultLayout.Edm1.Pressure", parsed[0].BrokerPath);
+    AssertEqual("studio.default_layout.edm1.pressure", parsed[0].LocalPath);
+    AssertEqual("studio.default_layout.edm1.pressure", parsed[0].LocalRootPath);
+    AssertEqual("studio.default_layout.edm1.pressure", parsed[0].BrokerPath);
     AssertEqual(false, parsed[0].Active);
     AssertEqual(BrokerPublishedItemPublishModes.OnChanged, parsed[0].PublishMode);
     AssertEqual(1000, parsed[0].PublishIntervalMs);
@@ -609,9 +744,9 @@ static void BrokerPublishedItemCodecKeepsExplicitStudioBrokerPaths()
     [
         new BrokerPublishedItemDefinition
         {
-            LocalPath = "Project.DefaultLayout.Edm1.Pressure",
-            LocalRootPath = "Project.DefaultLayout.Edm1",
-            BrokerPath = "Studio.Custom.Path",
+            LocalPath = "project.default_layout.Edm1.Pressure",
+            LocalRootPath = "project.default_layout.Edm1",
+            BrokerPath = "studio.Custom.Path",
             Active = true
         }
     ]);
@@ -619,7 +754,7 @@ static void BrokerPublishedItemCodecKeepsExplicitStudioBrokerPaths()
     var parsed = BrokerPublishedItemDefinitionCodec.ParseDefinitions(serialized);
 
     AssertEqual(1, parsed.Count);
-    AssertEqual("Studio.Custom.Path", parsed[0].BrokerPath);
+    AssertEqual("studio.custom.path", parsed[0].BrokerPath);
 }
 
 static void BrokerPublishedItemCodecKeepsExplicitHornetStudioBrokerPaths()
@@ -628,9 +763,9 @@ static void BrokerPublishedItemCodecKeepsExplicitHornetStudioBrokerPaths()
     [
         new BrokerPublishedItemDefinition
         {
-            LocalPath = "Project.DefaultLayout.Edm1.Pressure",
-            LocalRootPath = "Project.DefaultLayout.Edm1",
-            BrokerPath = "HornetStudio.Project.DefaultLayout.Edm1.Pressure",
+            LocalPath = "project.default_layout.Edm1.Pressure",
+            LocalRootPath = "project.default_layout.Edm1",
+            BrokerPath = "HornetStudio.project.default_layout.Edm1.Pressure",
             Active = true
         }
     ]);
@@ -638,7 +773,7 @@ static void BrokerPublishedItemCodecKeepsExplicitHornetStudioBrokerPaths()
     var parsed = BrokerPublishedItemDefinitionCodec.ParseDefinitions(serialized);
 
     AssertEqual(1, parsed.Count);
-    AssertEqual("HornetStudio.Project.DefaultLayout.Edm1.Pressure", parsed[0].BrokerPath);
+    AssertEqual("hornet_studio.project.default_layout.edm1.pressure", parsed[0].BrokerPath);
 }
 
 static void BrokerPublishedItemCodecRoundtrip()
@@ -647,9 +782,9 @@ static void BrokerPublishedItemCodecRoundtrip()
     [
         new BrokerPublishedItemDefinition
         {
-            LocalPath = "Project.DefaultLayout.Edm1.Pressure",
-            LocalRootPath = "Project.DefaultLayout.Edm1",
-            BrokerPath = "Studio.Project.DefaultLayout.Edm1.Pressure",
+            LocalPath = "project.default_layout.Edm1.Pressure",
+            LocalRootPath = "project.default_layout.Edm1",
+            BrokerPath = "studio.project.default_layout.Edm1.Pressure",
             Active = true,
             PublishMode = BrokerPublishedItemPublishModes.Interval,
             PublishIntervalMs = 250,
@@ -660,9 +795,9 @@ static void BrokerPublishedItemCodecRoundtrip()
     var parsed = BrokerPublishedItemDefinitionCodec.ParseDefinitions(serialized);
 
     AssertEqual(1, parsed.Count);
-    AssertEqual("Studio.DefaultLayout.Edm1.Pressure", parsed[0].LocalPath);
-    AssertEqual("Studio.DefaultLayout.Edm1", parsed[0].LocalRootPath);
-    AssertEqual("Studio.DefaultLayout.Edm1.Pressure", parsed[0].BrokerPath);
+    AssertEqual("studio.default_layout.edm1.pressure", parsed[0].LocalPath);
+    AssertEqual("studio.default_layout.edm1", parsed[0].LocalRootPath);
+    AssertEqual("studio.default_layout.edm1.pressure", parsed[0].BrokerPath);
     AssertEqual(true, parsed[0].Active);
     AssertEqual(BrokerPublishedItemPublishModes.Interval, parsed[0].PublishMode);
     AssertEqual(250, parsed[0].PublishIntervalMs);
@@ -675,60 +810,60 @@ static void BrokerPublishedItemCodecFiltersActiveRootDefinitions()
     {
         new BrokerPublishedItemDefinition
         {
-            LocalRootPath = "Project.DefaultLayout.Edm1",
-            LocalPath = "Project.DefaultLayout.Edm1.Pressure",
-            BrokerPath = "Studio.Project.DefaultLayout.Edm1.Pressure",
+            LocalRootPath = "project.default_layout.Edm1",
+            LocalPath = "project.default_layout.Edm1.Pressure",
+            BrokerPath = "studio.project.default_layout.Edm1.Pressure",
             Active = true
         },
         new BrokerPublishedItemDefinition
         {
-            LocalRootPath = "Project.DefaultLayout.Edm1",
-            LocalPath = "Project.DefaultLayout.Edm1.Temperature",
-            BrokerPath = "Studio.Project.DefaultLayout.Edm1.Temperature",
+            LocalRootPath = "project.default_layout.Edm1",
+            LocalPath = "project.default_layout.Edm1.Temperature",
+            BrokerPath = "studio.project.default_layout.Edm1.Temperature",
             Active = false
         },
         new BrokerPublishedItemDefinition
         {
-            LocalRootPath = "Project.DefaultLayout.Edm2",
-            LocalPath = "Project.DefaultLayout.Edm2.Pressure",
-            BrokerPath = "Studio.Project.DefaultLayout.Edm2.Pressure",
+            LocalRootPath = "project.default_layout.Edm2",
+            LocalPath = "project.default_layout.Edm2.Pressure",
+            BrokerPath = "studio.project.default_layout.Edm2.Pressure",
             Active = true
         }
     };
 
-    var filtered = BrokerPublishedItemDefinitionCodec.GetActiveDefinitionsForRoot(definitions, "project.defaultlayout.edm1");
+    var filtered = BrokerPublishedItemDefinitionCodec.GetActiveDefinitionsForRoot(definitions, "project.default_layout.edm1");
 
     AssertEqual(1, filtered.Count);
-    AssertEqual("Studio.DefaultLayout.Edm1.Pressure", filtered[0].LocalPath);
+    AssertEqual("studio.default_layout.edm1.pressure", filtered[0].LocalPath);
 }
 
 static void BrokerPublishedItemChangeMatcherScopesChanges()
 {
     var rootDefinition = new BrokerPublishedItemDefinition
     {
-        LocalPath = "Studio.DefaultLayout.Edm1",
-        BrokerPath = "Studio.DefaultLayout.Edm1",
+        LocalPath = "studio.default_layout.Edm1",
+        BrokerPath = "studio.default_layout.Edm1",
         Active = true,
         PublishMode = BrokerPublishedItemPublishModes.OnChanged
     };
     var childDefinition = new BrokerPublishedItemDefinition
     {
-        LocalPath = "Studio.DefaultLayout.Edm1.Pressure",
-        BrokerPath = "Studio.DefaultLayout.Edm1.Pressure",
+        LocalPath = "studio.default_layout.Edm1.Pressure",
+        BrokerPath = "studio.default_layout.Edm1.Pressure",
         Active = true,
         PublishMode = BrokerPublishedItemPublishModes.OnChanged
     };
-    var rootItem = new Item("Edm1").Repath("Studio.DefaultLayout.Edm1");
+    var rootItem = new ItemModel("Edm1").Repath("studio.default_layout.Edm1");
     rootItem["Pressure"].Value = 12.5;
 
-    Item? Resolve(string path)
+    ItemModel? Resolve(string path)
     {
-        if (string.Equals(path, "Studio.DefaultLayout.Edm1", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(path, "studio.default_layout.Edm1", StringComparison.OrdinalIgnoreCase))
         {
             return rootItem;
         }
 
-        if (string.Equals(path, "Studio.DefaultLayout.Edm1.Pressure", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(path, "studio.default_layout.Edm1.Pressure", StringComparison.OrdinalIgnoreCase))
         {
             return rootItem["Pressure"];
         }
@@ -738,31 +873,31 @@ static void BrokerPublishedItemChangeMatcherScopesChanges()
 
     AssertTrue(BrokerPublishedItemChangeMatcher.ShouldPublish(
         childDefinition,
-        new DataChangedEventArgs("Studio.DefaultLayout.Edm1.Pressure", rootItem["Pressure"], DataChangeKind.ValueUpdated),
+        new DataChangedEventArgs("studio.default_layout.Edm1.Pressure", rootItem["Pressure"], DataChangeKind.ValueUpdated),
         Resolve));
     AssertTrue(BrokerPublishedItemChangeMatcher.ShouldPublish(
         rootDefinition,
-        new DataChangedEventArgs("Studio.DefaultLayout.Edm1.Pressure", rootItem["Pressure"], DataChangeKind.ValueUpdated),
+        new DataChangedEventArgs("studio.default_layout.Edm1.Pressure", rootItem["Pressure"], DataChangeKind.ValueUpdated),
         Resolve));
     AssertTrue(BrokerPublishedItemChangeMatcher.ShouldPublish(
         childDefinition,
-        new DataChangedEventArgs("Studio.DefaultLayout.Edm1", rootItem, DataChangeKind.SnapshotUpserted),
+        new DataChangedEventArgs("studio.default_layout.Edm1", rootItem, DataChangeKind.SnapshotUpserted),
         Resolve));
     AssertFalse(BrokerPublishedItemChangeMatcher.ShouldPublish(
         childDefinition,
-        new DataChangedEventArgs("Studio.DefaultLayout.Edm1", rootItem, DataChangeKind.ValueUpdated),
+        new DataChangedEventArgs("studio.default_layout.Edm1", rootItem, DataChangeKind.ValueUpdated),
         Resolve));
     AssertFalse(BrokerPublishedItemChangeMatcher.ShouldPublish(
         childDefinition,
-        new DataChangedEventArgs("Studio.DefaultLayout.Edm2.Pressure", rootItem["Pressure"], DataChangeKind.ValueUpdated),
+        new DataChangedEventArgs("studio.default_layout.Edm2.Pressure", rootItem["Pressure"], DataChangeKind.ValueUpdated),
         Resolve));
 }
 
 static void BrokerPublisherSendsValueUpdateForUnregisteredValueChange()
 {
-    var localPath = "Runtime.BrokerPublisher.Set.Request";
-    var brokerPath = "Studio.Folder1.UdlClient1.m300.Set.Request";
-    HostRegistries.Data.UpsertSnapshot(localPath, new Item("Request", 1).Repath(localPath));
+    var localPath = "runtime.BrokerPublisher.set.request";
+    var brokerPath = "studio.folder1.udl_client1.m300.set.request";
+    HostRegistries.Data.UpsertSnapshot(localPath, new ItemModel("Request", 1).Repath(localPath));
 
     var widget = new FolderItemModel
     {
@@ -796,9 +931,9 @@ static void BrokerPublisherSendsValueUpdateForUnregisteredValueChange()
 
 static void SignalWriteEmitsRegistryValueUpdate()
 {
-    var targetPath = "Studio.EditorTests.SignalWrite.Demo1";
-    var target = new Item("Demo1", 80d).Repath(targetPath);
-    target.Params["Writable"].Value = true;
+    var targetPath = "studio.editor_tests.signal_write.demo1";
+    var target = new ItemModel("Demo1", 80d).Repath(targetPath);
+    target.Properties["writable"].Value = true;
     HostRegistries.Data.UpsertSnapshot(targetPath, target);
 
     var signal = new FolderItemModel
@@ -812,7 +947,7 @@ static void SignalWriteEmitsRegistryValueUpdate()
     HostRegistries.Data.ItemChanged += OnItemChanged;
     try
     {
-        AssertTrue(signal.TryUpdateTargetParameterValue(10d, out var error));
+        AssertTrue(signal.TryUpdateTargetPropertyValue(10d, out var error));
         AssertEqual(string.Empty, error);
         AssertTrue(HostRegistries.Data.TryResolve(targetPath, out var resolved));
         AssertEqual(10d, resolved?.Value);
@@ -838,8 +973,8 @@ static void BrokerWriteBackIgnoresNonWritableEntries()
     var client = new FakeHostItemBrokerClient();
     using var writeBack = CreateWriteBackClient(
         client,
-        "Runtime.BrokerWriteBack.NonWritable",
-        "Studio.Runtime.BrokerWriteBack.NonWritable",
+        "runtime.BrokerWriteBack.NonWritable",
+        "studio.runtime.BrokerWriteBack.NonWritable",
         active: true,
         writable: false);
 
@@ -853,8 +988,8 @@ static void BrokerWriteBackIgnoresInactiveEntries()
     var client = new FakeHostItemBrokerClient();
     using var writeBack = CreateWriteBackClient(
         client,
-        "Runtime.BrokerWriteBack.Inactive",
-        "Studio.Runtime.BrokerWriteBack.Inactive",
+        "runtime.BrokerWriteBack.Inactive",
+        "studio.runtime.BrokerWriteBack.Inactive",
         active: false,
         writable: true);
 
@@ -865,9 +1000,9 @@ static void BrokerWriteBackIgnoresInactiveEntries()
 
 static void BrokerWriteBackUpdatesWritableValue()
 {
-    var localPath = "Runtime.BrokerWriteBack.Value";
-    var brokerPath = "Studio.Runtime.BrokerWriteBack.Value";
-    HostRegistries.Data.UpsertSnapshot(localPath, new Item("Value", 1).Repath(localPath));
+    var localPath = "runtime.BrokerWriteBack.Value";
+    var brokerPath = "studio.runtime.broker_write_back.value";
+    HostRegistries.Data.UpsertSnapshot(localPath, new ItemModel("read", 1).Repath(localPath));
 
     var client = new FakeHostItemBrokerClient();
     using var writeBack = CreateWriteBackClient(client, localPath, brokerPath, active: true, writable: true);
@@ -881,14 +1016,14 @@ static void BrokerWriteBackUpdatesWritableValue()
 
 static void BrokerWriteBackUsesRequestWriteTarget()
 {
-    var localPath = "Runtime.BrokerWriteBack.RequestValue";
-    var brokerPath = "Studio.Runtime.BrokerWriteBack.RequestValue";
-    var item = new Item("RequestValue", 1).Repath(localPath);
+    var localPath = "runtime.BrokerWriteBack.RequestValue";
+    var brokerPath = "studio.runtime.broker_write_back.request_value";
+    var item = new ItemModel("RequestValue", 1).Repath(localPath);
     item.AddItem("Request");
     item["Request"].Value = 1;
-    item.Params["Writable"].Value = true;
-    item.Params["WritePath"].Value = localPath;
-    item.Params["WriteMode"].Value = SignalWriteMode.Request.ToString();
+    item.Properties["writable"].Value = true;
+    item.Properties["write_path"].Value = localPath;
+    item.Properties["write_mode"].Value = SignalWriteMode.Request.ToString();
     HostRegistries.Data.UpsertSnapshot(localPath, item);
 
     var client = new FakeHostItemBrokerClient();
@@ -905,9 +1040,9 @@ static void BrokerWriteBackUsesRequestWriteTarget()
 
 static void BrokerWriteBackConvertsNumericValueToLocalType()
 {
-    var localPath = "Runtime.BrokerWriteBack.DoubleValue";
-    var brokerPath = "Studio.Runtime.BrokerWriteBack.DoubleValue";
-    HostRegistries.Data.UpsertSnapshot(localPath, new Item("DoubleValue", 1.5).Repath(localPath));
+    var localPath = "runtime.BrokerWriteBack.DoubleValue";
+    var brokerPath = "studio.runtime.broker_write_back.double_value";
+    HostRegistries.Data.UpsertSnapshot(localPath, new ItemModel("DoubleValue", 1.5).Repath(localPath));
 
     var client = new FakeHostItemBrokerClient();
     using var writeBack = CreateWriteBackClient(client, localPath, brokerPath, active: true, writable: true);
@@ -919,29 +1054,29 @@ static void BrokerWriteBackConvertsNumericValueToLocalType()
     AssertEqual(2.0, resolved?.Value);
 }
 
-static void BrokerWriteBackBlocksProtectedParameters()
+static void BrokerWriteBackBlocksProtectedProperties()
 {
-    var localPath = "Runtime.BrokerWriteBack.ProtectedParameter";
-    var brokerPath = "Studio.Runtime.BrokerWriteBack.ProtectedParameter";
-    var item = new Item("ProtectedParameter", 1).Repath(localPath);
-    item.Params["Writable"].Value = true;
+    var localPath = "runtime.BrokerWriteBack.ProtectedParameter";
+    var brokerPath = "studio.runtime.BrokerWriteBack.ProtectedParameter";
+    var item = new ItemModel("ProtectedParameter", 1).Repath(localPath);
+    item.Properties["writable"].Value = true;
     HostRegistries.Data.UpsertSnapshot(localPath, item);
 
     var client = new FakeHostItemBrokerClient();
     using var writeBack = CreateWriteBackClient(client, localPath, brokerPath, active: true, writable: true);
     writeBack.StartAsync().GetAwaiter().GetResult();
 
-    client.PublishToSubscription(new ItemParameterChangedMessage(brokerPath, "Writable", false, "external-client", null, DateTimeOffset.UtcNow));
+    client.PublishToSubscription(new ItemPropertyChangedMessage(brokerPath, "Writable", false, "external-client", null, DateTimeOffset.UtcNow));
 
     AssertTrue(HostRegistries.Data.TryResolve(localPath, out var resolved));
-    AssertEqual(true, resolved?.Params["Writable"].Value);
+    AssertEqual(true, resolved?.Properties["writable"].Value);
 }
 
 static void BrokerWriteBackIgnoresSameValueSelfEchoes()
 {
-    var localPath = "Runtime.BrokerWriteBack.SameValue";
-    var brokerPath = "Studio.Runtime.BrokerWriteBack.SameValue";
-    HostRegistries.Data.UpsertSnapshot(localPath, new Item("OwnSource", 1).Repath(localPath));
+    var localPath = "runtime.BrokerWriteBack.SameValue";
+    var brokerPath = "studio.runtime.BrokerWriteBack.SameValue";
+    HostRegistries.Data.UpsertSnapshot(localPath, new ItemModel("OwnSource", 1).Repath(localPath));
 
     var client = new FakeHostItemBrokerClient { ClientIdValue = "own-client" };
     using var writeBack = CreateWriteBackClient(client, localPath, brokerPath, active: true, writable: true);
@@ -958,8 +1093,8 @@ static void BrokerWriteBackCleanupDisposesSubscriptions()
     var client = new FakeHostItemBrokerClient();
     using var writeBack = CreateWriteBackClient(
         client,
-        "Runtime.BrokerWriteBack.Cleanup",
-        "Studio.Runtime.BrokerWriteBack.Cleanup",
+        "runtime.BrokerWriteBack.Cleanup",
+        "studio.runtime.BrokerWriteBack.Cleanup",
         active: true,
         writable: true);
 
@@ -1012,7 +1147,7 @@ static void StartBrokerPublisher(IDisposable publisher, bool publishInitialSnaps
 
 static void ItemExposurePublisherAppliesBitHelpers()
 {
-    var item = new Item("mask", 5, "Runtime.ItemBroker.broker1.client1.device");
+    var item = new ItemModel("mask", 5, "runtime.item_broker.broker1.client1.device");
     var definition = new ItemExposureDefinition
     {
         ItemPath = "broker1.client1.device.mask",
@@ -1025,16 +1160,16 @@ static void ItemExposurePublisherAppliesBitHelpers()
 
     ItemExposurePublisher.Apply(item, definition);
 
-    AssertEqual("b4", item.Params["Format"].Value);
-    AssertEqual("flags", item.Params["Unit"].Value);
+    AssertEqual("b4", item.Properties["format"].Value);
+    AssertEqual("flags", item.Properties["unit"].Value);
     AssertTrue(item.Has("Bits"));
     AssertTrue(item["Bits"].Has("Bit0"));
     AssertTrue(item["Bits"].Has("Bit2"));
     AssertEqual(true, item["Bits"]["Bit0"].Value);
     AssertEqual(false, item["Bits"]["Bit1"].Value);
     AssertEqual(true, item["Bits"]["Bit2"].Value);
-    AssertEqual("Ready", item["Bits"]["Bit0"].Params["Title"].Value);
-    AssertEqual("Fault", item["Bits"]["Bit2"].Params["Title"].Value);
+    AssertEqual("Ready", item["Bits"]["Bit0"].Properties["title"].Value);
+    AssertEqual("Fault", item["Bits"]["Bit2"].Properties["title"].Value);
 }
 
 static void ItemExposureCodecUpsertAndRemove()
@@ -1090,7 +1225,7 @@ static void ItemExposureCodecNormalizesRuntimeBrokerPaths()
 
     var upserted = ItemExposureDefinitionCodec.UpsertDefinition(
         serialized,
-        "Runtime.ItemBroker.broker1.client1.device.mask",
+        "runtime.item_broker.broker1.client1.device.mask",
         new ItemExposureDefinition
         {
             ItemPath = "broker1.client1.device.mask",
@@ -1162,15 +1297,15 @@ sealed class FakeHostItemBrokerClient : IHostItemBrokerClient
 
     public bool IsConnected => true;
 
-    public ItemDictionary Items { get; } = new("Runtime.ItemBroker.BrokerWidgetTest");
+    public ItemDictionary Items { get; } = new("runtime.item_broker.BrokerWidgetTest");
 
     public List<FakeItemSubscription> Subscriptions { get; } = [];
 
-    public List<Item> PublishedSnapshots { get; } = [];
+    public List<ItemModel> PublishedSnapshots { get; } = [];
 
-    public List<Item> ValueUpdates { get; } = [];
+    public List<ItemModel> ValueUpdates { get; } = [];
 
-    public List<(Item Item, string ParameterName)> ParameterUpdates { get; } = [];
+    public List<(ItemModel ItemModel, string ParameterName)> ParameterUpdates { get; } = [];
 
     public event Action<string>? Diagnostic
     {
@@ -1184,21 +1319,21 @@ sealed class FakeHostItemBrokerClient : IHostItemBrokerClient
         remove => _itemsChanged -= value;
     }
 
-    public IReadOnlyDictionary<string, Item> GetItemSnapshots() => new Dictionary<string, Item>();
+    public IReadOnlyDictionary<string, ItemModel> GetItemSnapshots() => new Dictionary<string, ItemModel>();
 
-    public Task PublishSnapshotAsync(Item item, CancellationToken cancellationToken = default)
+    public Task PublishSnapshotAsync(ItemModel item, CancellationToken cancellationToken = default)
     {
         PublishedSnapshots.Add(item.Clone());
         return Task.CompletedTask;
     }
 
-    public Task<ItemBrokerAckMessage> UpdateValueAsync(Item item, CancellationToken cancellationToken = default)
+    public Task<ItemServerAckMessage> UpdateValueAsync(ItemModel item, CancellationToken cancellationToken = default)
     {
         ValueUpdates.Add(item.Clone());
         return Task.FromResult(CreateAcknowledgement(item));
     }
 
-    public Task<ItemBrokerAckMessage> UpdateParameterAsync(Item item, string parameterName, CancellationToken cancellationToken = default)
+    public Task<ItemServerAckMessage> UpdateParameterAsync(ItemModel item, string parameterName, CancellationToken cancellationToken = default)
     {
         ParameterUpdates.Add((item.Clone(), parameterName));
         return Task.FromResult(CreateAcknowledgement(item));
@@ -1206,7 +1341,7 @@ sealed class FakeHostItemBrokerClient : IHostItemBrokerClient
 
     public Task<IItemSubscription> SubscribeAsync(
         string path,
-        Func<ItemBrokerMessage, CancellationToken, Task> handler,
+        Func<ItemServerMessage, CancellationToken, Task> handler,
         ItemSubscriptionOptions? options = null,
         CancellationToken cancellationToken = default)
     {
@@ -1221,7 +1356,7 @@ sealed class FakeHostItemBrokerClient : IHostItemBrokerClient
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
-    public void PublishToSubscription(ItemBrokerMessage message)
+    public void PublishToSubscription(ItemServerMessage message)
     {
         foreach (var subscription in Subscriptions.Where(subscription => string.Equals(subscription.Path, message.Path, StringComparison.OrdinalIgnoreCase)))
         {
@@ -1229,7 +1364,7 @@ sealed class FakeHostItemBrokerClient : IHostItemBrokerClient
         }
     }
 
-    private ItemBrokerAckMessage CreateAcknowledgement(Item item)
+    private ItemServerAckMessage CreateAcknowledgement(ItemModel item)
         => new(
             Path: item.Path ?? string.Empty,
             Accepted: true,
@@ -1241,9 +1376,9 @@ sealed class FakeHostItemBrokerClient : IHostItemBrokerClient
 
 sealed class FakeItemSubscription : IItemSubscription
 {
-    private readonly Func<ItemBrokerMessage, CancellationToken, Task> _handler;
+    private readonly Func<ItemServerMessage, CancellationToken, Task> _handler;
 
-    public FakeItemSubscription(string path, bool recursive, Func<ItemBrokerMessage, CancellationToken, Task> handler)
+    public FakeItemSubscription(string path, bool recursive, Func<ItemServerMessage, CancellationToken, Task> handler)
     {
         Path = path;
         Recursive = recursive;
@@ -1252,7 +1387,7 @@ sealed class FakeItemSubscription : IItemSubscription
 
     public string SubscriptionId { get; } = Guid.NewGuid().ToString("N");
 
-    public IItemBrokerClient Client { get; } = new FakeItemBrokerClient();
+    public IItemServerClient Client { get; } = new FakeItemBrokerClient();
 
     public string Path { get; }
 
@@ -1260,7 +1395,7 @@ sealed class FakeItemSubscription : IItemSubscription
 
     public bool Disposed { get; private set; }
 
-    public Task HandleAsync(ItemBrokerMessage message)
+    public Task HandleAsync(ItemServerMessage message)
         => _handler(message, CancellationToken.None);
 
     public ValueTask DisposeAsync()
@@ -1270,9 +1405,9 @@ sealed class FakeItemSubscription : IItemSubscription
     }
 }
 
-sealed class FakeItemBrokerClient : IItemBrokerClient
+sealed class FakeItemBrokerClient : IItemServerClient
 {
     public string ClientId => "fake";
 
-    public Task ReceiveAsync(ItemBrokerMessage message, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    public Task ReceiveAsync(ItemServerMessage message, CancellationToken cancellationToken = default) => Task.CompletedTask;
 }

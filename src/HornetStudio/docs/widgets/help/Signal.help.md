@@ -14,11 +14,11 @@ The Signal widget displays a bound runtime signal and supports typed editing, bo
 
 Defines the signal target path to resolve.
 
-### TargetParameterPath
+### TargetPropertyPath
 
-Selects the displayed or editable parameter.
+Selects the displayed or editable property.
 
-### TargetParameterFormat
+### TargetPropertyFormat
 
 Controls display formatting.
 
@@ -42,7 +42,7 @@ The widget can open the shared value input editor for writable targets.
 
 ### Toggle bits
 
-Bit-oriented parameter presentations can route user actions to bit toggling logic.
+Bit-oriented property presentations can route user actions to bit toggling logic.
 
 ### Send bool input
 
@@ -58,7 +58,7 @@ The widget suppresses runtime interaction behavior when edit mode is active.
 
 ## Runtime Notes
 
-Signal behavior builds on the shared target binding and parameter presentation infrastructure defined in the item model and parameter control.
+Signal behavior builds on the shared target binding and property presentation infrastructure defined in the item model and property control.
 
 ## Suggested Help Window Metadata
 
@@ -67,6 +67,6 @@ Signal behavior builds on the shared target binding and parameter presentation i
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/Signal/EditorSignalControl.axaml.cs`
-- `src/HornetStudio.Editor/Widgets/Parameter/ParameterControl.axaml.cs`
-- `src/HornetStudio.Editor/Models/PageItemModel.cs`
+- `src/Hornetstudio.Editor/Widgets/Signal/EditorSignalControl.axaml.cs`
+- `src/Hornetstudio.Editor/Widgets/Property/PropertyControl.axaml.cs`
+- `src/Hornetstudio.Editor/Models/PageItemModel.cs`

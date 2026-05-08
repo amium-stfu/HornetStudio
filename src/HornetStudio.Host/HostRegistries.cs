@@ -7,6 +7,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.Loader;
 using HornetStudio.Logging;
+using ItemModel = Amium.Items.Item;
 using Amium.Items;
 using HornetStudio.Host.Helpers;
 using AForge.Video.DirectShow;
@@ -17,7 +18,7 @@ public enum DataChangeKind
 {
     SnapshotUpserted,
     ValueUpdated,
-    ParameterUpdated
+    PropertyUpdated
 }
 
 /// <summary>
@@ -130,18 +131,18 @@ public sealed record DataRegistryItemMetadata(DataRegistryItemRole Role, DataReg
 /// <summary>
 /// Provides the central policy for protected host registry parameters.
 /// </summary>
-public static class HostRegistryParameterPolicy
+public static class HostRegistryPropertyPolicy
 {
     private static readonly HashSet<string> ProtectedParameters = new(StringComparer.OrdinalIgnoreCase)
     {
-        "Writable",
-        "IsWritable",
-        "WritePath",
-        "BrokerPath",
-        "LocalPath",
-        "Active",
-        "PublishMode",
-        "PublishIntervalMs"
+        "writable",
+        "is_writable",
+        "write_path",
+        "broker_path",
+        "local_path",
+        "active",
+        "publish_mode",
+        "publish_interval_ms"
     };
 
     /// <summary>
@@ -149,8 +150,8 @@ public static class HostRegistryParameterPolicy
     /// </summary>
     /// <param name="parameterName">The parameter name to evaluate.</param>
     /// <returns><see langword="true"/> when the parameter is protected; otherwise, <see langword="false"/>.</returns>
-    public static bool IsProtectedParameter(string? parameterName)
-        => !string.IsNullOrWhiteSpace(parameterName) && ProtectedParameters.Contains(parameterName.Trim());
+    public static bool IsProtectedProperty(string? parameterName)
+        => !string.IsNullOrWhiteSpace(parameterName) && ProtectedParameters.Contains(ItemPath.ToSnakeCaseSegment(parameterName));
 
     /// <summary>
     /// Determines whether the parameter may be shown in user-facing pickers.
@@ -158,15 +159,15 @@ public static class HostRegistryParameterPolicy
     /// <param name="parameterName">The parameter name to evaluate.</param>
     /// <returns><see langword="true"/> when the parameter may be shown; otherwise, <see langword="false"/>.</returns>
     public static bool CanShowInUserPicker(string? parameterName)
-        => !IsProtectedParameter(parameterName);
+        => !IsProtectedProperty(parameterName);
 
     /// <summary>
     /// Determines whether user- or remote-driven code may write the parameter.
     /// </summary>
     /// <param name="parameterName">The parameter name to evaluate.</param>
     /// <returns><see langword="true"/> when the parameter may be written; otherwise, <see langword="false"/>.</returns>
-    public static bool CanUserWriteParameter(string? parameterName)
-        => !IsProtectedParameter(parameterName);
+    public static bool CanUserWriteProperty(string? parameterName)
+        => !IsProtectedProperty(parameterName);
 }
 
 /// <summary>
@@ -182,17 +183,17 @@ public sealed class DataChangedEventArgs : EventArgs
     /// <param name="changeKind">The kind of change that occurred.</param>
     /// <param name="parameterName">The changed parameter name, if any.</param>
     /// <param name="timestamp">The update timestamp in Unix milliseconds.</param>
-    public DataChangedEventArgs(string key, Item item, DataChangeKind changeKind, string? parameterName = null, ulong? timestamp = null)
+    public DataChangedEventArgs(string key, ItemModel item, DataChangeKind changeKind, string? parameterName = null, ulong? timestamp = null)
     {
         Key = key;
-        Item = item;
+        ItemModel = item;
         ChangeKind = changeKind;
         ParameterName = parameterName;
         Timestamp = timestamp ?? (ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
     }
 
     public string Key { get; }
-    public Item Item { get; }
+    public ItemModel ItemModel { get; }
     public DataChangeKind ChangeKind { get; }
     public string? ParameterName { get; }
     public ulong Timestamp { get; }
@@ -213,14 +214,14 @@ public interface IDataRegistry
     /// <param name="key">The root registry key.</param>
     /// <param name="value">The root item when the key exists.</param>
     /// <returns><see langword="true"/> when the root key exists; otherwise, <see langword="false"/>.</returns>
-    bool TryGet(string key, out Item? value);
+    bool TryGet(string key, out ItemModel? value);
     /// <summary>
     /// Resolves a root or descendant item path using canonical item path rules.
     /// </summary>
     /// <param name="path">The item path to resolve.</param>
     /// <param name="item">The resolved item when the path exists.</param>
     /// <returns><see langword="true"/> when an item was resolved; otherwise, <see langword="false"/>.</returns>
-    bool TryResolve(string path, out Item? item);
+    bool TryResolve(string path, out ItemModel? item);
     /// <summary>
     /// Gets metadata for an exact root registry key.
     /// </summary>
@@ -240,10 +241,10 @@ public interface IDataRegistry
     /// <param name="role">The role to match.</param>
     /// <returns>The matching root keys.</returns>
     IReadOnlyCollection<string> GetKeysByRole(DataRegistryItemRole role);
-    Item UpsertSnapshot(string key, Item snapshot, bool pruneMissingMembers = false);
-    Item UpsertSnapshot(string key, Item snapshot, DataRegistryItemMetadata metadata, bool pruneMissingMembers = false);
+    ItemModel UpsertSnapshot(string key, ItemModel snapshot, bool pruneMissingMembers = false);
+    ItemModel UpsertSnapshot(string key, ItemModel snapshot, DataRegistryItemMetadata metadata, bool pruneMissingMembers = false);
     bool UpdateValue(string key, object? value, ulong? timestamp = null);
-    bool UpdateParameter(string key, string parameterName, object? value, ulong? timestamp = null);
+    bool UpdateProperty(string key, string parameterName, object? value, ulong? timestamp = null);
     /// <summary>
     /// Updates a parameter through the guarded user-write path.
     /// </summary>
@@ -252,7 +253,7 @@ public interface IDataRegistry
     /// <param name="value">The value to write.</param>
     /// <param name="timestamp">The optional update timestamp in Unix milliseconds.</param>
     /// <returns><see langword="true"/> when the parameter was updated; otherwise, <see langword="false"/>.</returns>
-    bool TryUpdateUserParameter(string key, string parameterName, object? value, ulong? timestamp = null);
+    bool TryUpdateUserProperty(string key, string parameterName, object? value, ulong? timestamp = null);
     bool Remove(string key);
 }
 
@@ -261,9 +262,9 @@ public interface IDataRegistry
 /// </summary>
 public sealed class DataRegistry : IDataRegistry
 {
-    private const string StudioRootSegment = "Studio";
-    private static readonly string[] LegacyProjectRootSegments = ["Project", "UdlProject", "UdlBook"];
-    private readonly ConcurrentDictionary<string, Item> _items = new();
+    private const string StudioRootSegment = "studio";
+    private static readonly string[] LegacyProjectRootSegments = ["project", "udl_project", "udl_book"];
+    private readonly ConcurrentDictionary<string, ItemModel> _items = new();
     private readonly ConcurrentDictionary<string, DataRegistryItemMetadata> _metadata = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, IndexedItem> _pathIndex = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> _rootIndexPaths = new(StringComparer.OrdinalIgnoreCase);
@@ -273,7 +274,7 @@ public sealed class DataRegistry : IDataRegistry
 
     public IReadOnlyCollection<string> GetAllKeys() => _items.Keys.ToArray();
 
-    public bool TryGet(string key, out Item? value) => _items.TryGetValue(key, out value);
+    public bool TryGet(string key, out ItemModel? value) => _items.TryGetValue(key, out value);
 
     /// <inheritdoc />
     public bool TryGetMetadata(string key, out DataRegistryItemMetadata metadata)
@@ -302,7 +303,7 @@ public sealed class DataRegistry : IDataRegistry
             .ToArray();
 
     /// <inheritdoc />
-    public bool TryResolve(string path, out Item? item)
+    public bool TryResolve(string path, out ItemModel? item)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -318,7 +319,7 @@ public sealed class DataRegistry : IDataRegistry
         var comparablePath = NormalizeComparablePath(path);
         if (!string.IsNullOrWhiteSpace(comparablePath) && _pathIndex.TryGetValue(comparablePath, out var indexed))
         {
-            item = indexed.Item;
+            item = indexed.ItemModel;
             return true;
         }
 
@@ -350,11 +351,11 @@ public sealed class DataRegistry : IDataRegistry
         return TryResolveRelativeChild(rootItem, relativePath, out item);
     }
 
-    public Item UpsertSnapshot(string key, Item snapshot, bool pruneMissingMembers = false)
+    public ItemModel UpsertSnapshot(string key, ItemModel snapshot, bool pruneMissingMembers = false)
         => UpsertSnapshot(key, snapshot, DataRegistryItemMetadata.Default, pruneMissingMembers);
 
     /// <inheritdoc />
-    public Item UpsertSnapshot(string key, Item snapshot, DataRegistryItemMetadata metadata, bool pruneMissingMembers = false)
+    public ItemModel UpsertSnapshot(string key, ItemModel snapshot, DataRegistryItemMetadata metadata, bool pruneMissingMembers = false)
     {
         var added = false;
         var item = _items.AddOrUpdate(
@@ -410,32 +411,33 @@ public sealed class DataRegistry : IDataRegistry
 
         if (Equals(oldValue, convertedValue))
         {
-            if (timestamp.HasValue && item.Params.Has("Value"))
+            if (timestamp.HasValue && item.Properties.Has("value"))
             {
-                item.Params["Value"].LastUpdate = timestamp.Value;
+                item.Properties["value"].LastUpdate = timestamp.Value;
             }
 
             return true;
         }
 
         item.Value = convertedValue!;
-        if (timestamp.HasValue && item.Params.Has("Value"))
+        if (timestamp.HasValue && item.Properties.Has("value"))
         {
-            item.Params["Value"].LastUpdate = timestamp.Value;
+            item.Properties["value"].LastUpdate = timestamp.Value;
         }
 
         RaiseItemChanged(GetEventKey(key, item), item, DataChangeKind.ValueUpdated, timestamp: timestamp);
         return true;
     }
 
-    public bool UpdateParameter(string key, string parameterName, object? value, ulong? timestamp = null)
+    public bool UpdateProperty(string key, string parameterName, object? value, ulong? timestamp = null)
     {
-        if (!TryResolve(key, out var item) || item is null || !item.Params.Has(parameterName))
+        var normalizedParameterName = ItemPath.ToSnakeCaseSegment(parameterName);
+        if (!TryResolve(key, out var item) || item is null || !item.Properties.Has(normalizedParameterName))
         {
             return false;
         }
 
-        var parameter = item.Params[parameterName];
+        var parameter = item.Properties[normalizedParameterName];
         if (!TryConvertForExistingValue(value, parameter.Value, out object? convertedValue))
         {
             HostLogger.Log.Warning(
@@ -463,19 +465,19 @@ public sealed class DataRegistry : IDataRegistry
             parameter.LastUpdate = timestamp.Value;
         }
 
-        RaiseItemChanged(GetEventKey(key, item), item, DataChangeKind.ParameterUpdated, parameterName, timestamp);
+        RaiseItemChanged(GetEventKey(key, item), item, DataChangeKind.PropertyUpdated, normalizedParameterName, timestamp);
         return true;
     }
 
-    public bool TryUpdateUserParameter(string key, string parameterName, object? value, ulong? timestamp = null)
+    public bool TryUpdateUserProperty(string key, string parameterName, object? value, ulong? timestamp = null)
     {
-        if (!HostRegistryParameterPolicy.CanUserWriteParameter(parameterName))
+        if (!HostRegistryPropertyPolicy.CanUserWriteProperty(parameterName))
         {
             HostLogger.Log.Warning("[DataRegistry] Blocked user write to protected parameter. key={Key} parameter={Parameter}", key, parameterName);
             return false;
         }
 
-        return UpdateParameter(key, parameterName, value, timestamp);
+        return UpdateProperty(key, parameterName, value, timestamp);
     }
 
     public bool Remove(string key)
@@ -499,12 +501,12 @@ public sealed class DataRegistry : IDataRegistry
     private bool HasCapability(string key, DataRegistryItemCapabilities capability)
         => TryGetMetadata(key, out var metadata) && metadata.Capabilities.HasFlag(capability);
 
-    private void RaiseItemChanged(string key, Item item, DataChangeKind changeKind, string? parameterName = null, ulong? timestamp = null)
+    private void RaiseItemChanged(string key, ItemModel item, DataChangeKind changeKind, string? parameterName = null, ulong? timestamp = null)
     {
         ItemChanged?.Invoke(this, new DataChangedEventArgs(key, item, changeKind, parameterName, timestamp));
     }
 
-    private void RaiseRegistryChanged(string key, Item item, DataChangeKind changeKind, string? parameterName = null, ulong? timestamp = null)
+    private void RaiseRegistryChanged(string key, ItemModel item, DataChangeKind changeKind, string? parameterName = null, ulong? timestamp = null)
     {
         RegistryChanged?.Invoke(this, new DataChangedEventArgs(key, item, changeKind, parameterName, timestamp));
     }
@@ -555,7 +557,7 @@ public sealed class DataRegistry : IDataRegistry
         return false;
     }
 
-    private static bool TryResolveRelativeChild(Item rootItem, string relativePath, out Item? item)
+    private static bool TryResolveRelativeChild(ItemModel rootItem, string relativePath, out ItemModel? item)
     {
         var current = rootItem;
         foreach (var segment in SplitPathSegments(relativePath))
@@ -575,13 +577,13 @@ public sealed class DataRegistry : IDataRegistry
         return true;
     }
 
-    private void ReindexRoot(string rootKey, Item rootItem)
+    private void ReindexRoot(string rootKey, ItemModel rootItem)
     {
         RemoveIndexedRoot(rootKey, rebuildOverlaps: false);
         AddRootIndexEntries(rootKey, rootItem);
     }
 
-    private void AddRootIndexEntries(string rootKey, Item rootItem)
+    private void AddRootIndexEntries(string rootKey, ItemModel rootItem)
     {
         var indexedPaths = new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase);
         foreach (var entry in EnumerateIndexEntries(rootKey, rootItem))
@@ -641,7 +643,7 @@ public sealed class DataRegistry : IDataRegistry
         return !string.IsNullOrWhiteSpace(storedRootKey);
     }
 
-    private static IEnumerable<IndexedItem> EnumerateIndexEntries(string rootKey, Item rootItem)
+    private static IEnumerable<IndexedItem> EnumerateIndexEntries(string rootKey, ItemModel rootItem)
     {
         var normalizedRootPath = NormalizeComparablePath(rootItem.Path);
         if (!string.IsNullOrWhiteSpace(normalizedRootPath))
@@ -676,7 +678,7 @@ public sealed class DataRegistry : IDataRegistry
         return candidate.RootKey.Length > current.RootKey.Length ? candidate : current;
     }
 
-    private static string GetEventKey(string requestedKey, Item item)
+    private static string GetEventKey(string requestedKey, ItemModel item)
         => string.IsNullOrWhiteSpace(item.Path) ? requestedKey : item.Path!;
 
     private static bool TryGetRelativePath(string path, string prefix, out string relativePath)
@@ -715,12 +717,7 @@ public sealed class DataRegistry : IDataRegistry
             return [];
         }
 
-        return path
-            .Trim()
-            .Replace('\\', '.')
-            .Replace('/', '.')
-            .Trim('.')
-            .Split(['.'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return ItemPath.Normalize(path).Split(['.'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 
     private static IEnumerable<string> NormalizeStudioRoot(IReadOnlyList<string> segments)
@@ -732,11 +729,11 @@ public sealed class DataRegistry : IDataRegistry
 
         if (LegacyProjectRootSegments.Contains(segments[0], StringComparer.OrdinalIgnoreCase))
         {
-            yield return StudioRootSegment;
-            foreach (var segment in segments.Skip(1))
-            {
-                yield return segment;
-            }
+                yield return StudioRootSegment;
+                foreach (var segment in segments.Skip(1))
+                {
+                    yield return ItemPath.ToSnakeCaseSegment(segment);
+                }
 
             yield break;
         }
@@ -748,7 +745,7 @@ public sealed class DataRegistry : IDataRegistry
             yield return StudioRootSegment;
             foreach (var segment in segments.Skip(2))
             {
-                yield return segment;
+                yield return ItemPath.ToSnakeCaseSegment(segment);
             }
 
             yield break;
@@ -756,23 +753,23 @@ public sealed class DataRegistry : IDataRegistry
 
         foreach (var segment in segments)
         {
-            yield return segment;
+            yield return ItemPath.ToSnakeCaseSegment(segment);
         }
     }
 
-    private sealed record IndexedItem(string Path, string RootKey, Item Item);
+    private sealed record IndexedItem(string Path, string RootKey, ItemModel ItemModel);
 
-    private static void MergeItem(Item target, Item source, bool pruneMissingMembers)
+    private static void MergeItem(ItemModel target, ItemModel source, bool pruneMissingMembers)
     {
         MergeParameters(target, source, pruneMissingMembers);
         MergeChildren(target, source, pruneMissingMembers);
     }
 
-    private static void MergeParameters(Item target, Item source, bool pruneMissingMembers)
+    private static void MergeParameters(ItemModel target, ItemModel source, bool pruneMissingMembers)
     {
-        foreach (var parameterEntry in source.Params.GetDictionary())
+        foreach (var parameterEntry in source.Properties.GetDictionary())
         {
-            var targetParameter = target.Params[parameterEntry.Key];
+            var targetParameter = target.Properties[parameterEntry.Key];
             targetParameter.Value = parameterEntry.Value.Value;
             targetParameter.LastUpdate = parameterEntry.Value.LastUpdate;
             targetParameter.Path = parameterEntry.Value.Path;
@@ -783,16 +780,16 @@ public sealed class DataRegistry : IDataRegistry
             return;
         }
 
-        foreach (var parameterName in target.Params.GetDictionary().Keys)
+        foreach (var parameterName in target.Properties.GetDictionary().Keys)
         {
-            if (!source.Params.Has(parameterName))
+            if (!source.Properties.Has(parameterName))
             {
-                target.Params.Remove(parameterName);
+                target.Properties.Remove(parameterName);
             }
         }
     }
 
-    private static void MergeChildren(Item target, Item source, bool pruneMissingMembers)
+    private static void MergeChildren(ItemModel target, ItemModel source, bool pruneMissingMembers)
     {
         foreach (var childEntry in source.GetDictionary())
         {
@@ -919,7 +916,7 @@ public static class HostRegistries
         Cameras = new CameraRegistry();
         ProcessLogs = new ProcessLogRegistry();
         TryInitializeDefaultCamera();
-        UiPublisher.Publish("Logs.Host", HostLogger.ProcessLog, "Host");
+        UiPublisher.Publish("logs.host", HostLogger.ProcessLog, "Host");
 
         var assembly = typeof(HostRegistries).Assembly;
         var loadContext = AssemblyLoadContext.GetLoadContext(assembly);

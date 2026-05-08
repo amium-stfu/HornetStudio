@@ -26,8 +26,8 @@ The table manages child placement, cell visibility rules, and proportional child
 
 ## Source
 
-- `src/HornetStudio.Editor/Models/PageItemModel.cs`
-- `src/HornetStudio.Editor/Widgets/Table/EditorTableControl.axaml.cs`
+- `src/Hornetstudio.Editor/Models/PageItemModel.cs`
+- `src/Hornetstudio.Editor/Widgets/Table/EditorTableControl.axaml.cs`
 
 ## Help
 

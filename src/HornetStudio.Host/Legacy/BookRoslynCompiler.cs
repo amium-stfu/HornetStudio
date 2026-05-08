@@ -73,8 +73,8 @@ public sealed class ProjectRoslynCompiler
         var outputDirectory = project.RootDirectory;
         Directory.CreateDirectory(outputDirectory);
 
-        var dllPath = Path.Combine(outputDirectory, "Project.dll");
-        var pdbPath = Path.Combine(outputDirectory, "Project.pdb");
+        var dllPath = Path.Combine(outputDirectory, "project.dll");
+        var pdbPath = Path.Combine(outputDirectory, "project.pdb");
 
         await using var peStream = new MemoryStream();
         await using var pdbStream = new MemoryStream();

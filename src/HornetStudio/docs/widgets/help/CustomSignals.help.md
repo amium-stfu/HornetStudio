@@ -31,7 +31,7 @@ The widget parses stored definitions and creates runtime rows for them.
 ### Publish signals
 
 The widget publishes input, constant, and computed values into the registry.
-Published custom signal paths follow the widget-aware format `Studio.{FolderName}.{WidgetName}.{SignalName}`.
+Published custom signal paths follow the widget-aware format `studio.{FolderName}.{WidgetName}.{SignalName}`.
 
 ### Write routing
 
@@ -67,5 +67,5 @@ Use write routing when the displayed signal should stay user-friendly but the ac
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/CustomSignals/CustomSignalsControl.axaml.cs`
-- `src/HornetStudio.Editor/Widgets/CustomSignals/CustomSignalEditorDialogWindow.axaml`
+- `src/Hornetstudio.Editor/Widgets/CustomSignals/CustomSignalsControl.axaml.cs`
+- `src/Hornetstudio.Editor/Widgets/CustomSignals/CustomSignalEditorDialogWindow.axaml`

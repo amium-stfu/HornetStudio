@@ -11,6 +11,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using HornetStudio.Host;
+using ItemModel = Amium.Items.Item;
 using Amium.Items;
 using HornetStudio.Editor.Controls;
 using HornetStudio.Editor.Models;
@@ -27,7 +28,7 @@ public partial class EditorSqlLoggerControl : EditorTemplateWidget
     private const string StatusItemName = "Status";
 
     private FolderItemModel? _item;
-    private FolderItemModel? Item => _item;
+    private FolderItemModel? ItemModel => _item;
     private bool _isRecording;
     private string _registryPath = string.Empty;
     private string _recordRuntimePath = string.Empty;
@@ -40,7 +41,7 @@ public partial class EditorSqlLoggerControl : EditorTemplateWidget
     private INotifyPropertyChanged? _itemPropertySource;
     private readonly Dictionary<string, string> _publishedRuntimeValues = new(StringComparer.OrdinalIgnoreCase);
 
-    private bool IsSupportedItem => Item?.IsSqlLoggerControl == true;
+    private bool IsSupportedItem => ItemModel?.IsSqlLoggerControl == true;
 
     public EditorSqlLoggerControl()
     {
@@ -81,7 +82,7 @@ public partial class EditorSqlLoggerControl : EditorTemplateWidget
             return;
         }
 
-        _itemPropertySource = Item;
+        _itemPropertySource = ItemModel;
         if (_itemPropertySource is not null)
         {
             _itemPropertySource.PropertyChanged += OnItemPropertyChanged;
@@ -108,9 +109,9 @@ public partial class EditorSqlLoggerControl : EditorTemplateWidget
             || string.Equals(e.PropertyName, nameof(FolderItemModel.CsvDirectory), StringComparison.Ordinal)
             || string.Equals(e.PropertyName, nameof(FolderItemModel.CsvFilename), StringComparison.Ordinal))
         {
-            if (Item is not null && string.IsNullOrWhiteSpace(_pendingExternalOutputPath))
+            if (ItemModel is not null && string.IsNullOrWhiteSpace(_pendingExternalOutputPath))
             {
-                _runtimeOutputPath = Item.GetLoggerConfiguredOutputPath();
+                _runtimeOutputPath = ItemModel.GetLoggerConfiguredOutputPath();
             }
 
             UpdateRuntimeSnapshot();
@@ -130,18 +131,18 @@ public partial class EditorSqlLoggerControl : EditorTemplateWidget
             return;
         }
 
-        _registryPath = Item?.GetLoggerRuntimeBasePath() ?? string.Empty;
-        _recordRuntimePath = Item?.GetLoggerRuntimePath(RecordItemName) ?? string.Empty;
-        _outputPathRuntimePath = Item?.GetLoggerRuntimePath(OutputPathItemName) ?? string.Empty;
+        _registryPath = ItemModel?.GetLoggerRuntimeBasePath() ?? string.Empty;
+        _recordRuntimePath = ItemModel?.GetLoggerRuntimePath(RecordItemName) ?? string.Empty;
+        _outputPathRuntimePath = ItemModel?.GetLoggerRuntimePath(OutputPathItemName) ?? string.Empty;
 
         if (!string.Equals(previousRegistryPath, _registryPath, StringComparison.OrdinalIgnoreCase))
         {
             RemovePublishedRuntimeItems();
         }
 
-        if (Item is not null && string.IsNullOrWhiteSpace(_runtimeOutputPath))
+        if (ItemModel is not null && string.IsNullOrWhiteSpace(_runtimeOutputPath))
         {
-            _runtimeOutputPath = Item.GetLoggerConfiguredOutputPath();
+            _runtimeOutputPath = ItemModel.GetLoggerConfiguredOutputPath();
         }
 
         EnsureRuntimeSignals();
@@ -149,7 +150,7 @@ public partial class EditorSqlLoggerControl : EditorTemplateWidget
 
     private void EnsureRuntimeSignals()
     {
-        if (!IsSupportedItem || _isUpdatingRuntimeSignals || Item is null || string.IsNullOrWhiteSpace(_registryPath))
+        if (!IsSupportedItem || _isUpdatingRuntimeSignals || ItemModel is null || string.IsNullOrWhiteSpace(_registryPath))
         {
             return;
         }
@@ -158,7 +159,7 @@ public partial class EditorSqlLoggerControl : EditorTemplateWidget
         try
         {
             PublishRuntimeValue(RecordItemName, _isRecording, "Sql logger record trigger");
-            PublishRuntimeValue(OutputPathItemName, string.IsNullOrWhiteSpace(_runtimeOutputPath) ? Item.GetLoggerConfiguredOutputPath() : _runtimeOutputPath, "Sql logger output path");
+            PublishRuntimeValue(OutputPathItemName, string.IsNullOrWhiteSpace(_runtimeOutputPath) ? ItemModel.GetLoggerConfiguredOutputPath() : _runtimeOutputPath, "Sql logger output path");
             PublishRuntimeValue(IsRecordingItemName, _isRecording, "Sql logger recording state");
             PublishRuntimeValue(LastFileItemName, _lastFilePath, "Sql logger last file");
             PublishRuntimeValue(StatusItemName, _statusText, "Sql logger status");
@@ -171,7 +172,7 @@ public partial class EditorSqlLoggerControl : EditorTemplateWidget
 
     private void PublishRuntimeValue(string itemName, object? value, string title)
     {
-        var path = Item?.GetLoggerRuntimePath(itemName) ?? string.Empty;
+        var path = ItemModel?.GetLoggerRuntimePath(itemName) ?? string.Empty;
         if (string.IsNullOrWhiteSpace(path))
         {
             return;
@@ -186,10 +187,10 @@ public partial class EditorSqlLoggerControl : EditorTemplateWidget
 
         _publishedRuntimeValues[path] = serializedValue;
 
-        var snapshot = new Item(itemName, value, _registryPath);
-        snapshot.Params["Kind"].Value = "LoggerRuntime";
-        snapshot.Params["Text"].Value = title;
-        snapshot.Params["Title"].Value = title;
+        var snapshot = new ItemModel(itemName, value, _registryPath);
+        snapshot.Properties["kind"].Value = "LoggerRuntime";
+        snapshot.Properties["text"].Value = title;
+        snapshot.Properties["title"].Value = title;
         HostRegistries.Data.UpsertSnapshot(snapshot.Path!, snapshot, DataRegistryItemMetadata.WidgetStatus(), pruneMissingMembers: true);
     }
 
@@ -205,13 +206,13 @@ public partial class EditorSqlLoggerControl : EditorTemplateWidget
 
     private void OnRegistryItemChanged(object? sender, DataChangedEventArgs e)
     {
-        if (!IsSupportedItem || _isUpdatingRuntimeSignals || Item is null)
+        if (!IsSupportedItem || _isUpdatingRuntimeSignals || ItemModel is null)
         {
             return;
         }
 
-        if (!(Item.LoggerRuntimeBindingMatchesRegistryChange(_recordRuntimePath, e)
-              || Item.LoggerRuntimeBindingMatchesRegistryChange(_outputPathRuntimePath, e)))
+        if (!(ItemModel.LoggerRuntimeBindingMatchesRegistryChange(_recordRuntimePath, e)
+              || ItemModel.LoggerRuntimeBindingMatchesRegistryChange(_outputPathRuntimePath, e)))
         {
             return;
         }
@@ -221,7 +222,7 @@ public partial class EditorSqlLoggerControl : EditorTemplateWidget
 
     private void ApplyExternalRuntimeState()
     {
-        if (!IsSupportedItem || Item is null)
+        if (!IsSupportedItem || ItemModel is null)
         {
             return;
         }
@@ -236,10 +237,10 @@ public partial class EditorSqlLoggerControl : EditorTemplateWidget
                 _runtimeOutputPath = runtimeOutputPath;
                 _statusText = "Pending output path";
             }
-            else if (Item.TryApplyLoggerOutputPath(runtimeOutputPath))
+            else if (ItemModel.TryApplyLoggerOutputPath(runtimeOutputPath))
             {
                 _pendingExternalOutputPath = string.Empty;
-                _runtimeOutputPath = Item.GetLoggerConfiguredOutputPath();
+                _runtimeOutputPath = ItemModel.GetLoggerConfiguredOutputPath();
                 _statusText = "Ready";
             }
             else
@@ -268,7 +269,7 @@ public partial class EditorSqlLoggerControl : EditorTemplateWidget
 
     private void StartRecordingFromRuntime()
     {
-        if (Item is null || TopLevel.GetTopLevel(this) is not Window { DataContext: MainWindowViewModel viewModel })
+        if (ItemModel is null || TopLevel.GetTopLevel(this) is not Window { DataContext: MainWindowViewModel viewModel })
         {
             return;
         }
@@ -279,20 +280,20 @@ public partial class EditorSqlLoggerControl : EditorTemplateWidget
             return;
         }
 
-        viewModel.StartSqlLogging(Item);
+        viewModel.StartSqlLogging(ItemModel);
         _isRecording = true;
-        _lastFilePath = Item.GetLoggerConfiguredOutputPath();
+        _lastFilePath = ItemModel.GetLoggerConfiguredOutputPath();
         _statusText = "Recording";
     }
 
     private void StopRecordingFromRuntime()
     {
-        if (Item is null || TopLevel.GetTopLevel(this) is not Window { DataContext: MainWindowViewModel viewModel })
+        if (ItemModel is null || TopLevel.GetTopLevel(this) is not Window { DataContext: MainWindowViewModel viewModel })
         {
             return;
         }
 
-        viewModel.StopSqlLogging(Item);
+        viewModel.StopSqlLogging(ItemModel);
         _isRecording = false;
         _statusText = "Stopped";
 
@@ -304,25 +305,25 @@ public partial class EditorSqlLoggerControl : EditorTemplateWidget
 
     private bool TryApplyPendingOutputPath()
     {
-        if (Item is null)
+        if (ItemModel is null)
         {
             return false;
         }
 
         if (string.IsNullOrWhiteSpace(_pendingExternalOutputPath))
         {
-            _runtimeOutputPath = Item.GetLoggerConfiguredOutputPath();
+            _runtimeOutputPath = ItemModel.GetLoggerConfiguredOutputPath();
             return true;
         }
 
-        if (!Item.TryApplyLoggerOutputPath(_pendingExternalOutputPath))
+        if (!ItemModel.TryApplyLoggerOutputPath(_pendingExternalOutputPath))
         {
             _statusText = "Invalid output path";
             return false;
         }
 
         _pendingExternalOutputPath = string.Empty;
-        _runtimeOutputPath = Item.GetLoggerConfiguredOutputPath();
+        _runtimeOutputPath = ItemModel.GetLoggerConfiguredOutputPath();
         return true;
     }
 
@@ -366,7 +367,7 @@ public partial class EditorSqlLoggerControl : EditorTemplateWidget
 
     private void OnToggleRecordingClicked(object? sender, RoutedEventArgs e)
     {
-        if (Item is null)
+        if (ItemModel is null)
         {
             return;
         }
@@ -378,7 +379,7 @@ public partial class EditorSqlLoggerControl : EditorTemplateWidget
 
         if (_isRecording)
         {
-            viewModel.StopSqlLogging(Item);
+            viewModel.StopSqlLogging(ItemModel);
             _isRecording = false;
             _statusText = "Stopped";
             if (TryApplyPendingOutputPath())
@@ -394,9 +395,9 @@ public partial class EditorSqlLoggerControl : EditorTemplateWidget
                 return;
             }
 
-            viewModel.StartSqlLogging(Item);
+            viewModel.StartSqlLogging(ItemModel);
             _isRecording = true;
-            _lastFilePath = Item.GetLoggerConfiguredOutputPath();
+            _lastFilePath = ItemModel.GetLoggerConfiguredOutputPath();
             _statusText = "Recording";
         }
 
@@ -418,14 +419,14 @@ public partial class EditorSqlLoggerControl : EditorTemplateWidget
 
     private void OnOpenFolderClicked(object? sender, RoutedEventArgs e)
     {
-        if (Item is null)
+        if (ItemModel is null)
         {
             return;
         }
 
-        var directory = string.IsNullOrWhiteSpace(Item.CsvDirectory)
+        var directory = string.IsNullOrWhiteSpace(ItemModel.CsvDirectory)
             ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "HornetStudioLogs")
-            : Item.CsvDirectory.Trim();
+            : ItemModel.CsvDirectory.Trim();
 
         if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
         {

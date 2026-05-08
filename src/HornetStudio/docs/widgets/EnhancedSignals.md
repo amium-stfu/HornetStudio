@@ -28,8 +28,8 @@ Published enhanced signals can expose a default request-based write endpoint thr
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/EnhancedSignals/`
-- `src/HornetStudio.Editor/Widgets/EnhancedSignals/EnhancedSignalsControl.axaml.cs`
+- `src/Hornetstudio.Editor/Widgets/EnhancedSignals/`
+- `src/Hornetstudio.Editor/Widgets/EnhancedSignals/EnhancedSignalsControl.axaml.cs`
 
 ## Help
 

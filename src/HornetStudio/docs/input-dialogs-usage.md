@@ -1,9 +1,9 @@
-# Eingabedialoge und Parameterformate
+# Eingabedialoge und Property-Formate
 
 Dieses Dokument beschreibt, wie die verschiedenen Eingaben im System verwendet und konfiguriert werden:
 
 - Welche Dialoge es gibt (Text, Numeric, Hex, Passwort/Maskiert)
-- Wie `TargetParameterFormat` / `FormatParameter` den Dialog steuern
+- Wie `TargetPropertyFormat` / `FormatProperty` den Dialog steuern
 - Wie `InteractionRules` mit `OpenValueEditor` bzw. `SendInputTo` eingesetzt werden
 - Wie die globalen Hilfsmethoden im Host (z.B. UdlBook) aussehen
 
@@ -16,18 +16,18 @@ Dieses Dokument beschreibt, wie die verschiedenen Eingaben im System verwendet u
 - Dialogfenster mit Textbox und Text-Tastatur (`EditorTextInputPad`).
 - Geeignet für freie Texte, einfache Werte, Kennungen.
 - Wird verwendet, wenn das Format **Text** ist:
-  - `TargetParameterFormat` leer oder
+  - `TargetPropertyFormat` leer oder
   - explizit `Text` / anderes unbekanntes Format.
-- Ergebnis wird als `string` über `TrySendInput(...)` an den Parameter geschrieben.
+- Ergebnis wird als `string` über `TrySendInput(...)` an die Property geschrieben.
 
 **Beispiel YAML (SignalWidget-Auszug):**
 
 ```yaml
 Control:
   TargetPath: "UdlBook/Page1/udl1/m310"
-  TargetParameterPath: "Value"
-  TargetParameterFormat: ""      # Text
-  FormatParameter: ""
+  TargetPropertyPath: "Value"
+  TargetPropertyFormat: ""      # Text
+  FormatProperty: ""
 ```
 
 ### 1.2 Numerischer Dialog
@@ -43,13 +43,13 @@ Control:
     - `F2` → `0.00` (2 Nachkommastellen)
 - Ergebnis wird als `double` gelesen und anschließend in den Zieltyp konvertiert (`ConvertEditorValue`).
 
-**Beispiele für `TargetParameterFormat`:**
+**Beispiele für `TargetPropertyFormat`:**
 
 ```yaml
-TargetParameterFormat: "numeric"       # z.B. 0.##
-TargetParameterFormat: "numeric:0"     # z.B. 42
-TargetParameterFormat: "numeric:0.00"  # z.B. 3.14
-TargetParameterFormat: "F2"            # Kurzform für 0.00
+TargetPropertyFormat: "numeric"       # z.B. 0.##
+TargetPropertyFormat: "numeric:0"     # z.B. 42
+TargetPropertyFormat: "numeric:0.00"  # z.B. 3.14
+TargetPropertyFormat: "F2"            # Kurzform für 0.00
 ```
 
 ### 1.3 Hex-Dialog
@@ -61,15 +61,15 @@ TargetParameterFormat: "F2"            # Kurzform für 0.00
   - `hex:4` → 4 Hex-Stellen
   - Kurzformen:
     - `h2`, `h4`, `h8` → 2, 4 bzw. 8 Stellen.
-- Ausgabeformat im Display (Parameteranzeige): `0x....`.
+- Ausgabeformat im Display (Property-Anzeige): `0x....`.
 - Im Dialog wird nur der reine Hex-Wert ohne `0x` eingegeben.
 
-**Beispiele für `TargetParameterFormat`:**
+**Beispiele für `TargetPropertyFormat`:**
 
 ```yaml
-TargetParameterFormat: "hex"     # Hex, variable Länge
-TargetParameterFormat: "hex:4"   # 4 Stellen, z.B. 00AF
-TargetParameterFormat: "h8"      # Kurzform für 8 Stellen
+TargetPropertyFormat: "hex"     # Hex, variable Länge
+TargetPropertyFormat: "hex:4"   # 4 Stellen, z.B. 00AF
+TargetPropertyFormat: "h8"      # Kurzform für 8 Stellen
 ```
 
 ### 1.4 Bool / Bits (ohne Dialog)
@@ -79,32 +79,34 @@ TargetParameterFormat: "h8"      # Kurzform für 8 Stellen
   - `b4`, `b8`, `b16` (+ optionale Labels) → Bit-Buttons.
 - Klicks lösen direkt `TrySendInput(...)` oder `TryToggleTargetBit(...)` aus.
 
-**Beispiele für `TargetParameterFormat`:**
+**Beispiele für `TargetPropertyFormat`:**
 
 ```yaml
-TargetParameterFormat: "bool"                 # Standard-Labels True/False
-TargetParameterFormat: "bool:AN,AUS"         # Benutzerdefinierte Labels
-TargetParameterFormat: "b4"                  # 4 Bit ohne Labels
-TargetParameterFormat: "b4:DI1,DI2,Alert,4"  # 4 Bit mit Labels
+TargetPropertyFormat: "bool"                 # Standard-Labels True/False
+TargetPropertyFormat: "bool:AN,AUS"         # Benutzerdefinierte Labels
+TargetPropertyFormat: "b4"                  # 4 Bit ohne Labels
+TargetPropertyFormat: "b4:DI1,DI2,Alert,4"  # 4 Bit mit Labels
 ```
 
 ---
 
-## 2. TargetParameterFormat und FormatParameter
+## 2. TargetPropertyFormat und FormatProperty
 
 Die Widget-Properties im YAML werden auf das interne Format abgebildet:
 
-- `TargetParameterFormat` → steuert die **Art der Darstellung / Eingabe**.
-- `FormatParameter`      → wird vom Editor in `TargetParameterFormat` eingepackt, wenn nötig.
+- `TargetPropertyFormat` → steuert die **Art der Darstellung / Eingabe**.
+- `FormatProperty`       → wird vom Editor in `TargetPropertyFormat` eingepackt, wenn nötig.
+
+Alte Layout-Keys wie `TargetParameterFormat` und `FormatParameter` werden weiterhin eingelesen, aber nicht mehr neu geschrieben.
 
 Intern wird der Formatstring so zerlegt:
 
 ```csharp
-(string Kind, string Parameter) SplitParameterFormat(string? format)
+(string Kind, string Property) SplitPropertyFormat(string? format)
 ```
 
 - `Kind` bestimmt den Typ (`Numeric`, `Hex`, `Text`, `bool`, `b4`, ...).
-- `Parameter` enthält z.B. das Zahlenformat (`0.00`) oder Bit-Labels.
+- `Property` enthält z.B. das Zahlenformat (`0.00`) oder Bit-Labels.
 
 Der Dialog wählt anhand von `Kind` den passenden Modus:
 
@@ -145,7 +147,7 @@ InteractionRules:
     Argument: ""
 ```
 
-**Beispiel: Button, der einen Parameter per Dialog editiert**
+**Beispiel: Button, der eine Property per Dialog editiert**
 
 ```yaml
 InteractionRules:
@@ -160,13 +162,13 @@ Control:
 
 - Beim Klick auf den Button wird:
   - Das Ziel-Item `m310` gesucht.
-  - Aus dessen `TargetParameterFormat` das Format ermittelt.
+  - Aus dessen `TargetPropertyFormat` das Format ermittelt.
   - Der passende Dialog (Text/Numeric/Hex) geöffnet.
   - Das Ergebnis via `TrySendInput` zurückgeschrieben.
 
 ### 3.3 SendInputTo (ohne Dialog)
 
-`SendInputTo` wird verwendet, wenn kein Dialog erscheinen soll, sondern direkt ein Wert an einen Set/Request-Pfad gesendet wird.
+`SendInputTo` wird verwendet, wenn kein Dialog erscheinen soll, sondern direkt ein Wert an einen set/request-Pfad gesendet wird.
 
 **Beispiel: Button, der einen festen Wert sendet**
 
@@ -174,7 +176,7 @@ Control:
 InteractionRules:
   - Event: BodyLeftClick
     Action: SendInputTo
-    TargetPath: "UdlBook/Page1/udl1/m310/Set/Request"
+    TargetPath: "UdlBook/Page1/udl1/m310/set/request"
     Argument: "1"   # fester Wert
 ```
 
@@ -229,7 +231,7 @@ Diese Methoden werden intern an den gleichen Dialogen und Styling-Regeln ausgeri
 
 ## 5. Zusammenfassung
 
-- Der **Dialogtyp** wird über das Parameterformat bestimmt (`TargetParameterFormat`).
+- Der **Dialogtyp** wird über das Property-Format bestimmt (`TargetPropertyFormat`).
 - `OpenValueEditor` in `InteractionRules` öffnet jetzt immer die neuen Dialoge und verwendet dieselben Formatregeln wie der Editor.
 - `SendInputTo` eignet sich für direkte Schreibaktionen ohne Dialog.
 - Die globalen `EditorInputDialogs.*`-Methoden erlauben dieselben Eingaben direkt aus Host-Anwendungen (z.B. UdlBook).

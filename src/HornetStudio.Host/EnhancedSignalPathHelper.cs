@@ -1,15 +1,17 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using ItemModel = Amium.Items.Item;
+using Amium.Items;
 
 namespace HornetStudio.Host;
 
 internal static class EnhancedSignalPathHelper
 {
-    private const string StudioRootSegment = "Studio";
-    private static readonly string[] ProjectRootSegments = [StudioRootSegment, "Project", "UdlProject", "UdlBook"];
-    private static readonly string[] LegacyProjectRootSegments = ["Project", "UdlProject", "UdlBook"];
-    private static readonly string[] NonProjectRootSegments = ["Runtime", "Logs", "Commands"];
+    private const string StudioRootSegment = "studio";
+    private static readonly string[] ProjectRootSegments = [StudioRootSegment, "project", "udl_project", "udl_book"];
+    private static readonly string[] LegacyProjectRootSegments = ["project", "udl_project", "udl_book"];
+    private static readonly string[] NonProjectRootSegments = ["runtime", "logs", "commands"];
     private static readonly char[] HierarchySeparators = ['.', '/'];
 
     public static string NormalizeConfiguredTargetPath(string? path)
@@ -131,7 +133,7 @@ internal static class EnhancedSignalPathHelper
 
         yield return normalizedFolder;
         yield return JoinPath(StudioRootSegment, normalizedFolder);
-        yield return JoinPath("Project", normalizedFolder);
+        yield return JoinPath("project", normalizedFolder);
     }
 
     private static IEnumerable<string> ExpandCandidateForms(string path)
@@ -201,7 +203,7 @@ internal static class EnhancedSignalPathHelper
             yield return StudioRootSegment;
             foreach (var segment in segments.Skip(1))
             {
-                yield return segment;
+                yield return ItemPath.ToSnakeCaseSegment(segment);
             }
 
             yield break;
@@ -214,7 +216,7 @@ internal static class EnhancedSignalPathHelper
             yield return StudioRootSegment;
             foreach (var segment in segments.Skip(2))
             {
-                yield return segment;
+                yield return ItemPath.ToSnakeCaseSegment(segment);
             }
 
             yield break;
@@ -222,7 +224,7 @@ internal static class EnhancedSignalPathHelper
 
         foreach (var segment in segments)
         {
-            yield return segment;
+            yield return ItemPath.ToSnakeCaseSegment(segment);
         }
     }
 
@@ -234,6 +236,6 @@ internal static class EnhancedSignalPathHelper
             return string.Empty;
         }
 
-        return string.Join('.', new[] { "Project" }.Concat(segments.Skip(1)));
+        return string.Join('.', new[] { "project" }.Concat(segments.Skip(1)));
     }
 }

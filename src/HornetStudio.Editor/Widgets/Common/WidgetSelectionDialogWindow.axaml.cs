@@ -499,7 +499,7 @@ public sealed partial class WidgetSelectionDialogWindow : Window, INotifyPropert
             Control content = item.Kind switch
             {
                 ControlKind.Button => new EditorButtonControl(),
-                ControlKind.Signal or ControlKind.Item => new EditorSignalControl(),
+                ControlKind.Signal or ControlKind.ItemModel => new EditorSignalControl(),
                 ControlKind.WidgetList => new EditorListControl(),
                 ControlKind.TableControl => new EditorTableControl(),
                 ControlKind.CircleDisplay => new EditorCircleDisplayControl(),

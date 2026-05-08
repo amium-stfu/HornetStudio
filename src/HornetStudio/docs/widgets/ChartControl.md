@@ -26,8 +26,8 @@ The persisted widget type is `ChartControl`, while the rendered control implemen
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/RealtimeChart/`
-- `src/HornetStudio.Editor/Widgets/RealtimeChart/RealtimeChartControl.axaml.cs`
+- `src/Hornetstudio.Editor/Widgets/RealtimeChart/`
+- `src/Hornetstudio.Editor/Widgets/RealtimeChart/RealtimeChartControl.axaml.cs`
 
 ## Help
 

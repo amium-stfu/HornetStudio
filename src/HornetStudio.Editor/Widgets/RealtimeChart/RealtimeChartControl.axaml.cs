@@ -12,6 +12,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using HornetStudio.Editor.Controls;
 using HornetStudio.Host;
+using ItemModel = Amium.Items.Item;
 using Amium.Items;
 using HornetStudio.Editor.Helpers;
 using HornetStudio.Editor.Models;
@@ -762,7 +763,7 @@ public partial class RealtimeChartControl : EditorTemplateWidget
         return value.ToString("0.###", CultureInfo.InvariantCulture);
     }
 
-    private static bool TryResolveNumericValue(Item item, out double value)
+    private static bool TryResolveNumericValue(ItemModel item, out double value)
     {
         value = 0;
         var rawValue = item.Value;
@@ -1126,7 +1127,7 @@ public partial class RealtimeChartControl : EditorTemplateWidget
             seriesConfigurations);
     }
 
-    private static bool TryResolveSeriesItem(string targetPath, string? pageName, out Item? item)
+    private static bool TryResolveSeriesItem(string targetPath, string? pageName, out ItemModel? item)
     {
         foreach (var candidatePath in TargetPathHelper.EnumerateResolutionCandidates(targetPath, pageName))
         {

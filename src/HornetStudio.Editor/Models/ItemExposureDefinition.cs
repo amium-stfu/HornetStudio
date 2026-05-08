@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
+using ItemModel = Amium.Items.Item;
 using Amium.Items;
 using HornetStudio.Editor.Helpers;
 
@@ -164,8 +165,8 @@ public static class ItemExposureDefinitionCodec
     /// <returns>The serialized merged definitions.</returns>
     public static string UpsertDefinition(string? rawDefinitions, string itemPath, ItemExposureDefinition definition)
     {
-        var normalizedPath = TargetPathHelper.ToFlatItemBrokerPath(itemPath);
-        var relativePath = TargetPathHelper.ToRelativeItemBrokerPath(normalizedPath);
+        var normalizedPath = TargetPathHelper.ToFlatItemServerPath(itemPath);
+        var relativePath = TargetPathHelper.ToRelativeItemServerPath(normalizedPath);
         var mergedDefinitions = ParseDefinitions(rawDefinitions)
             .Where(existing => !PathMatches(existing.ItemPath, normalizedPath, relativePath))
             .Append(definition)
@@ -181,8 +182,8 @@ public static class ItemExposureDefinitionCodec
     /// <returns>The serialized remaining definitions.</returns>
     public static string RemoveDefinition(string? rawDefinitions, string itemPath)
     {
-        var normalizedPath = TargetPathHelper.ToFlatItemBrokerPath(itemPath);
-        var relativePath = TargetPathHelper.ToRelativeItemBrokerPath(normalizedPath);
+        var normalizedPath = TargetPathHelper.ToFlatItemServerPath(itemPath);
+        var relativePath = TargetPathHelper.ToRelativeItemServerPath(normalizedPath);
         var remainingDefinitions = ParseDefinitions(rawDefinitions)
             .Where(existing => !PathMatches(existing.ItemPath, normalizedPath, relativePath))
             .ToArray();
@@ -204,7 +205,7 @@ public static class ItemExposureDefinitionCodec
 
     private static bool PathMatches(string? candidatePath, string normalizedPath, string relativePath)
     {
-        var normalizedCandidate = TargetPathHelper.ToFlatItemBrokerPath(candidatePath);
+        var normalizedCandidate = TargetPathHelper.ToFlatItemServerPath(candidatePath);
         return string.Equals(normalizedCandidate, normalizedPath, System.StringComparison.OrdinalIgnoreCase)
                || string.Equals(normalizedCandidate, relativePath, System.StringComparison.OrdinalIgnoreCase);
     }
@@ -223,16 +224,16 @@ public static class ItemExposurePublisher
     /// </summary>
     /// <param name="runtimeItem">The runtime item to update.</param>
     /// <param name="definition">The metadata definition to apply.</param>
-    public static void Apply(Item runtimeItem, ItemExposureDefinition definition)
+    public static void Apply(ItemModel runtimeItem, ItemExposureDefinition definition)
     {
         if (!string.IsNullOrWhiteSpace(definition.Format))
         {
-            runtimeItem.Params["Format"].Value = definition.Format;
+            runtimeItem.Properties["format"].Value = definition.Format;
         }
 
         if (!string.IsNullOrWhiteSpace(definition.Unit))
         {
-            runtimeItem.Params["Unit"].Value = definition.Unit;
+            runtimeItem.Properties["unit"].Value = definition.Unit;
         }
 
         var bitCount = ResolveBitCount(definition, runtimeItem);
@@ -257,21 +258,21 @@ public static class ItemExposurePublisher
         return definitions.FirstOrDefault(definition => string.Equals(NormalizePath(definition.ItemPath), normalizedPath, System.StringComparison.OrdinalIgnoreCase));
     }
 
-    private static void UpsertBits(Item runtimeItem, ItemExposureDefinition definition, int bitCount)
+    private static void UpsertBits(ItemModel runtimeItem, ItemExposureDefinition definition, int bitCount)
     {
         if (!runtimeItem.Has("Bits"))
         {
-            runtimeItem["Bits"] = new Item("Bits", path: runtimeItem.Path);
+            runtimeItem["Bits"] = new ItemModel("Bits", path: runtimeItem.Path);
         }
 
         var bitsRoot = runtimeItem["Bits"];
-        bitsRoot.Params["Kind"].Value = "Group";
-        bitsRoot.Params["Title"].Value = $"{runtimeItem.Name} Bits";
+        bitsRoot.Properties["kind"].Value = "Group";
+        bitsRoot.Properties["title"].Value = $"{runtimeItem.Name} Bits";
 
         var rawValue = TryReadUnsignedInteger((object?)runtimeItem.Value, out ulong currentValue) ? currentValue : 0UL;
         var labels = ParseBitLabels(definition.BitLabels);
         var desiredBitNames = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
-        var writable = !runtimeItem.Params.Has("Writable") || TryReadBool(runtimeItem.Params["Writable"].Value);
+        var writable = !runtimeItem.Properties.Has("writable") || TryReadBool(runtimeItem.Properties["writable"].Value);
 
         for (var bitIndex = 0; bitIndex < bitCount; bitIndex++)
         {
@@ -279,22 +280,22 @@ public static class ItemExposurePublisher
             desiredBitNames.Add(bitName);
             if (!bitsRoot.Has(bitName))
             {
-                bitsRoot[bitName] = new Item(bitName, path: bitsRoot.Path);
+                bitsRoot[bitName] = new ItemModel(bitName, path: bitsRoot.Path);
             }
 
             var bitItem = bitsRoot[bitName];
             var label = labels.TryGetValue(bitIndex, out var configuredLabel) ? configuredLabel : bitName;
             bitItem.Value = ((rawValue >> bitIndex) & 1UL) == 1UL;
-            bitItem.Params["Kind"].Value = "Bool";
-            bitItem.Params["Format"].Value = "bool";
-            bitItem.Params["Title"].Value = label;
-            bitItem.Params["Text"].Value = label;
-            bitItem.Params["ItemPath"].Value = definition.ItemPath;
-            bitItem.Params["BitIndex"].Value = bitIndex;
-            bitItem.Params["SourcePath"].Value = runtimeItem.Path ?? string.Empty;
-            bitItem.Params["Writable"].Value = writable;
-            bitItem.Params["WritePath"].Value = string.Empty;
-            bitItem.Params["WriteMode"].Value = string.Empty;
+            bitItem.Properties["kind"].Value = "Bool";
+            bitItem.Properties["format"].Value = "bool";
+            bitItem.Properties["title"].Value = label;
+            bitItem.Properties["text"].Value = label;
+            bitItem.Properties["item_path"].Value = definition.ItemPath;
+            bitItem.Properties["bit_index"].Value = bitIndex;
+            bitItem.Properties["source_path"].Value = runtimeItem.Path ?? string.Empty;
+            bitItem.Properties["writable"].Value = writable;
+            bitItem.Properties["write_path"].Value = string.Empty;
+            bitItem.Properties["write_mode"].Value = string.Empty;
         }
 
         foreach (var staleBitName in bitsRoot.GetDictionary().Keys.Except(desiredBitNames, System.StringComparer.OrdinalIgnoreCase).ToArray())
@@ -303,7 +304,7 @@ public static class ItemExposurePublisher
         }
     }
 
-    private static int ResolveBitCount(ItemExposureDefinition definition, Item runtimeItem)
+    private static int ResolveBitCount(ItemExposureDefinition definition, ItemModel runtimeItem)
     {
         if (definition.BitCount > 0)
         {
@@ -316,8 +317,8 @@ public static class ItemExposurePublisher
             return definitionBitCount;
         }
 
-        var runtimeFormat = runtimeItem.Params.Has("Format")
-            ? runtimeItem.Params["Format"].Value?.ToString() ?? string.Empty
+        var runtimeFormat = runtimeItem.Properties.Has("format")
+            ? runtimeItem.Properties["format"].Value?.ToString() ?? string.Empty
             : string.Empty;
         return GetBitCount(runtimeFormat);
     }

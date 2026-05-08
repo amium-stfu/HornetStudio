@@ -5,7 +5,7 @@
 
   Identity:
     Name: chart1
-    Path: UdlBook.Page1.udl1.chart1
+    Path: udl_book.Page1.udl1.chart1
     Id: demo-chart-1
 
   Bounds:
@@ -58,5 +58,5 @@
     HistorySeconds: 120
     ViewSeconds: 30
     ChartSeriesDefinitions:
-      - "Runtime.UdlClient.udl1.m310|Y1"
-      - "Runtime.UdlClient.udl1.m310.Set|Y1"
+      - "runtime.UdlClient.udl1.m310|Y1"
+      - "runtime.UdlClient.udl1.m310.Set|Y1"

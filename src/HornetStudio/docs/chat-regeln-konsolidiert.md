@@ -22,12 +22,12 @@ Diese Regeln sind nicht im Repository abgelegt, sondern in der persistenten User
 
 ## Allgemeine Arbeitsregeln
 
-- Wenn die gebundene Python-Helper-API unter `src/HornetStudio.Host/Python/**` oder `src/HornetStudio.Editor/Templates/ui_python_client/**` geaendert oder erweitert wird, muessen die Dokumentationen `src/HornetStudio.Host/Python/Integration/ui-python-client-commands.md` und `src/HornetStudio.Editor/Templates/ui_python_client/COMMANDS.md` im selben Change mit aktualisiert werden.
-- `src/HornetStudio.Host/Python/Integration/ui-python-client-commands.md` gilt als Source of Truth fuer vordefinierte Python-Client-Kommandos.
-- Wenn Python-Bridge-Verhalten, generierte Python-Ordnerinhalte, Template-Workflow oder Python-Interaktionsargumente geaendert werden, muessen `src/HornetStudio.Host/Python/Integration/python-system-overview.md` und `src/HornetStudio.Editor/Templates/PYTHON_SYSTEM.md` im selben Change mit aktualisiert werden.
-- Bei Arbeiten an Python-Templates, Python-Umgebungen oder generierten Python-Skripten sollen `src/HornetStudio.Host/Python/Integration/python-system-overview.md` und `src/HornetStudio.Host/Python/Integration/ui-python-client-commands.md` zuerst konsultiert werden.
-- Wenn Widget-Code unter `src/HornetStudio.Editor/Widgets/**` geaendert wird, muss die passende Widget-Dokumentation unter `src/HornetStudio/docs/widgets/` im selben Change mit aktualisiert werden. Es gilt eine Markdown-Datei pro Widget-Typ, und der Dateiname soll dem persistierten Widget-`Type` entsprechen, damit die Dokumentation spaeter in der Anwendung geladen werden kann.
-- Wenn Widget-Code unter `src/HornetStudio.Editor/Widgets/**` geaendert wird, muss die passende Help-Datei unter `src/HornetStudio/docs/widgets/help/` im selben Change mit aktualisiert werden. Es gilt eine Markdown-Datei pro Widget-Typ mit dem Namensmuster `<Type>.help.md`, damit die Hilfe spaeter in einem Help-Fenster geladen werden kann.
+- Wenn die gebundene Python-Helper-API unter `src/Hornetstudio.Host/Python/**` oder `src/Hornetstudio.Editor/Templates/ui_python_client/**` geaendert oder erweitert wird, muessen die Dokumentationen `src/Hornetstudio.Host/Python/Integration/ui-python-client-commands.md` und `src/Hornetstudio.Editor/Templates/ui_python_client/COMMANDS.md` im selben Change mit aktualisiert werden.
+- `src/Hornetstudio.Host/Python/Integration/ui-python-client-commands.md` gilt als Source of Truth fuer vordefinierte Python-Client-Kommandos.
+- Wenn Python-Bridge-Verhalten, generierte Python-Ordnerinhalte, Template-Workflow oder Python-Interaktionsargumente geaendert werden, muessen `src/Hornetstudio.Host/Python/Integration/python-system-overview.md` und `src/Hornetstudio.Editor/Templates/PYTHON_SYSTEM.md` im selben Change mit aktualisiert werden.
+- Bei Arbeiten an Python-Templates, Python-Umgebungen oder generierten Python-Skripten sollen `src/Hornetstudio.Host/Python/Integration/python-system-overview.md` und `src/Hornetstudio.Host/Python/Integration/ui-python-client-commands.md` zuerst konsultiert werden.
+- Wenn Widget-Code unter `src/Hornetstudio.Editor/Widgets/**` geaendert wird, muss die passende Widget-Dokumentation unter `src/HornetStudio/docs/widgets/` im selben Change mit aktualisiert werden. Es gilt eine Markdown-Datei pro Widget-Typ, und der Dateiname soll dem persistierten Widget-`Type` entsprechen, damit die Dokumentation spaeter in der Anwendung geladen werden kann.
+- Wenn Widget-Code unter `src/Hornetstudio.Editor/Widgets/**` geaendert wird, muss die passende Help-Datei unter `src/HornetStudio/docs/widgets/help/` im selben Change mit aktualisiert werden. Es gilt eine Markdown-Datei pro Widget-Typ mit dem Namensmuster `<Type>.help.md`, damit die Hilfe spaeter in einem Help-Fenster geladen werden kann.
 
 ## Wartungsregel
 
@@ -51,8 +51,8 @@ Kurz erklaert:
 
 Diese Regeln gelten fuer Dateien mit dem Anwendungsbereich `**/*.py`.
 
-- Vor Arbeiten an Python-Dateien soll `src/HornetStudio.Host/Python/Integration/python-system-overview.md` gelesen werden, um Runtime- und Ordnerstruktur zu verstehen.
-- Vor Arbeiten an Python-Dateien soll `src/HornetStudio.Host/Python/Integration/ui-python-client-commands.md` gelesen werden, um die unterstuetzte Helper-API zu kennen.
+- Vor Arbeiten an Python-Dateien soll `src/Hornetstudio.Host/Python/Integration/python-system-overview.md` gelesen werden, um Runtime- und Ordnerstruktur zu verstehen.
+- Vor Arbeiten an Python-Dateien soll `src/Hornetstudio.Host/Python/Integration/ui-python-client-commands.md` gelesen werden, um die unterstuetzte Helper-API zu kennen.
 - Liegt die Python-Datei in einem generierten Skript- oder Environment-Ordner, sollen zusaetzlich nahegelegene `PYTHON_SYSTEM.md`- und `ui_python_client/COMMANDS.md`-Dateien konsultiert werden, sofern vorhanden.
 - Python-Dateien mit Template-Charakter sollen bewusst einfach gehalten werden.
 - Fuer einfache Textargumente in `InteractionRules` soll bevorzugt `args.get("value")` verwendet werden, sofern nicht explizit ein umfangreicheres JSON-Payload benoetigt wird.

@@ -478,7 +478,7 @@ public partial class MainWindow : Window
         var confirmed = await EditorInputDialogs.ConfirmAsync(
             this,
             $"Delete folder '{sourceFolder.TabTitle}'?",
-            "The folder will be fully removed from the project, active UDL and Python clients will be stopped, references in Project.aaep will be updated, and the folder directory will be moved to the Recycle Bin. This action cannot be undone from inside the application.",
+            "The folder will be fully removed from the project, active UDL and Python clients will be stopped, references in project.aaep will be updated, and the folder directory will be moved to the Recycle Bin. This action cannot be undone from inside the application.",
             confirmText: "Delete",
             cancelText: "Cancel");
 
@@ -874,8 +874,19 @@ public partial class MainWindow : Window
             return;
         }
 
-        var path = Path.Combine(folderPath, "Project.aaep");
-        if (!viewModel.CreateNewBook(path, out var errorMessage) && !string.IsNullOrWhiteSpace(errorMessage))
+        var firstFolderName = await EditorInputDialogs.EditTextAsync(
+            this,
+            header: "Create project",
+            subHeader: "Enter the first folder name",
+            initialValue: "main");
+
+        if (string.IsNullOrWhiteSpace(firstFolderName))
+        {
+            return;
+        }
+
+        var path = Path.Combine(folderPath, "project.aaep");
+        if (!viewModel.CreateNewBook(path, firstFolderName, out var errorMessage) && !string.IsNullOrWhiteSpace(errorMessage))
         {
             await EditorInputDialogs.EditTextAsync(
                 this,
@@ -960,7 +971,7 @@ public partial class MainWindow : Window
             var bookFile = await StorageProvider.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions
             {
                 Title = "Save HornetStudio project as",
-                SuggestedFileName = "Project.aaep",
+                SuggestedFileName = "project.aaep",
                 DefaultExtension = "aaep",
                 FileTypeChoices = new[]
                 {

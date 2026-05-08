@@ -27,8 +27,8 @@ The list propagates width and optional auto-height rules to child controls.
 
 ## Source
 
-- `src/HornetStudio.Editor/Models/PageItemModel.cs`
-- `src/HornetStudio.Editor/Widgets/FolderEditor/`
+- `src/Hornetstudio.Editor/Models/PageItemModel.cs`
+- `src/Hornetstudio.Editor/Widgets/FolderEditor/`
 
 ## Help
 

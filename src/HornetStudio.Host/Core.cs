@@ -415,7 +415,7 @@ public static class Core
             var hasFolders = Directory.Exists(Path.Combine(current.FullName, "Folders"))
                 || Directory.Exists(Path.Combine(current.FullName, "Pages"));
             var hasProgram = File.Exists(Path.Combine(current.FullName, "Program.cs"));
-            var hasProjectManifest = File.Exists(Path.Combine(current.FullName, "Project.json"))
+            var hasProjectManifest = File.Exists(Path.Combine(current.FullName, "project.json"))
                 || File.Exists(Path.Combine(current.FullName, "Book.json"));
 
             if (hasFolders && (hasProgram || hasProjectManifest))

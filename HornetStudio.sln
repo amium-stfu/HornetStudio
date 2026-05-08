@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.0.31903.59
+# Visual Studio Version 18
+VisualStudioVersion = 18.5.11723.231
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HornetStudio.Editor", "src\HornetStudio.Editor\HornetStudio.Editor.csproj", "{3E8204E0-D26A-4F0E-8F9D-7805E55F9932}"
 EndProject
@@ -17,25 +17,234 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HornetStudio", "src\HornetS
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HornetStudio.Host.Tests", "src\HornetStudio.Host.Tests\HornetStudio.Host.Tests.csproj", "{B6A469D0-B1CF-4F04-9807-0592A83EC037}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Amium", "Amium", "{9A5B0BC6-8329-4B73-89B4-09FB4C7A61BC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Amium.ItemBroker", "src\Amium.ItemBroker\Amium.ItemBroker.csproj", "{1519C0F5-652C-4248-B037-0A425048D61C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Amium.Item.Server", "src\Amium.Item.Server\Amium.Item.Server.csproj", "{1519C0F5-652C-4248-B037-0A425048D61C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Amium.ItemBroker.Service", "src\Amium.ItemBroker.Service\Amium.ItemBroker.Service.csproj", "{8C85E5A1-7AE4-4A8C-A398-90E53BB33962}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Amium.ItemBroker.Tests", "src\Amium.ItemBroker.Tests\Amium.ItemBroker.Tests.csproj", "{219AB4AC-BCF1-4108-8647-4C644400EA9F}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Amium.ItemBroker.Client", "src\Amium.ItemBroker.Client\Amium.ItemBroker.Client.csproj", "{840EE832-CCE5-41F3-B9FC-72F1800A4A47}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Amium.ItemBroker.Mqtt", "src\Amium.ItemBroker.Mqtt\Amium.ItemBroker.Mqtt.csproj", "{CAD0C95A-1A34-4826-9945-CC982BDE08F3}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Amium.ItemBroker.Mqtt.Client", "src\Amium.ItemBroker.Mqtt.Client\Amium.ItemBroker.Mqtt.Client.csproj", "{055A317A-EC95-4973-9C99-FA53675AD0B7}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Amium.ItemBroker.MqttDemoClient", "src\Amium.ItemBroker.MqttDemoClient\Amium.ItemBroker.MqttDemoClient.csproj", "{1CA367C0-383A-46D8-AE45-036D4B0648AF}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Amium.ItemBroker.MqttDemoWinForms", "src\Amium.ItemBroker.MqttDemoWinForms\Amium.ItemBroker.MqttDemoWinForms.csproj", "{40E556BE-D5FC-4177-B618-B4DAA2ED01BE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Amium.Item.Client", "src\Amium.Item.Client\Amium.Item.Client.csproj", "{840EE832-CCE5-41F3-B9FC-72F1800A4A47}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HornetStudio.Editor.Tests", "src\HornetStudio.Editor.Tests\HornetStudio.Editor.Tests.csproj", "{70B6CB1D-44A8-424B-B011-AD7080AEA070}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{2898B271-5A41-4C43-A937-6836D9D8D5A1}"
+	ProjectSection(SolutionItems) = preProject
+		docs\amium-item-communication-structure.md = docs\amium-item-communication-structure.md
+		docs\amium-itembroker-architecture.md = docs\amium-itembroker-architecture.md
+		docs\amium-itembroker-usage.md = docs\amium-itembroker-usage.md
+		docs\chat-regeln-konsolidiert.md = docs\chat-regeln-konsolidiert.md
+		docs\custom-signals-widget.md = docs\custom-signals-widget.md
+		docs\data-flow-and-signals.md = docs\data-flow-and-signals.md
+		docs\edit-control-structure-notes.md = docs\edit-control-structure-notes.md
+		docs\input-dialogs-usage.md = docs\input-dialogs-usage.md
+		docs\interface-architecture-notes.md = docs\interface-architecture-notes.md
+		docs\Layout ki.md = docs\Layout ki.md
+		docs\project-folder-architecture-notes.md = docs\project-folder-architecture-notes.md
+		docs\python-files.instructions.md = docs\python-files.instructions.md
+		docs\python-scripting-plan.md = docs\python-scripting-plan.md
+		docs\settings-dialog-style-guide.md = docs\settings-dialog-style-guide.md
+		docs\ui-path-architecture-notes.md = docs\ui-path-architecture-notes.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "2026.05.01.2308-brokerwidget-body-layout", "2026.05.01.2308-brokerwidget-body-layout", "{44E45F14-6421-4453-81A7-DF861288DCDB}"
+	ProjectSection(SolutionItems) = preProject
+		docs\workitems\2026.05.01.2308-brokerwidget-body-layout\handoffs\2026.05.01.2308-implementation-handoff.md = docs\workitems\2026.05.01.2308-brokerwidget-body-layout\handoffs\2026.05.01.2308-implementation-handoff.md
+		docs\workitems\2026.05.01.2308-brokerwidget-body-layout\plans\2026.05.01.2308-plan.md = docs\workitems\2026.05.01.2308-brokerwidget-body-layout\plans\2026.05.01.2308-plan.md
+		docs\workitems\2026.05.01.2308-brokerwidget-body-layout\debug\2026.05.01.2333-debug.md = docs\workitems\2026.05.01.2308-brokerwidget-body-layout\debug\2026.05.01.2333-debug.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "2026.05.02.0005-udlclient-attach-sections", "2026.05.02.0005-udlclient-attach-sections", "{4FAA8254-46EF-45AE-9046-0BE820A775B3}"
+	ProjectSection(SolutionItems) = preProject
+		docs\workitems\2026.05.02.0005-udlclient-attach-sections\handoffs\2026.05.02.0005-implementation-handoff.md = docs\workitems\2026.05.02.0005-udlclient-attach-sections\handoffs\2026.05.02.0005-implementation-handoff.md
+		docs\workitems\2026.05.02.0005-udlclient-attach-sections\plans\2026.05.02.0005-plan.md = docs\workitems\2026.05.02.0005-udlclient-attach-sections\plans\2026.05.02.0005-plan.md
+		docs\workitems\2026.05.02.0005-udlclient-attach-sections\debug\2026.05.02.0021-debug.md = docs\workitems\2026.05.02.0005-udlclient-attach-sections\debug\2026.05.02.0021-debug.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "2026.05.02.0838-itembroker-mqtt-hosting-structure", "2026.05.02.0838-itembroker-mqtt-hosting-structure", "{0F4BF070-1351-41DF-86DC-6511CA6DAEA3}"
+	ProjectSection(SolutionItems) = preProject
+		docs\workitems\2026.05.02.0838-itembroker-mqtt-hosting-structure\handoffs\2026.05.02.0838-implementation-handoff.md = docs\workitems\2026.05.02.0838-itembroker-mqtt-hosting-structure\handoffs\2026.05.02.0838-implementation-handoff.md
+		docs\workitems\2026.05.02.0838-itembroker-mqtt-hosting-structure\plans\2026.05.02.0838-plan.md = docs\workitems\2026.05.02.0838-itembroker-mqtt-hosting-structure\plans\2026.05.02.0838-plan.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "2026.05.02.1050-mqtt-demo-winforms", "2026.05.02.1050-mqtt-demo-winforms", "{A137262A-4984-4468-83AE-733FC5D956B3}"
+	ProjectSection(SolutionItems) = preProject
+		docs\workitems\2026.05.02.1050-mqtt-demo-winforms\handoffs\2026.05.02.1050-implementation-handoff.md = docs\workitems\2026.05.02.1050-mqtt-demo-winforms\handoffs\2026.05.02.1050-implementation-handoff.md
+		docs\workitems\2026.05.02.1050-mqtt-demo-winforms\plans\2026.05.02.1050-plan.md = docs\workitems\2026.05.02.1050-mqtt-demo-winforms\plans\2026.05.02.1050-plan.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "2026.05.03.0713-amium-items-namespace-rename", "2026.05.03.0713-amium-items-namespace-rename", "{82DE31E7-1100-45F2-8E3D-E94549B27FB7}"
+	ProjectSection(SolutionItems) = preProject
+		docs\workitems\2026.05.03.0713-amium-items-namespace-rename\handoffs\2026.05.03.0713-implementation-handoff.md = docs\workitems\2026.05.03.0713-amium-items-namespace-rename\handoffs\2026.05.03.0713-implementation-handoff.md
+		docs\workitems\2026.05.03.0713-amium-items-namespace-rename\plans\2026.05.03.0713-plan.md = docs\workitems\2026.05.03.0713-amium-items-namespace-rename\plans\2026.05.03.0713-plan.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "2026.05.03.0821-itembroker-slim-api", "2026.05.03.0821-itembroker-slim-api", "{ED2CC20B-539F-469C-93B8-ED0BCA3784FA}"
+	ProjectSection(SolutionItems) = preProject
+		docs\workitems\2026.05.03.0821-itembroker-slim-api\handoffs\2026.05.03.0821-implementation-handoff.md = docs\workitems\2026.05.03.0821-itembroker-slim-api\handoffs\2026.05.03.0821-implementation-handoff.md
+		docs\workitems\2026.05.03.0821-itembroker-slim-api\plans\2026.05.03.0821-plan.md = docs\workitems\2026.05.03.0821-itembroker-slim-api\plans\2026.05.03.0821-plan.md
+		docs\workitems\2026.05.03.0821-itembroker-slim-api\handoffs\2026.05.03.0845-implementation-handoff.md = docs\workitems\2026.05.03.0821-itembroker-slim-api\handoffs\2026.05.03.0845-implementation-handoff.md
+		docs\workitems\2026.05.03.0821-itembroker-slim-api\plans\2026.05.03.0845-plan.md = docs\workitems\2026.05.03.0821-itembroker-slim-api\plans\2026.05.03.0845-plan.md
+		docs\workitems\2026.05.03.0821-itembroker-slim-api\handoffs\2026.05.03.0856-implementation-handoff.md = docs\workitems\2026.05.03.0821-itembroker-slim-api\handoffs\2026.05.03.0856-implementation-handoff.md
+		docs\workitems\2026.05.03.0821-itembroker-slim-api\plans\2026.05.03.0856-plan.md = docs\workitems\2026.05.03.0821-itembroker-slim-api\plans\2026.05.03.0856-plan.md
+		docs\workitems\2026.05.03.0821-itembroker-slim-api\handoffs\2026.05.03.0933-implementation-handoff.md = docs\workitems\2026.05.03.0821-itembroker-slim-api\handoffs\2026.05.03.0933-implementation-handoff.md
+		docs\workitems\2026.05.03.0821-itembroker-slim-api\plans\2026.05.03.0933-plan.md = docs\workitems\2026.05.03.0821-itembroker-slim-api\plans\2026.05.03.0933-plan.md
+		docs\workitems\2026.05.03.0821-itembroker-slim-api\handoffs\2026.05.03.0936-implementation-handoff.md = docs\workitems\2026.05.03.0821-itembroker-slim-api\handoffs\2026.05.03.0936-implementation-handoff.md
+		docs\workitems\2026.05.03.0821-itembroker-slim-api\plans\2026.05.03.0936-plan.md = docs\workitems\2026.05.03.0821-itembroker-slim-api\plans\2026.05.03.0936-plan.md
+		docs\workitems\2026.05.03.0821-itembroker-slim-api\debug\2026.05.03.0956-debug.md = docs\workitems\2026.05.03.0821-itembroker-slim-api\debug\2026.05.03.0956-debug.md
+		docs\workitems\2026.05.03.0821-itembroker-slim-api\handoffs\2026.05.03.1014-implementation-handoff.md = docs\workitems\2026.05.03.0821-itembroker-slim-api\handoffs\2026.05.03.1014-implementation-handoff.md
+		docs\workitems\2026.05.03.0821-itembroker-slim-api\plans\2026.05.03.1014-plan.md = docs\workitems\2026.05.03.0821-itembroker-slim-api\plans\2026.05.03.1014-plan.md
+		docs\workitems\2026.05.03.0821-itembroker-slim-api\debug\2026.05.03.1030-debug.md = docs\workitems\2026.05.03.0821-itembroker-slim-api\debug\2026.05.03.1030-debug.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "2026.05.03.1626-itembroker-ownership-mqtt-model", "2026.05.03.1626-itembroker-ownership-mqtt-model", "{8B3CE942-061B-4CF2-B531-FFB37E3CDBA9}"
+	ProjectSection(SolutionItems) = preProject
+		docs\workitems\2026.05.03.1626-itembroker-ownership-mqtt-model\handoffs\2026.05.03.1626-ownership-model-handoff.md = docs\workitems\2026.05.03.1626-itembroker-ownership-mqtt-model\handoffs\2026.05.03.1626-ownership-model-handoff.md
+		docs\workitems\2026.05.03.1626-itembroker-ownership-mqtt-model\plans\2026.05.03.1626-plan.md = docs\workitems\2026.05.03.1626-itembroker-ownership-mqtt-model\plans\2026.05.03.1626-plan.md
+		docs\workitems\2026.05.03.1626-itembroker-ownership-mqtt-model\handoffs\2026.05.03.1653-implementation-handoff.md = docs\workitems\2026.05.03.1626-itembroker-ownership-mqtt-model\handoffs\2026.05.03.1653-implementation-handoff.md
+		docs\workitems\2026.05.03.1626-itembroker-ownership-mqtt-model\plans\2026.05.03.1653-plan.md = docs\workitems\2026.05.03.1626-itembroker-ownership-mqtt-model\plans\2026.05.03.1653-plan.md
+		docs\workitems\2026.05.03.1626-itembroker-ownership-mqtt-model\debug\2026.05.03.1705-debug.md = docs\workitems\2026.05.03.1626-itembroker-ownership-mqtt-model\debug\2026.05.03.1705-debug.md
+		docs\workitems\2026.05.03.1626-itembroker-ownership-mqtt-model\debug\2026.05.03.1710-debug.md = docs\workitems\2026.05.03.1626-itembroker-ownership-mqtt-model\debug\2026.05.03.1710-debug.md
+		docs\workitems\2026.05.03.1626-itembroker-ownership-mqtt-model\debug\2026.05.03.1722-debug.md = docs\workitems\2026.05.03.1626-itembroker-ownership-mqtt-model\debug\2026.05.03.1722-debug.md
+		docs\workitems\2026.05.03.1626-itembroker-ownership-mqtt-model\debug\2026.05.03.1730-debug.md = docs\workitems\2026.05.03.1626-itembroker-ownership-mqtt-model\debug\2026.05.03.1730-debug.md
+		docs\workitems\2026.05.03.1626-itembroker-ownership-mqtt-model\debug\2026.05.03.1742-debug.md = docs\workitems\2026.05.03.1626-itembroker-ownership-mqtt-model\debug\2026.05.03.1742-debug.md
+		docs\workitems\2026.05.03.1626-itembroker-ownership-mqtt-model\debug\2026.05.03.1749-debug.md = docs\workitems\2026.05.03.1626-itembroker-ownership-mqtt-model\debug\2026.05.03.1749-debug.md
+		docs\workitems\2026.05.03.1626-itembroker-ownership-mqtt-model\debug\2026.05.03.2109-debug.md = docs\workitems\2026.05.03.1626-itembroker-ownership-mqtt-model\debug\2026.05.03.2109-debug.md
+		docs\workitems\2026.05.03.1626-itembroker-ownership-mqtt-model\debug\2026.05.03.2133-debug.md = docs\workitems\2026.05.03.1626-itembroker-ownership-mqtt-model\debug\2026.05.03.2133-debug.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "2026.05.03.2010-custom-signals-persist-created-items", "2026.05.03.2010-custom-signals-persist-created-items", "{3D4ECB09-8F07-4CAF-A17F-1FEB5D0AE94F}"
+	ProjectSection(SolutionItems) = preProject
+		docs\workitems\2026.05.03.2010-custom-signals-persist-created-items\handoffs\2026.05.03.2010-implementation-handoff.md = docs\workitems\2026.05.03.2010-custom-signals-persist-created-items\handoffs\2026.05.03.2010-implementation-handoff.md
+		docs\workitems\2026.05.03.2010-custom-signals-persist-created-items\plans\2026.05.03.2010-plan.md = docs\workitems\2026.05.03.2010-custom-signals-persist-created-items\plans\2026.05.03.2010-plan.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "2026.05.05.1805-strict-snake-case-paths", "2026.05.05.1805-strict-snake-case-paths", "{55008E09-87AC-4199-8D83-A9CBFC712B2C}"
+	ProjectSection(SolutionItems) = preProject
+		docs\workitems\2026.05.05.1805-strict-snake-case-paths\debug\2026.05.05.1805-debug.md = docs\workitems\2026.05.05.1805-strict-snake-case-paths\debug\2026.05.05.1805-debug.md
+		docs\workitems\2026.05.05.1805-strict-snake-case-paths\handoffs\2026.05.05.1805-implementation-handoff.md = docs\workitems\2026.05.05.1805-strict-snake-case-paths\handoffs\2026.05.05.1805-implementation-handoff.md
+		docs\workitems\2026.05.05.1805-strict-snake-case-paths\plans\2026.05.05.1805-plan.md = docs\workitems\2026.05.05.1805-strict-snake-case-paths\plans\2026.05.05.1805-plan.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "todos", "todos", "{F000EA5B-DEB4-4F9C-A76C-06D0A6A702B8}"
+	ProjectSection(SolutionItems) = preProject
+		docs\todos\2026.05.02.0050-external-mqtt-broker-test.md = docs\todos\2026.05.02.0050-external-mqtt-broker-test.md
+		docs\todos\2026.05.03.2235-itembroker-udl-adapter.md = docs\todos\2026.05.03.2235-itembroker-udl-adapter.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "widgets", "widgets", "{8265C1C4-CFEC-4A88-85C1-16CDB7B30692}"
+	ProjectSection(SolutionItems) = preProject
+		src\HornetStudio\docs\widgets\ApplicationExplorer.md = src\HornetStudio\docs\widgets\ApplicationExplorer.md
+		src\HornetStudio\docs\widgets\BrokerWidget.md = src\HornetStudio\docs\widgets\BrokerWidget.md
+		src\HornetStudio\docs\widgets\Button.md = src\HornetStudio\docs\widgets\Button.md
+		src\HornetStudio\docs\widgets\CameraControl.md = src\HornetStudio\docs\widgets\CameraControl.md
+		src\HornetStudio\docs\widgets\ChartControl.md = src\HornetStudio\docs\widgets\ChartControl.md
+		src\HornetStudio\docs\widgets\CircleDisplay.md = src\HornetStudio\docs\widgets\CircleDisplay.md
+		src\HornetStudio\docs\widgets\CsvLoggerControl.md = src\HornetStudio\docs\widgets\CsvLoggerControl.md
+		src\HornetStudio\docs\widgets\CustomSignals.md = src\HornetStudio\docs\widgets\CustomSignals.md
+		src\HornetStudio\docs\widgets\EnhancedSignals.md = src\HornetStudio\docs\widgets\EnhancedSignals.md
+		src\HornetStudio\docs\widgets\FolderEditor.md = src\HornetStudio\docs\widgets\FolderEditor.md
+		src\HornetStudio\docs\widgets\index.md = src\HornetStudio\docs\widgets\index.md
+		src\HornetStudio\docs\widgets\Item.md = src\HornetStudio\docs\widgets\Item.md
+		src\HornetStudio\docs\widgets\LogControl.md = src\HornetStudio\docs\widgets\LogControl.md
+		src\HornetStudio\docs\widgets\Property.md = src\HornetStudio\docs\widgets\Property.md
+		src\HornetStudio\docs\widgets\PythonClient.md = src\HornetStudio\docs\widgets\PythonClient.md
+		src\HornetStudio\docs\widgets\Signal.md = src\HornetStudio\docs\widgets\Signal.md
+		src\HornetStudio\docs\widgets\SqlLoggerControl.md = src\HornetStudio\docs\widgets\SqlLoggerControl.md
+		src\HornetStudio\docs\widgets\TableControl.md = src\HornetStudio\docs\widgets\TableControl.md
+		src\HornetStudio\docs\widgets\UdlClientControl.md = src\HornetStudio\docs\widgets\UdlClientControl.md
+		src\HornetStudio\docs\widgets\ValueInput.md = src\HornetStudio\docs\widgets\ValueInput.md
+		src\HornetStudio\docs\widgets\WidgetList.md = src\HornetStudio\docs\widgets\WidgetList.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "descriptions", "descriptions", "{BA44C3AD-BB6E-4E83-98CC-FC5B03088AC3}"
+	ProjectSection(SolutionItems) = preProject
+		src\HornetStudio\docs\widgets\descriptions\ApplicationExplorer.md = src\HornetStudio\docs\widgets\descriptions\ApplicationExplorer.md
+		src\HornetStudio\docs\widgets\descriptions\BrokerWidget.md = src\HornetStudio\docs\widgets\descriptions\BrokerWidget.md
+		src\HornetStudio\docs\widgets\descriptions\Button.md = src\HornetStudio\docs\widgets\descriptions\Button.md
+		src\HornetStudio\docs\widgets\descriptions\CameraControl.md = src\HornetStudio\docs\widgets\descriptions\CameraControl.md
+		src\HornetStudio\docs\widgets\descriptions\ChartControl.md = src\HornetStudio\docs\widgets\descriptions\ChartControl.md
+		src\HornetStudio\docs\widgets\descriptions\CircleDisplay.md = src\HornetStudio\docs\widgets\descriptions\CircleDisplay.md
+		src\HornetStudio\docs\widgets\descriptions\CsvLoggerControl.md = src\HornetStudio\docs\widgets\descriptions\CsvLoggerControl.md
+		src\HornetStudio\docs\widgets\descriptions\CustomSignals.md = src\HornetStudio\docs\widgets\descriptions\CustomSignals.md
+		src\HornetStudio\docs\widgets\descriptions\EnhancedSignals.md = src\HornetStudio\docs\widgets\descriptions\EnhancedSignals.md
+		src\HornetStudio\docs\widgets\descriptions\LogControl.md = src\HornetStudio\docs\widgets\descriptions\LogControl.md
+		src\HornetStudio\docs\widgets\descriptions\Signal.md = src\HornetStudio\docs\widgets\descriptions\Signal.md
+		src\HornetStudio\docs\widgets\descriptions\SqlLoggerControl.md = src\HornetStudio\docs\widgets\descriptions\SqlLoggerControl.md
+		src\HornetStudio\docs\widgets\descriptions\TableControl.md = src\HornetStudio\docs\widgets\descriptions\TableControl.md
+		src\HornetStudio\docs\widgets\descriptions\UdlClientControl.md = src\HornetStudio\docs\widgets\descriptions\UdlClientControl.md
+		src\HornetStudio\docs\widgets\descriptions\WidgetList.md = src\HornetStudio\docs\widgets\descriptions\WidgetList.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "help", "help", "{76835787-5E69-4946-81AA-583CCDD85DAA}"
+	ProjectSection(SolutionItems) = preProject
+		src\HornetStudio\docs\widgets\help\ApplicationExplorer.help.md = src\HornetStudio\docs\widgets\help\ApplicationExplorer.help.md
+		src\HornetStudio\docs\widgets\help\BrokerWidget.help.md = src\HornetStudio\docs\widgets\help\BrokerWidget.help.md
+		src\HornetStudio\docs\widgets\help\Button.help.md = src\HornetStudio\docs\widgets\help\Button.help.md
+		src\HornetStudio\docs\widgets\help\CameraControl.help.md = src\HornetStudio\docs\widgets\help\CameraControl.help.md
+		src\HornetStudio\docs\widgets\help\ChartControl.help.md = src\HornetStudio\docs\widgets\help\ChartControl.help.md
+		src\HornetStudio\docs\widgets\help\CircleDisplay.help.md = src\HornetStudio\docs\widgets\help\CircleDisplay.help.md
+		src\HornetStudio\docs\widgets\help\CsvLoggerControl.help.md = src\HornetStudio\docs\widgets\help\CsvLoggerControl.help.md
+		src\HornetStudio\docs\widgets\help\CustomSignals.help.md = src\HornetStudio\docs\widgets\help\CustomSignals.help.md
+		src\HornetStudio\docs\widgets\help\EnhancedSignals.help.md = src\HornetStudio\docs\widgets\help\EnhancedSignals.help.md
+		src\HornetStudio\docs\widgets\help\FolderEditor.help.md = src\HornetStudio\docs\widgets\help\FolderEditor.help.md
+		src\HornetStudio\docs\widgets\help\index.md = src\HornetStudio\docs\widgets\help\index.md
+		src\HornetStudio\docs\widgets\help\Item.help.md = src\HornetStudio\docs\widgets\help\Item.help.md
+		src\HornetStudio\docs\widgets\help\LogControl.help.md = src\HornetStudio\docs\widgets\help\LogControl.help.md
+		src\HornetStudio\docs\widgets\help\Property.help.md = src\HornetStudio\docs\widgets\help\Property.help.md
+		src\HornetStudio\docs\widgets\help\PythonClient.help.md = src\HornetStudio\docs\widgets\help\PythonClient.help.md
+		src\HornetStudio\docs\widgets\help\Signal.help.md = src\HornetStudio\docs\widgets\help\Signal.help.md
+		src\HornetStudio\docs\widgets\help\SqlLoggerControl.help.md = src\HornetStudio\docs\widgets\help\SqlLoggerControl.help.md
+		src\HornetStudio\docs\widgets\help\TableControl.help.md = src\HornetStudio\docs\widgets\help\TableControl.help.md
+		src\HornetStudio\docs\widgets\help\UdlClientControl.help.md = src\HornetStudio\docs\widgets\help\UdlClientControl.help.md
+		src\HornetStudio\docs\widgets\help\ValueInput.help.md = src\HornetStudio\docs\widgets\help\ValueInput.help.md
+		src\HornetStudio\docs\widgets\help\WidgetList.help.md = src\HornetStudio\docs\widgets\help\WidgetList.help.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "repo", "repo", "{89187365-0F11-4634-8632-44B01A761129}"
+	ProjectSection(SolutionItems) = preProject
+		.gitignore = .gitignore
+		AGENTS.md = AGENTS.md
+		CHANGELOG.md = CHANGELOG.md
+		Debug.md = Debug.md
+		Directory.Build.props = Directory.Build.props
+		global.json = global.json
+		HornetStudio.slnLaunch = HornetStudio.slnLaunch
+		NOTICE.md = NOTICE.md
+		NuGet.Config = NuGet.Config
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".github", ".github", "{8B56DAB7-2456-4D3F-9E27-5C7518EDBE18}"
+	ProjectSection(SolutionItems) = preProject
+		.github\copilot-instructions.md = .github\copilot-instructions.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workitems", "workitems", "{9B3F2CEB-AAF3-4D12-B254-61FD87634718}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Amium.Item.Mesh", "src\Amium.Item.Mesh\Amium.Item.Mesh.csproj", "{5448F096-E374-449A-95D1-4A333186B5F8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Amium.Item.Server.Tests", "tests\Amium.Item.Server.Tests\Amium.Item.Server.Tests.csproj", "{A3177714-6FE6-48BF-8F07-0D2E28B4E57A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{5D20AA90-6969-D8BD-9DCD-8634F4692FDA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Amium.Item.Client.MqttDemoClient", "samples\Amium.Item.Client.MqttDemoClient\Amium.Item.Client.MqttDemoClient.csproj", "{9511AC9C-CDB9-4D0B-B637-1306376D58AC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Amium.Item.Client.MqttDemoWinForms", "samples\Amium.Item.Client.MqttDemoWinForms\Amium.Item.Client.MqttDemoWinForms.csproj", "{68D6CCE0-3905-461E-A25A-48C3E4EA48D6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "amium_item_server_multimaster_demo", "samples\amium_item_server_multimaster_demo\amium_item_server_multimaster_demo.csproj", "{6D00D3C7-2726-4FC0-8FF6-54A16D2F31A2}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{07C2787E-EAC7-C090-1BA3-A61EC2A24D84}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "amium_item_server_host", "amium_item_server_host", "{0B21FB7B-3555-8D46-0E33-1331B0AF7134}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Amium.Item.Server.Host", "tools\amium_item_server_host\Amium.Item.Server.Host.csproj", "{EA592645-F67C-4425-9A5B-B43D535A52C3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "amium_itembroker_mqtt_stress_test", "tools\amium_itembroker_mqtt_stress_test\amium_itembroker_mqtt_stress_test.csproj", "{9601185B-2534-49DE-83F3-B1D4D20062AE}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "item_server_monitor", "item_server_monitor", "{1C900189-F2D2-D9C4-1693-B869B09761E9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Item.Server.Monitor", "tools\item_server_monitor\Item.Server.Monitor.csproj", "{DCED7196-E3B9-41E3-9673-D27C9393E364}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -143,30 +352,6 @@ Global
 		{1519C0F5-652C-4248-B037-0A425048D61C}.Release|x64.Build.0 = Release|Any CPU
 		{1519C0F5-652C-4248-B037-0A425048D61C}.Release|x86.ActiveCfg = Release|Any CPU
 		{1519C0F5-652C-4248-B037-0A425048D61C}.Release|x86.Build.0 = Release|Any CPU
-		{8C85E5A1-7AE4-4A8C-A398-90E53BB33962}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{8C85E5A1-7AE4-4A8C-A398-90E53BB33962}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{8C85E5A1-7AE4-4A8C-A398-90E53BB33962}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{8C85E5A1-7AE4-4A8C-A398-90E53BB33962}.Debug|x64.Build.0 = Debug|Any CPU
-		{8C85E5A1-7AE4-4A8C-A398-90E53BB33962}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{8C85E5A1-7AE4-4A8C-A398-90E53BB33962}.Debug|x86.Build.0 = Debug|Any CPU
-		{8C85E5A1-7AE4-4A8C-A398-90E53BB33962}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{8C85E5A1-7AE4-4A8C-A398-90E53BB33962}.Release|Any CPU.Build.0 = Release|Any CPU
-		{8C85E5A1-7AE4-4A8C-A398-90E53BB33962}.Release|x64.ActiveCfg = Release|Any CPU
-		{8C85E5A1-7AE4-4A8C-A398-90E53BB33962}.Release|x64.Build.0 = Release|Any CPU
-		{8C85E5A1-7AE4-4A8C-A398-90E53BB33962}.Release|x86.ActiveCfg = Release|Any CPU
-		{8C85E5A1-7AE4-4A8C-A398-90E53BB33962}.Release|x86.Build.0 = Release|Any CPU
-		{219AB4AC-BCF1-4108-8647-4C644400EA9F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{219AB4AC-BCF1-4108-8647-4C644400EA9F}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{219AB4AC-BCF1-4108-8647-4C644400EA9F}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{219AB4AC-BCF1-4108-8647-4C644400EA9F}.Debug|x64.Build.0 = Debug|Any CPU
-		{219AB4AC-BCF1-4108-8647-4C644400EA9F}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{219AB4AC-BCF1-4108-8647-4C644400EA9F}.Debug|x86.Build.0 = Debug|Any CPU
-		{219AB4AC-BCF1-4108-8647-4C644400EA9F}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{219AB4AC-BCF1-4108-8647-4C644400EA9F}.Release|Any CPU.Build.0 = Release|Any CPU
-		{219AB4AC-BCF1-4108-8647-4C644400EA9F}.Release|x64.ActiveCfg = Release|Any CPU
-		{219AB4AC-BCF1-4108-8647-4C644400EA9F}.Release|x64.Build.0 = Release|Any CPU
-		{219AB4AC-BCF1-4108-8647-4C644400EA9F}.Release|x86.ActiveCfg = Release|Any CPU
-		{219AB4AC-BCF1-4108-8647-4C644400EA9F}.Release|x86.Build.0 = Release|Any CPU
 		{840EE832-CCE5-41F3-B9FC-72F1800A4A47}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{840EE832-CCE5-41F3-B9FC-72F1800A4A47}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{840EE832-CCE5-41F3-B9FC-72F1800A4A47}.Debug|x64.ActiveCfg = Debug|Any CPU
@@ -179,54 +364,6 @@ Global
 		{840EE832-CCE5-41F3-B9FC-72F1800A4A47}.Release|x64.Build.0 = Release|Any CPU
 		{840EE832-CCE5-41F3-B9FC-72F1800A4A47}.Release|x86.ActiveCfg = Release|Any CPU
 		{840EE832-CCE5-41F3-B9FC-72F1800A4A47}.Release|x86.Build.0 = Release|Any CPU
-		{CAD0C95A-1A34-4826-9945-CC982BDE08F3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{CAD0C95A-1A34-4826-9945-CC982BDE08F3}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{CAD0C95A-1A34-4826-9945-CC982BDE08F3}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{CAD0C95A-1A34-4826-9945-CC982BDE08F3}.Debug|x64.Build.0 = Debug|Any CPU
-		{CAD0C95A-1A34-4826-9945-CC982BDE08F3}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{CAD0C95A-1A34-4826-9945-CC982BDE08F3}.Debug|x86.Build.0 = Debug|Any CPU
-		{CAD0C95A-1A34-4826-9945-CC982BDE08F3}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{CAD0C95A-1A34-4826-9945-CC982BDE08F3}.Release|Any CPU.Build.0 = Release|Any CPU
-		{CAD0C95A-1A34-4826-9945-CC982BDE08F3}.Release|x64.ActiveCfg = Release|Any CPU
-		{CAD0C95A-1A34-4826-9945-CC982BDE08F3}.Release|x64.Build.0 = Release|Any CPU
-		{CAD0C95A-1A34-4826-9945-CC982BDE08F3}.Release|x86.ActiveCfg = Release|Any CPU
-		{CAD0C95A-1A34-4826-9945-CC982BDE08F3}.Release|x86.Build.0 = Release|Any CPU
-		{055A317A-EC95-4973-9C99-FA53675AD0B7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{055A317A-EC95-4973-9C99-FA53675AD0B7}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{055A317A-EC95-4973-9C99-FA53675AD0B7}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{055A317A-EC95-4973-9C99-FA53675AD0B7}.Debug|x64.Build.0 = Debug|Any CPU
-		{055A317A-EC95-4973-9C99-FA53675AD0B7}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{055A317A-EC95-4973-9C99-FA53675AD0B7}.Debug|x86.Build.0 = Debug|Any CPU
-		{055A317A-EC95-4973-9C99-FA53675AD0B7}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{055A317A-EC95-4973-9C99-FA53675AD0B7}.Release|Any CPU.Build.0 = Release|Any CPU
-		{055A317A-EC95-4973-9C99-FA53675AD0B7}.Release|x64.ActiveCfg = Release|Any CPU
-		{055A317A-EC95-4973-9C99-FA53675AD0B7}.Release|x64.Build.0 = Release|Any CPU
-		{055A317A-EC95-4973-9C99-FA53675AD0B7}.Release|x86.ActiveCfg = Release|Any CPU
-		{055A317A-EC95-4973-9C99-FA53675AD0B7}.Release|x86.Build.0 = Release|Any CPU
-		{1CA367C0-383A-46D8-AE45-036D4B0648AF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{1CA367C0-383A-46D8-AE45-036D4B0648AF}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{1CA367C0-383A-46D8-AE45-036D4B0648AF}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{1CA367C0-383A-46D8-AE45-036D4B0648AF}.Debug|x64.Build.0 = Debug|Any CPU
-		{1CA367C0-383A-46D8-AE45-036D4B0648AF}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{1CA367C0-383A-46D8-AE45-036D4B0648AF}.Debug|x86.Build.0 = Debug|Any CPU
-		{1CA367C0-383A-46D8-AE45-036D4B0648AF}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{1CA367C0-383A-46D8-AE45-036D4B0648AF}.Release|Any CPU.Build.0 = Release|Any CPU
-		{1CA367C0-383A-46D8-AE45-036D4B0648AF}.Release|x64.ActiveCfg = Release|Any CPU
-		{1CA367C0-383A-46D8-AE45-036D4B0648AF}.Release|x64.Build.0 = Release|Any CPU
-		{1CA367C0-383A-46D8-AE45-036D4B0648AF}.Release|x86.ActiveCfg = Release|Any CPU
-		{1CA367C0-383A-46D8-AE45-036D4B0648AF}.Release|x86.Build.0 = Release|Any CPU
-		{40E556BE-D5FC-4177-B618-B4DAA2ED01BE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{40E556BE-D5FC-4177-B618-B4DAA2ED01BE}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{40E556BE-D5FC-4177-B618-B4DAA2ED01BE}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{40E556BE-D5FC-4177-B618-B4DAA2ED01BE}.Debug|x64.Build.0 = Debug|Any CPU
-		{40E556BE-D5FC-4177-B618-B4DAA2ED01BE}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{40E556BE-D5FC-4177-B618-B4DAA2ED01BE}.Debug|x86.Build.0 = Debug|Any CPU
-		{40E556BE-D5FC-4177-B618-B4DAA2ED01BE}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{40E556BE-D5FC-4177-B618-B4DAA2ED01BE}.Release|Any CPU.Build.0 = Release|Any CPU
-		{40E556BE-D5FC-4177-B618-B4DAA2ED01BE}.Release|x64.ActiveCfg = Release|Any CPU
-		{40E556BE-D5FC-4177-B618-B4DAA2ED01BE}.Release|x64.Build.0 = Release|Any CPU
-		{40E556BE-D5FC-4177-B618-B4DAA2ED01BE}.Release|x86.ActiveCfg = Release|Any CPU
-		{40E556BE-D5FC-4177-B618-B4DAA2ED01BE}.Release|x86.Build.0 = Release|Any CPU
 		{70B6CB1D-44A8-424B-B011-AD7080AEA070}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{70B6CB1D-44A8-424B-B011-AD7080AEA070}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{70B6CB1D-44A8-424B-B011-AD7080AEA070}.Debug|x64.ActiveCfg = Debug|Any CPU
@@ -239,19 +376,136 @@ Global
 		{70B6CB1D-44A8-424B-B011-AD7080AEA070}.Release|x64.Build.0 = Release|Any CPU
 		{70B6CB1D-44A8-424B-B011-AD7080AEA070}.Release|x86.ActiveCfg = Release|Any CPU
 		{70B6CB1D-44A8-424B-B011-AD7080AEA070}.Release|x86.Build.0 = Release|Any CPU
+		{5448F096-E374-449A-95D1-4A333186B5F8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5448F096-E374-449A-95D1-4A333186B5F8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5448F096-E374-449A-95D1-4A333186B5F8}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{5448F096-E374-449A-95D1-4A333186B5F8}.Debug|x64.Build.0 = Debug|Any CPU
+		{5448F096-E374-449A-95D1-4A333186B5F8}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{5448F096-E374-449A-95D1-4A333186B5F8}.Debug|x86.Build.0 = Debug|Any CPU
+		{5448F096-E374-449A-95D1-4A333186B5F8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5448F096-E374-449A-95D1-4A333186B5F8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5448F096-E374-449A-95D1-4A333186B5F8}.Release|x64.ActiveCfg = Release|Any CPU
+		{5448F096-E374-449A-95D1-4A333186B5F8}.Release|x64.Build.0 = Release|Any CPU
+		{5448F096-E374-449A-95D1-4A333186B5F8}.Release|x86.ActiveCfg = Release|Any CPU
+		{5448F096-E374-449A-95D1-4A333186B5F8}.Release|x86.Build.0 = Release|Any CPU
+		{A3177714-6FE6-48BF-8F07-0D2E28B4E57A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A3177714-6FE6-48BF-8F07-0D2E28B4E57A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A3177714-6FE6-48BF-8F07-0D2E28B4E57A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A3177714-6FE6-48BF-8F07-0D2E28B4E57A}.Debug|x64.Build.0 = Debug|Any CPU
+		{A3177714-6FE6-48BF-8F07-0D2E28B4E57A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A3177714-6FE6-48BF-8F07-0D2E28B4E57A}.Debug|x86.Build.0 = Debug|Any CPU
+		{A3177714-6FE6-48BF-8F07-0D2E28B4E57A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A3177714-6FE6-48BF-8F07-0D2E28B4E57A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A3177714-6FE6-48BF-8F07-0D2E28B4E57A}.Release|x64.ActiveCfg = Release|Any CPU
+		{A3177714-6FE6-48BF-8F07-0D2E28B4E57A}.Release|x64.Build.0 = Release|Any CPU
+		{A3177714-6FE6-48BF-8F07-0D2E28B4E57A}.Release|x86.ActiveCfg = Release|Any CPU
+		{A3177714-6FE6-48BF-8F07-0D2E28B4E57A}.Release|x86.Build.0 = Release|Any CPU
+		{9511AC9C-CDB9-4D0B-B637-1306376D58AC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9511AC9C-CDB9-4D0B-B637-1306376D58AC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9511AC9C-CDB9-4D0B-B637-1306376D58AC}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{9511AC9C-CDB9-4D0B-B637-1306376D58AC}.Debug|x64.Build.0 = Debug|Any CPU
+		{9511AC9C-CDB9-4D0B-B637-1306376D58AC}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{9511AC9C-CDB9-4D0B-B637-1306376D58AC}.Debug|x86.Build.0 = Debug|Any CPU
+		{9511AC9C-CDB9-4D0B-B637-1306376D58AC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9511AC9C-CDB9-4D0B-B637-1306376D58AC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9511AC9C-CDB9-4D0B-B637-1306376D58AC}.Release|x64.ActiveCfg = Release|Any CPU
+		{9511AC9C-CDB9-4D0B-B637-1306376D58AC}.Release|x64.Build.0 = Release|Any CPU
+		{9511AC9C-CDB9-4D0B-B637-1306376D58AC}.Release|x86.ActiveCfg = Release|Any CPU
+		{9511AC9C-CDB9-4D0B-B637-1306376D58AC}.Release|x86.Build.0 = Release|Any CPU
+		{68D6CCE0-3905-461E-A25A-48C3E4EA48D6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{68D6CCE0-3905-461E-A25A-48C3E4EA48D6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{68D6CCE0-3905-461E-A25A-48C3E4EA48D6}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{68D6CCE0-3905-461E-A25A-48C3E4EA48D6}.Debug|x64.Build.0 = Debug|Any CPU
+		{68D6CCE0-3905-461E-A25A-48C3E4EA48D6}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{68D6CCE0-3905-461E-A25A-48C3E4EA48D6}.Debug|x86.Build.0 = Debug|Any CPU
+		{68D6CCE0-3905-461E-A25A-48C3E4EA48D6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{68D6CCE0-3905-461E-A25A-48C3E4EA48D6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{68D6CCE0-3905-461E-A25A-48C3E4EA48D6}.Release|x64.ActiveCfg = Release|Any CPU
+		{68D6CCE0-3905-461E-A25A-48C3E4EA48D6}.Release|x64.Build.0 = Release|Any CPU
+		{68D6CCE0-3905-461E-A25A-48C3E4EA48D6}.Release|x86.ActiveCfg = Release|Any CPU
+		{68D6CCE0-3905-461E-A25A-48C3E4EA48D6}.Release|x86.Build.0 = Release|Any CPU
+		{6D00D3C7-2726-4FC0-8FF6-54A16D2F31A2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6D00D3C7-2726-4FC0-8FF6-54A16D2F31A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6D00D3C7-2726-4FC0-8FF6-54A16D2F31A2}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{6D00D3C7-2726-4FC0-8FF6-54A16D2F31A2}.Debug|x64.Build.0 = Debug|Any CPU
+		{6D00D3C7-2726-4FC0-8FF6-54A16D2F31A2}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{6D00D3C7-2726-4FC0-8FF6-54A16D2F31A2}.Debug|x86.Build.0 = Debug|Any CPU
+		{6D00D3C7-2726-4FC0-8FF6-54A16D2F31A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6D00D3C7-2726-4FC0-8FF6-54A16D2F31A2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6D00D3C7-2726-4FC0-8FF6-54A16D2F31A2}.Release|x64.ActiveCfg = Release|Any CPU
+		{6D00D3C7-2726-4FC0-8FF6-54A16D2F31A2}.Release|x64.Build.0 = Release|Any CPU
+		{6D00D3C7-2726-4FC0-8FF6-54A16D2F31A2}.Release|x86.ActiveCfg = Release|Any CPU
+		{6D00D3C7-2726-4FC0-8FF6-54A16D2F31A2}.Release|x86.Build.0 = Release|Any CPU
+		{EA592645-F67C-4425-9A5B-B43D535A52C3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EA592645-F67C-4425-9A5B-B43D535A52C3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EA592645-F67C-4425-9A5B-B43D535A52C3}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{EA592645-F67C-4425-9A5B-B43D535A52C3}.Debug|x64.Build.0 = Debug|Any CPU
+		{EA592645-F67C-4425-9A5B-B43D535A52C3}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{EA592645-F67C-4425-9A5B-B43D535A52C3}.Debug|x86.Build.0 = Debug|Any CPU
+		{EA592645-F67C-4425-9A5B-B43D535A52C3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EA592645-F67C-4425-9A5B-B43D535A52C3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EA592645-F67C-4425-9A5B-B43D535A52C3}.Release|x64.ActiveCfg = Release|Any CPU
+		{EA592645-F67C-4425-9A5B-B43D535A52C3}.Release|x64.Build.0 = Release|Any CPU
+		{EA592645-F67C-4425-9A5B-B43D535A52C3}.Release|x86.ActiveCfg = Release|Any CPU
+		{EA592645-F67C-4425-9A5B-B43D535A52C3}.Release|x86.Build.0 = Release|Any CPU
+		{9601185B-2534-49DE-83F3-B1D4D20062AE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9601185B-2534-49DE-83F3-B1D4D20062AE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9601185B-2534-49DE-83F3-B1D4D20062AE}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{9601185B-2534-49DE-83F3-B1D4D20062AE}.Debug|x64.Build.0 = Debug|Any CPU
+		{9601185B-2534-49DE-83F3-B1D4D20062AE}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{9601185B-2534-49DE-83F3-B1D4D20062AE}.Debug|x86.Build.0 = Debug|Any CPU
+		{9601185B-2534-49DE-83F3-B1D4D20062AE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9601185B-2534-49DE-83F3-B1D4D20062AE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9601185B-2534-49DE-83F3-B1D4D20062AE}.Release|x64.ActiveCfg = Release|Any CPU
+		{9601185B-2534-49DE-83F3-B1D4D20062AE}.Release|x64.Build.0 = Release|Any CPU
+		{9601185B-2534-49DE-83F3-B1D4D20062AE}.Release|x86.ActiveCfg = Release|Any CPU
+		{9601185B-2534-49DE-83F3-B1D4D20062AE}.Release|x86.Build.0 = Release|Any CPU
+		{DCED7196-E3B9-41E3-9673-D27C9393E364}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DCED7196-E3B9-41E3-9673-D27C9393E364}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DCED7196-E3B9-41E3-9673-D27C9393E364}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{DCED7196-E3B9-41E3-9673-D27C9393E364}.Debug|x64.Build.0 = Debug|Any CPU
+		{DCED7196-E3B9-41E3-9673-D27C9393E364}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{DCED7196-E3B9-41E3-9673-D27C9393E364}.Debug|x86.Build.0 = Debug|Any CPU
+		{DCED7196-E3B9-41E3-9673-D27C9393E364}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DCED7196-E3B9-41E3-9673-D27C9393E364}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DCED7196-E3B9-41E3-9673-D27C9393E364}.Release|x64.ActiveCfg = Release|Any CPU
+		{DCED7196-E3B9-41E3-9673-D27C9393E364}.Release|x64.Build.0 = Release|Any CPU
+		{DCED7196-E3B9-41E3-9673-D27C9393E364}.Release|x86.ActiveCfg = Release|Any CPU
+		{DCED7196-E3B9-41E3-9673-D27C9393E364}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{1519C0F5-652C-4248-B037-0A425048D61C} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
-		{8C85E5A1-7AE4-4A8C-A398-90E53BB33962} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
-		{219AB4AC-BCF1-4108-8647-4C644400EA9F} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
-		{840EE832-CCE5-41F3-B9FC-72F1800A4A47} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
-		{CAD0C95A-1A34-4826-9945-CC982BDE08F3} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
-		{055A317A-EC95-4973-9C99-FA53675AD0B7} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
-		{1CA367C0-383A-46D8-AE45-036D4B0648AF} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
-		{40E556BE-D5FC-4177-B618-B4DAA2ED01BE} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
-		{70B6CB1D-44A8-424B-B011-AD7080AEA070} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{A666FFFD-3A6B-4D09-B045-B848CC814A6D} = {9A5B0BC6-8329-4B73-89B4-09FB4C7A61BC}
+		{E6B84D43-B6F0-4F61-8D4D-FAE3AA7D0D08} = {9A5B0BC6-8329-4B73-89B4-09FB4C7A61BC}
+		{1519C0F5-652C-4248-B037-0A425048D61C} = {9A5B0BC6-8329-4B73-89B4-09FB4C7A61BC}
+		{840EE832-CCE5-41F3-B9FC-72F1800A4A47} = {9A5B0BC6-8329-4B73-89B4-09FB4C7A61BC}
+		{44E45F14-6421-4453-81A7-DF861288DCDB} = {9B3F2CEB-AAF3-4D12-B254-61FD87634718}
+		{4FAA8254-46EF-45AE-9046-0BE820A775B3} = {9B3F2CEB-AAF3-4D12-B254-61FD87634718}
+		{0F4BF070-1351-41DF-86DC-6511CA6DAEA3} = {9B3F2CEB-AAF3-4D12-B254-61FD87634718}
+		{A137262A-4984-4468-83AE-733FC5D956B3} = {9B3F2CEB-AAF3-4D12-B254-61FD87634718}
+		{82DE31E7-1100-45F2-8E3D-E94549B27FB7} = {9B3F2CEB-AAF3-4D12-B254-61FD87634718}
+		{ED2CC20B-539F-469C-93B8-ED0BCA3784FA} = {9B3F2CEB-AAF3-4D12-B254-61FD87634718}
+		{8B3CE942-061B-4CF2-B531-FFB37E3CDBA9} = {9B3F2CEB-AAF3-4D12-B254-61FD87634718}
+		{3D4ECB09-8F07-4CAF-A17F-1FEB5D0AE94F} = {9B3F2CEB-AAF3-4D12-B254-61FD87634718}
+		{55008E09-87AC-4199-8D83-A9CBFC712B2C} = {9B3F2CEB-AAF3-4D12-B254-61FD87634718}
+		{8265C1C4-CFEC-4A88-85C1-16CDB7B30692} = {2898B271-5A41-4C43-A937-6836D9D8D5A1}
+		{BA44C3AD-BB6E-4E83-98CC-FC5B03088AC3} = {8265C1C4-CFEC-4A88-85C1-16CDB7B30692}
+		{76835787-5E69-4946-81AA-583CCDD85DAA} = {8265C1C4-CFEC-4A88-85C1-16CDB7B30692}
+		{9B3F2CEB-AAF3-4D12-B254-61FD87634718} = {2898B271-5A41-4C43-A937-6836D9D8D5A1}
+		{5448F096-E374-449A-95D1-4A333186B5F8} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{A3177714-6FE6-48BF-8F07-0D2E28B4E57A} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{9511AC9C-CDB9-4D0B-B637-1306376D58AC} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
+		{68D6CCE0-3905-461E-A25A-48C3E4EA48D6} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
+		{6D00D3C7-2726-4FC0-8FF6-54A16D2F31A2} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
+		{0B21FB7B-3555-8D46-0E33-1331B0AF7134} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
+		{EA592645-F67C-4425-9A5B-B43D535A52C3} = {0B21FB7B-3555-8D46-0E33-1331B0AF7134}
+		{9601185B-2534-49DE-83F3-B1D4D20062AE} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
+		{1C900189-F2D2-D9C4-1693-B869B09761E9} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
+		{DCED7196-E3B9-41E3-9673-D27C9393E364} = {1C900189-F2D2-D9C4-1693-B869B09761E9}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F4478048-15ED-4288-AB7A-650F875C4213}
 	EndGlobalSection
 EndGlobal

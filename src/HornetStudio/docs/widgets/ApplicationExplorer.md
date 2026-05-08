@@ -26,8 +26,8 @@ The widget rebuilds its environment list from the stored application definitions
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/ApplicationExplorer/`
-- `src/HornetStudio.Editor/Widgets/ApplicationExplorer/ApplicationExplorerControl.axaml.cs`
+- `src/Hornetstudio.Editor/Widgets/ApplicationExplorer/`
+- `src/Hornetstudio.Editor/Widgets/ApplicationExplorer/ApplicationExplorerControl.axaml.cs`
 
 ## Help
 

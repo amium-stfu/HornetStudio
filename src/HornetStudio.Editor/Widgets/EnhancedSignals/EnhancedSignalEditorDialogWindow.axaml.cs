@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
+using HornetStudio.Editor.Helpers;
 using HornetStudio.Host;
 using HornetStudio.Editor.Models;
 using HornetStudio.Editor.ViewModels;
@@ -178,6 +179,7 @@ public sealed record AdjustmentCurveEditorState(
 public sealed class EnhancedSignalEditorDialogViewModel : ObservableObject
 {
     private readonly FolderItemModel _ownerItem;
+    private readonly string _originalName;
     private string _name = string.Empty;
     private bool _enabled = true;
     private bool _isWritable;
@@ -248,6 +250,7 @@ public sealed class EnhancedSignalEditorDialogViewModel : ObservableObject
     public EnhancedSignalEditorDialogViewModel(MainWindowViewModel? mainWindowViewModel, FolderItemModel ownerItem, ExtendedSignalDefinition? definition)
     {
         _ownerItem = ownerItem;
+        _originalName = definition?.Name ?? string.Empty;
         FilterModeOptions = Enum.GetNames<ExtendedSignalFilterMode>();
         AdjustmentModeOptions =
         [
@@ -279,6 +282,7 @@ public sealed class EnhancedSignalEditorDialogViewModel : ObservableObject
 
         if (definition is null)
         {
+            Name = GenerateNextSignalName();
             RefreshCurveSummaryCaches();
             return;
         }
@@ -1123,6 +1127,15 @@ public sealed class EnhancedSignalEditorDialogViewModel : ObservableObject
             return false;
         }
 
+        var normalizedName = TargetPathHelper.NormalizeIdentityName(Name);
+        var isUnchangedExistingName = !string.IsNullOrWhiteSpace(_originalName)
+            && string.Equals(_originalName, normalizedName, StringComparison.Ordinal);
+        if (!isUnchangedExistingName && !TargetPathHelper.IsValidPathIdentityName(normalizedName))
+        {
+            errorMessage = "Name must use snake_case: lowercase letters, numbers and '_' only.";
+            return false;
+        }
+
         if (string.IsNullOrWhiteSpace(SourcePath))
         {
             errorMessage = "Source is required.";
@@ -1328,7 +1341,7 @@ public sealed class EnhancedSignalEditorDialogViewModel : ObservableObject
 
         definition = new ExtendedSignalDefinition
         {
-            Name = Name.Trim(),
+            Name = normalizedName,
             Enabled = Enabled,
             IsWritable = IsWritable,
             SourcePath = SourcePath.Trim(),
@@ -1400,6 +1413,13 @@ public sealed class EnhancedSignalEditorDialogViewModel : ObservableObject
         };
 
         return true;
+    }
+
+    private string GenerateNextSignalName()
+    {
+        var existingNames = ExtendedSignalDefinitionCodec.ParseDefinitions(_ownerItem.EnhancedSignalDefinitions)
+            .Select(static definition => definition.Name);
+        return TargetPathHelper.GenerateIndexedPathIdentityName("enhanced_signal", existingNames, "enhanced_signal");
     }
 
     public bool TryCreateCurveEditorState(out AdjustmentCurveEditorState? state, out string errorMessage)

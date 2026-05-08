@@ -17,7 +17,7 @@ Provides the in-app value editing surface for writable targets.
 
 ## Key Configuration
 
-- Editor mode based on target parameter kind
+- Editor mode based on target property kind
 - Theme-aware input and button colors
 - On-screen input pads
 
@@ -27,7 +27,7 @@ This is an editor support component rather than a persisted top-level widget typ
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/ValueInput/EditorValueInputControl.axaml.cs`
+- `src/Hornetstudio.Editor/Widgets/ValueInput/EditorValueInputControl.axaml.cs`
 
 ## Help
 

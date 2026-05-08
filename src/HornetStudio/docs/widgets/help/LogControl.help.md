@@ -47,5 +47,5 @@ LogControl is intended for in-page diagnostics and monitoring surfaces.
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/Log/EditorLogControl.axaml.cs`
-- `src/HornetStudio.Editor/Widgets/Log/EditorProcessLogControl.axaml.cs`
+- `src/Hornetstudio.Editor/Widgets/Log/EditorLogControl.axaml.cs`
+- `src/Hornetstudio.Editor/Widgets/Log/EditorProcessLogControl.axaml.cs`

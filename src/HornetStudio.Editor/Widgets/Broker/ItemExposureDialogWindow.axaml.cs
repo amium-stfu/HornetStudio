@@ -41,7 +41,7 @@ public partial class ItemExposureDialogWindow : Window
         InitializeComponent();
 
         _rawDefinitions = rawDefinitions ?? string.Empty;
-        _itemPath = TargetPathHelper.ToFlatItemBrokerPath(itemPath);
+        _itemPath = TargetPathHelper.ToFlatItemServerPath(itemPath);
         _viewModel = new DialogViewModel(
             ownerViewModel,
             ItemExposureDefinitionCodec.ParseDefinitions(_rawDefinitions),
@@ -175,11 +175,11 @@ public partial class ItemExposureDialogWindow : Window
             IReadOnlyList<ItemExposureDefinition> definitions,
             string itemPath)
         {
-            var normalizedPath = TargetPathHelper.ToFlatItemBrokerPath(itemPath);
-            var relativePath = TargetPathHelper.ToRelativeItemBrokerPath(normalizedPath);
+            var normalizedPath = TargetPathHelper.ToFlatItemServerPath(itemPath);
+            var relativePath = TargetPathHelper.ToRelativeItemServerPath(normalizedPath);
             var definition = definitions.FirstOrDefault(definition =>
-                string.Equals(TargetPathHelper.ToFlatItemBrokerPath(definition.ItemPath), normalizedPath, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(TargetPathHelper.ToFlatItemBrokerPath(definition.ItemPath), relativePath, StringComparison.OrdinalIgnoreCase));
+                string.Equals(TargetPathHelper.ToFlatItemServerPath(definition.ItemPath), normalizedPath, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(TargetPathHelper.ToFlatItemServerPath(definition.ItemPath), relativePath, StringComparison.OrdinalIgnoreCase));
             if (definition is null)
             {
                 return [new ItemExposureEditorRow(normalizedPath, string.Empty, string.Empty, 0, false, string.Empty)];
@@ -212,7 +212,7 @@ public sealed class ItemExposureEditorRow : NotifyBase
     /// <param name="bitLabels">The bit labels.</param>
     public ItemExposureEditorRow(string itemPath, string format, string unit, int bitCount, bool exposeBits, string bitLabels)
     {
-        ItemPath = TargetPathHelper.ToFlatItemBrokerPath(itemPath);
+        ItemPath = TargetPathHelper.ToFlatItemServerPath(itemPath);
         _format = format?.Trim() ?? string.Empty;
         _unit = unit?.Trim() ?? string.Empty;
         _bitCount = NormalizeBitCount(bitCount);
@@ -240,7 +240,7 @@ public sealed class ItemExposureEditorRow : NotifyBase
             if (SetProperty(ref _format, value?.Trim() ?? string.Empty))
             {
                 OnPropertyChanged(nameof(SelectedFormatKind));
-                OnPropertyChanged(nameof(FormatParameter));
+                OnPropertyChanged(nameof(FormatProperty));
                 OnPropertyChanged(nameof(EffectiveBitCount));
                 OnPropertyChanged(nameof(Summary));
             }
@@ -249,21 +249,21 @@ public sealed class ItemExposureEditorRow : NotifyBase
 
     public string SelectedFormatKind
     {
-        get => SplitParameterFormat(Format).Kind;
+        get => SplitPropertyFormat(Format).Kind;
         set
         {
-            var current = SplitParameterFormat(Format);
-            Format = ComposeParameterFormat(value, current.Parameter);
+            var current = SplitPropertyFormat(Format);
+            Format = ComposePropertyFormat(value, current.Property);
         }
     }
 
-    public string FormatParameter
+    public string FormatProperty
     {
-        get => SplitParameterFormat(Format).Parameter;
+        get => SplitPropertyFormat(Format).Property;
         set
         {
-            var current = SplitParameterFormat(Format);
-            Format = ComposeParameterFormat(current.Kind, value);
+            var current = SplitPropertyFormat(Format);
+            Format = ComposePropertyFormat(current.Kind, value);
         }
     }
 
@@ -348,7 +348,7 @@ public sealed class ItemExposureEditorRow : NotifyBase
         };
     }
 
-    private static (string Kind, string Parameter) SplitParameterFormat(string? format)
+    private static (string Kind, string Property) SplitPropertyFormat(string? format)
     {
         if (string.IsNullOrWhiteSpace(format))
         {
@@ -390,10 +390,10 @@ public sealed class ItemExposureEditorRow : NotifyBase
         return (string.IsNullOrWhiteSpace(parts[0]) ? "Text" : parts[0], parts.Length > 1 ? parts[1] : string.Empty);
     }
 
-    private static string ComposeParameterFormat(string? kind, string? parameter)
+    private static string ComposePropertyFormat(string? kind, string? property)
     {
         var normalizedKind = string.IsNullOrWhiteSpace(kind) ? "Text" : kind.Trim();
-        var normalizedParameter = string.IsNullOrWhiteSpace(parameter) ? string.Empty : parameter.Trim();
+        var normalizedProperty = string.IsNullOrWhiteSpace(property) ? string.Empty : property.Trim();
 
         if (string.Equals(normalizedKind, "Text", StringComparison.OrdinalIgnoreCase))
         {
@@ -402,21 +402,21 @@ public sealed class ItemExposureEditorRow : NotifyBase
 
         if (string.Equals(normalizedKind, "Numeric", StringComparison.OrdinalIgnoreCase))
         {
-            return string.IsNullOrWhiteSpace(normalizedParameter) ? "numeric" : $"numeric:{normalizedParameter}";
+            return string.IsNullOrWhiteSpace(normalizedProperty) ? "numeric" : $"numeric:{normalizedProperty}";
         }
 
         if (string.Equals(normalizedKind, "Hex", StringComparison.OrdinalIgnoreCase))
         {
-            return string.IsNullOrWhiteSpace(normalizedParameter) ? "hex" : $"hex:{normalizedParameter}";
+            return string.IsNullOrWhiteSpace(normalizedProperty) ? "hex" : $"hex:{normalizedProperty}";
         }
 
         if (string.Equals(normalizedKind, "EpochToDatetime", StringComparison.OrdinalIgnoreCase))
         {
-            return string.IsNullOrWhiteSpace(normalizedParameter) || string.Equals(normalizedParameter, "UtcDefault", StringComparison.OrdinalIgnoreCase)
+            return string.IsNullOrWhiteSpace(normalizedProperty) || string.Equals(normalizedProperty, "UtcDefault", StringComparison.OrdinalIgnoreCase)
                 ? "EpochToDatetime"
-                : $"EpochToDatetime:{normalizedParameter}";
+                : $"EpochToDatetime:{normalizedProperty}";
         }
 
-        return string.IsNullOrWhiteSpace(normalizedParameter) ? normalizedKind : $"{normalizedKind}:{normalizedParameter}";
+        return string.IsNullOrWhiteSpace(normalizedProperty) ? normalizedKind : $"{normalizedKind}:{normalizedProperty}";
     }
 }

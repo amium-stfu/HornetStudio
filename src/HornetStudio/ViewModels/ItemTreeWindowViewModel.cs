@@ -6,6 +6,7 @@ using System.Globalization;
 using System.Linq;
 using Avalonia.Threading;
 using HornetStudio.Host;
+using ItemModel = Amium.Items.Item;
 using Amium.Items;
 using HornetStudio.Editor.Models;
 
@@ -308,7 +309,7 @@ public sealed class ItemTreeWindowViewModel : ObservableObject, IDisposable
         var scopePrefixes = BuildScopePrefixes(_folder.Name);
         WindowTitle = $"ItemTree - {_folder.TabTitle}";
         ScopePath = scopePrefixes.Count == 0
-            ? $"Studio.{_folder.Name}"
+            ? $"studio.{_folder.Name}"
             : string.Join(" | ", scopePrefixes);
         ScopeDescription = fallbackToAll
             ? $"No matching Studio runtime branch was found for folder '{_folder.Name}'. Showing all registered items instead."
@@ -325,7 +326,7 @@ public sealed class ItemTreeWindowViewModel : ObservableObject, IDisposable
 
         return new[]
         {
-            $"Studio.{normalizedFolderName}",
+            $"studio.{normalizedFolderName}",
         }
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .ToArray();
@@ -415,7 +416,7 @@ public sealed class ItemTreeWindowViewModel : ObservableObject, IDisposable
         return node;
     }
 
-    private void AddItemSubTree(Item item, ISet<string> visitedPaths, ISet<string> rootPaths)
+    private void AddItemSubTree(ItemModel item, ISet<string> visitedPaths, ISet<string> rootPaths)
     {
         var normalizedItemPath = NormalizePath(item.Path);
         var segments = SplitPathSegments(normalizedItemPath);
@@ -442,7 +443,7 @@ public sealed class ItemTreeWindowViewModel : ObservableObject, IDisposable
             AddItemSubTree(childEntry.Value, visitedPaths, rootPaths);
         }
 
-        foreach (var parameterEntry in item.Params.GetDictionary().OrderBy(static entry => entry.Key, StringComparer.OrdinalIgnoreCase))
+        foreach (var parameterEntry in item.Properties.GetDictionary().OrderBy(static entry => entry.Key, StringComparer.OrdinalIgnoreCase))
         {
             var parameterName = parameterEntry.Key;
             if (string.Equals(parameterName, "Name", StringComparison.OrdinalIgnoreCase)

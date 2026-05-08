@@ -55,4 +55,4 @@ The persisted widget type is `ChartControl`, while the code implementation is `R
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/RealtimeChart/RealtimeChartControl.axaml.cs`
+- `src/Hornetstudio.Editor/Widgets/RealtimeChart/RealtimeChartControl.axaml.cs`

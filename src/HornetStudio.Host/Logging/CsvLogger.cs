@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Text;
 using System.Xml.Linq;
 using HornetStudio.Host;
+using ItemModel = Amium.Items.Item;
 using Amium.Items;
 using HornetStudio.Contracts;
 
@@ -157,21 +158,21 @@ namespace HornetStudio.Logging
             LogList.Add(new LogObject(name, unit, format, () => signal.Value!, valueType, caption));
         }
 
-        public void AddItem(Item item, string format = "", string caption = "", string unitOverride = "")
+        public void AddItem(ItemModel item, string format = "", string caption = "", string unitOverride = "")
         {
             string unit = string.IsNullOrWhiteSpace(unitOverride) ? string.Empty : unitOverride;
 
-            Func<object> valueGetter = () => item.Params["Value"].Value;
+            Func<object> valueGetter = () => item.Properties["value"].Value;
             string type = DetectValueType(valueGetter());
 
-            if (item.Params.Has("Format"))
+            if (item.Properties.Has("format"))
             {
-                format = item.GetParamter("Format");
+                format = item.GetPropertyValue("Format");
             }
 
-            if (item.Params.Has("Unit") && string.IsNullOrWhiteSpace(unit))
+            if (item.Properties.Has("unit") && string.IsNullOrWhiteSpace(unit))
             {
-                unit = item.GetParamter("Unit");
+                unit = item.GetPropertyValue("Unit");
             }
             Debug.WriteLine($"Adding log for item '{item.Name}' with type '{type}' and format '{format}' caption='{caption}'");
 

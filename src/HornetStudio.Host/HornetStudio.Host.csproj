@@ -12,7 +12,7 @@
   <ItemGroup>
     <ProjectReference Include="..\HornetStudio.Contracts\HornetStudio.Contracts.csproj" />
     <ProjectReference Include="..\Amium.Item\Amium.Item.csproj" />
-    <ProjectReference Include="..\Amium.ItemBroker.Mqtt.Client\Amium.ItemBroker.Mqtt.Client.csproj" />
+    <ProjectReference Include="..\Amium.Item.Client\Amium.Item.Client.csproj" />
   </ItemGroup>
 
   <ItemGroup>

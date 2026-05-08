@@ -55,5 +55,5 @@ Although the runtime sink is database-based, the widget shares a similar runtime
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/SqlLogger/EditorSqlLoggerControl.axaml.cs`
-- `src/HornetStudio.Editor/Models/PageItemModel.cs`
+- `src/Hornetstudio.Editor/Widgets/SqlLogger/EditorSqlLoggerControl.axaml.cs`
+- `src/Hornetstudio.Editor/Models/PageItemModel.cs`

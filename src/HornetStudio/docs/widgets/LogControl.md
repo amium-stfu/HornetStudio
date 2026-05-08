@@ -26,9 +26,9 @@ The widget can be used for process and host-oriented log visualization inside no
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/Log/`
-- `src/HornetStudio.Editor/Widgets/Log/EditorLogControl.axaml.cs`
-- `src/HornetStudio.Editor/Widgets/Log/EditorProcessLogControl.axaml.cs`
+- `src/Hornetstudio.Editor/Widgets/Log/`
+- `src/Hornetstudio.Editor/Widgets/Log/EditorLogControl.axaml.cs`
+- `src/Hornetstudio.Editor/Widgets/Log/EditorProcessLogControl.axaml.cs`
 
 ## Help
 

@@ -1,4 +1,4 @@
-﻿# UI Path Architecture Notes
+# UI Path Architecture Notes
 
 ## Ziel
 
@@ -36,7 +36,7 @@ TestProject/Folder1/Logs/Folder1Demo
 
 Oder technisch formuliert:
 
-- `Project.Name` ist das Root-Segment
+- `project.Name` ist das Root-Segment
 - `Folder.Name` haengt unter `Project`
 - `Item.Name` haengt unter `Folder` oder unter einem Parent-`Item`
 - `Path` entsteht automatisch aus Parent + Name
@@ -144,7 +144,7 @@ Path = Name
 
 Beispiel:
 
-- `Project.Name = TestProject`
+- `project.Name = TestProject`
 - `Folder.Name = Folder1`
 - `Item.Name = Sinus`
 
@@ -176,8 +176,8 @@ Aber nur als expliziter Aufruf, nicht implizit beim Erzeugen.
 ### Variante A: zentraler Path-Builder
 
 ```csharp
-UiPath.ForFolder(Project.Name, Folder.Name)
-UiPath.ForItem(Project.Name, Folder.Name, item.Name)
+UiPath.ForFolder(project.Name, Folder.Name)
+UiPath.ForItem(project.Name, Folder.Name, item.Name)
 UiPath.ForChild(parent.Path, child.Name)
 ```
 
@@ -211,7 +211,7 @@ Das Path-Thema ist davon getrennt.
 
 - `Project` und `Folder` muessen nicht zwingend `Item` sein
 - entscheidend ist die automatische, kanonische `Path`-Erzeugung
-- `Project.Name` ist Root
+- `project.Name` ist Root
 - `Folder.Name` dockt darunter an
 - alle UI-`Item`s docken daran an
 - `Publish(...)` bleibt explizit

@@ -619,7 +619,7 @@ public partial class FolderEditorControl : UserControl
     {
         viewModel ??= new MainWindowViewModel();
 
-        if (kind is ControlKind.Signal or ControlKind.Item)
+        if (kind is ControlKind.Signal or ControlKind.ItemModel)
         {
             return CreateSignalPreviewHost(viewModel);
         }
@@ -1024,18 +1024,18 @@ public partial class FolderEditorControl : UserControl
                 item.BodyCaption = bodyCaptionOverride ?? "Value";
                 item.Title = valueOverride ?? "23.4";
                 item.Unit = unitOverride ?? "°C";
-                item.TargetParameterFormat = string.IsNullOrWhiteSpace(formatOverride) ? "numeric:0.00" : formatOverride;
+                item.TargetPropertyFormat = string.IsNullOrWhiteSpace(formatOverride) ? "numeric:0.00" : formatOverride;
                 item.ShowFooter = false;
                 item.BodyCaptionVisible = true;
                 break;
 
-            case ControlKind.Item:
+            case ControlKind.ItemModel:
                 item.SyncText = false;
                 item.ControlCaption = headerCaptionOverride ?? "Temperature";
                 item.BodyCaption = bodyCaptionOverride ?? "Value";
                 item.Title = valueOverride ?? "23.4";
                 item.Unit = unitOverride ?? "°C";
-                item.TargetParameterFormat = string.IsNullOrWhiteSpace(formatOverride) ? "numeric:0.00" : formatOverride;
+                item.TargetPropertyFormat = string.IsNullOrWhiteSpace(formatOverride) ? "numeric:0.00" : formatOverride;
                 item.ShowFooter = false;
                 item.BodyCaptionVisible = true;
                 break;
@@ -1151,7 +1151,7 @@ public partial class FolderEditorControl : UserControl
         return kind switch
         {
             ControlKind.Button => 260,
-            ControlKind.Signal or ControlKind.Item => 220,
+            ControlKind.Signal or ControlKind.ItemModel => 220,
             ControlKind.WidgetList => 340,
             ControlKind.TableControl => 340,
             ControlKind.CircleDisplay => 300,
@@ -1177,7 +1177,7 @@ public partial class FolderEditorControl : UserControl
         return kind switch
         {
             ControlKind.Button => 72,
-            ControlKind.Signal or ControlKind.Item => 96,
+            ControlKind.Signal or ControlKind.ItemModel => 96,
             ControlKind.WidgetList => 280,
             ControlKind.TableControl => 260,
             ControlKind.CircleDisplay => 300,

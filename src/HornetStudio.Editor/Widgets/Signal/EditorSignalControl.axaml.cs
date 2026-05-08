@@ -23,7 +23,7 @@ public partial class EditorSignalControl : EditorTemplateWidget
     public EditorSignalControl()
     {
         InitializeComponent();
-        var parameterPresenter = this.FindControl<ParameterControl>("ParameterPresenter")!;
+        var parameterPresenter = this.FindControl<PropertyControl>("ParameterPresenter")!;
         parameterPresenter.BitChoiceClicked += OnBitChoiceClicked;
         parameterPresenter.BoolChoiceClicked += OnBoolChoiceClicked;
     }
@@ -41,7 +41,7 @@ public partial class EditorSignalControl : EditorTemplateWidget
             return;
         }
 
-        if (Item.TargetParameterView.Definition.Kind == ParameterVisualKind.Bits)
+        if (Item.TargetPropertyView.Definition.Kind == PropertyVisualKind.Bits)
         {
             e.Handled = true;
             return;
@@ -140,16 +140,16 @@ public partial class EditorSignalControl : EditorTemplateWidget
             return;
         }
 
-        var presentation = target.TargetParameterView;
+        var presentation = target.TargetPropertyView;
         var definition = presentation.Definition;
         var header = target.ValueEditorTitle;
         var subHeader = presentation.UnitText ?? string.Empty;
 
         switch (definition.Kind)
         {
-            case ParameterVisualKind.Text:
+            case PropertyVisualKind.Text:
             {
-                var initialText = presentation.Parameter?.Value?.ToString() ?? string.Empty;
+                var initialText = presentation.Property?.Value?.ToString() ?? string.Empty;
                 var result = await EditorInputDialogs.EditTextAsync(owner, header, subHeader, initialText);
                 if (result is not null)
                 {
@@ -160,10 +160,10 @@ public partial class EditorSignalControl : EditorTemplateWidget
                 break;
             }
 
-            case ParameterVisualKind.Numeric:
+            case PropertyVisualKind.Numeric:
             {
                 double? initial = null;
-                if (presentation.Parameter?.Value is IConvertible convertible)
+                if (presentation.Property?.Value is IConvertible convertible)
                 {
                     try
                     {
@@ -189,10 +189,10 @@ public partial class EditorSignalControl : EditorTemplateWidget
                 break;
             }
 
-            case ParameterVisualKind.Hex:
+            case PropertyVisualKind.Hex:
             {
                 ulong? initial = null;
-                if (presentation.Parameter?.Value is { } raw)
+                if (presentation.Property?.Value is { } raw)
                 {
                     initial = ToUInt64(raw);
                 }

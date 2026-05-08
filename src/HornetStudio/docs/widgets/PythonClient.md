@@ -26,8 +26,8 @@ The widget tracks runtime state, exposes status text, and updates its presentati
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/PythonClient/`
-- `src/HornetStudio.Editor/Widgets/PythonClient/PythonClientControl.axaml.cs`
+- `src/Hornetstudio.Editor/Widgets/PythonClient/`
+- `src/Hornetstudio.Editor/Widgets/PythonClient/PythonClientControl.axaml.cs`
 
 ## Help
 

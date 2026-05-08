@@ -17,6 +17,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using ItemModel = Amium.Items.Item;
 using Amium.Items;
 using HornetStudio.Host;
 using HornetStudio.Logging;
@@ -29,7 +30,7 @@ namespace HornetStudio.Editor.ViewModels;
 
 public class MainWindowViewModel : ObservableObject, IEditorUiHost
 {
-    private const string DemoTargetPath = "Demo/Item/Demo 1";
+    private const string DemoTargetPath = "Demo/ItemModel/Demo 1";
     private static readonly IReadOnlyList<string> ParameterFormatOptions = ["Text", "Numeric", "Hex", "bool", "EpochToDatetime", "b4", "b8", "b16"];
     private static readonly IReadOnlyList<string> AlignmentOptions = ["Left", "Center", "Right"];
 
@@ -786,7 +787,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
     }
 
     public void AddItemToSelectedTableCells(FolderItemModel table)
-        => AddControlToSelectedTableCells(table, ControlKind.Item);
+        => AddControlToSelectedTableCells(table, ControlKind.ItemModel);
 
     public void AddControlToSelectedTableCells(FolderItemModel table, ControlKind kind)
     {
@@ -1038,8 +1039,8 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             return null;
         }
 
-        var targetText = targetItem.Params.Has("Text")
-            ? targetItem.Params["Text"].Value?.ToString() ?? string.Empty
+        var targetText = targetItem.Properties.Has("text")
+            ? targetItem.Properties["text"].Value?.ToString() ?? string.Empty
             : string.Empty;
 
         var proxy = new FolderItemModel
@@ -1047,10 +1048,10 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             Kind = ControlKind.Signal,
             Name = targetItem.Name ?? "InteractionTarget",
             Title = !string.IsNullOrWhiteSpace(targetText) ? targetText : targetItem.Name ?? string.Empty,
-            Unit = targetItem.Params.Has("Unit") ? targetItem.Params["Unit"].Value?.ToString() ?? string.Empty : string.Empty,
-            TargetParameterFormat = targetItem.Params.Has("Format")
-                ? targetItem.Params["Format"].Value?.ToString() ?? string.Empty
-                : sourceItem.TargetParameterFormat,
+            Unit = targetItem.Properties.Has("unit") ? targetItem.Properties["unit"].Value?.ToString() ?? string.Empty : string.Empty,
+            TargetPropertyFormat = targetItem.Properties.Has("format")
+                ? targetItem.Properties["format"].Value?.ToString() ?? string.Empty
+                : sourceItem.TargetPropertyFormat,
             ShowFooter = true,
             ShowCaption = true,
             ShowBodyCaption = true
@@ -1142,7 +1143,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         return match is not null;
     }
 
-    private static bool TryResolveDataTargetItem(string targetPath, string? pageName, out Item? item)
+    private static bool TryResolveDataTargetItem(string targetPath, string? pageName, out ItemModel? item)
     {
         return TryResolveDataItem(targetPath, pageName, out item);
     }
@@ -1572,7 +1573,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         }
 
         WriteBookManifest(bookManifestPath);
-        savedTarget = $"Project.aaep: {TabStripPlacement}";
+        savedTarget = $"project.aaep: {TabStripPlacement}";
         return true;
     }
 
@@ -1650,8 +1651,8 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         {
             SetOptionalJsonValue(nodeObject, "PythonScript", item.PythonScriptPath);
         }
-        nodeObject["TargetParameterPath"] = item.TargetParameterPath;
-        nodeObject["TargetParameterFormat"] = item.TargetParameterFormat;
+        nodeObject["TargetPropertyPath"] = item.TargetPropertyPath;
+        nodeObject["TargetPropertyFormat"] = item.TargetPropertyFormat;
         SetOptionalJsonValue(nodeObject, "Applications", item.ApplicationDefinitions);
         nodeObject["ApplicationAutoStart"] = item.ApplicationAutoStart;
         nodeObject["Unit"] = item.Unit;
@@ -1679,7 +1680,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         nodeObject["BrokerHost"] = item.BrokerHost;
         nodeObject["BrokerPort"] = item.BrokerPort;
         nodeObject["BrokerBaseTopic"] = item.BrokerBaseTopic;
-        nodeObject["BrokerClientId"] = item.BrokerClientId;
+        nodeObject["ServerClientId"] = item.ServerClientId;
         nodeObject["BrokerMode"] = item.BrokerMode;
         nodeObject["BrokerAutoConnect"] = item.BrokerAutoConnect;
         nodeObject["BrokerAttachedItemPaths"] = item.BrokerAttachedItemPaths;
@@ -1804,11 +1805,11 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
 
         switch (item.Kind)
         {
-            case ControlKind.Item or ControlKind.Signal:
+            case ControlKind.ItemModel or ControlKind.Signal:
                 control["Unit"] = item.Unit;
                 control["Uri"] = TargetPathHelper.ToPersistedLayoutTargetPath(item.TargetPath, item.FolderName);
-                control["Parameter"] = item.TargetParameterPath;
-                control["Format"] = item.TargetParameterFormat;
+                control["Parameter"] = item.TargetPropertyPath;
+                control["Format"] = item.TargetPropertyFormat;
                 control["IsReadOnly"] = item.IsReadOnly;
                 control["RefreshRateMs"] = item.RefreshRateMs;
                 if (item.Kind != ControlKind.Signal && !string.IsNullOrWhiteSpace(item.PythonScriptPath))
@@ -1916,7 +1917,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                 control["BrokerHost"] = item.BrokerHost;
                 control["BrokerPort"] = item.BrokerPort;
                 control["BrokerBaseTopic"] = item.BrokerBaseTopic;
-                control["BrokerClientId"] = item.BrokerClientId;
+                control["ServerClientId"] = item.ServerClientId;
                 control["BrokerMode"] = item.BrokerMode;
                 control["BrokerAutoConnect"] = item.BrokerAutoConnect;
                 control["BrokerAttachedItemPaths"] = item.BrokerAttachedItemPaths;
@@ -1999,7 +2000,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             ControlKind.ApplicationExplorer => "ApplicationExplorer",
             ControlKind.CustomSignals => "CustomSignals",
             ControlKind.EnhancedSignals => "EnhancedSignals",
-            ControlKind.Item or ControlKind.Signal => "Signal",
+            ControlKind.ItemModel or ControlKind.Signal => "Signal",
             _ => "Signal"
         };
     }
@@ -2082,8 +2083,8 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         item.ApplicationAutoStart = GetBoolProperty(properties, "ApplicationAutoStart")
             ?? GetBoolProperty(properties, "PythonEnvAutoStart")
             ?? item.ApplicationAutoStart;
-        item.TargetParameterPath = GetFirstStringProperty(properties, "Parameter", "TargetParameterPath") ?? item.TargetParameterPath;
-        item.TargetParameterFormat = GetFirstStringProperty(properties, "Format", "TargetParameterFormat") ?? item.TargetParameterFormat;
+        item.TargetPropertyPath = GetFirstStringProperty(properties, "Property", "Parameter", "TargetPropertyPath", "TargetParameterPath") ?? item.TargetPropertyPath;
+        item.TargetPropertyFormat = GetFirstStringProperty(properties, "Format", "TargetPropertyFormat", "TargetParameterFormat") ?? item.TargetPropertyFormat;
         item.Unit = GetFirstStringProperty(properties, "Unit", "Footer") ?? item.Unit;
         item.TargetLog = GetStringProperty(properties, "TargetLog") ?? item.TargetLog;
         item.RefreshRateMs = GetIntProperty(properties, "RefreshRateMs") ?? item.RefreshRateMs;
@@ -2100,7 +2101,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         item.BrokerHost = GetStringProperty(properties, "BrokerHost") ?? item.BrokerHost;
         item.BrokerPort = GetIntProperty(properties, "BrokerPort") ?? item.BrokerPort;
         item.BrokerBaseTopic = GetStringProperty(properties, "BrokerBaseTopic") ?? item.BrokerBaseTopic;
-        item.BrokerClientId = GetStringProperty(properties, "BrokerClientId") ?? item.BrokerClientId;
+        item.ServerClientId = GetStringProperty(properties, "ServerClientId") ?? item.ServerClientId;
         item.BrokerMode = GetStringProperty(properties, "BrokerMode") ?? item.BrokerMode;
         item.BrokerAutoConnect = GetBoolProperty(properties, "BrokerAutoConnect") ?? item.BrokerAutoConnect;
         item.BrokerAttachedItemPaths = GetStringProperty(properties, "BrokerAttachedItemPaths") ?? item.BrokerAttachedItemPaths;
@@ -2400,7 +2401,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             ControlKind.ApplicationExplorer => "ApplicationExplorer",
             ControlKind.CustomSignals => "CustomSignals",
             ControlKind.EnhancedSignals => "EnhancedSignals",
-            ControlKind.Item or ControlKind.Signal => "Signal",
+            ControlKind.ItemModel or ControlKind.Signal => "Signal",
             _ => "Signal"
         };
     }
@@ -2656,13 +2657,13 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             return null;
         }
 
-        var projectManifestPath = Path.Combine(rootDirectory, "Project.aaep");
+        var projectManifestPath = Path.Combine(rootDirectory, "project.aaep");
         if (File.Exists(projectManifestPath))
         {
             return projectManifestPath;
         }
 
-        var legacyManifestPath = Path.Combine(rootDirectory, "Project.udlb");
+        var legacyManifestPath = Path.Combine(rootDirectory, "project.udlb");
         if (File.Exists(legacyManifestPath))
         {
             return legacyManifestPath;
@@ -2875,7 +2876,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                 Height = Math.Max(height, 56)
             },
             ControlKind.Signal => CreateDefaultItem(x, y, width, height),
-            ControlKind.Item => CreateDefaultItem(x, y, width, height),
+            ControlKind.ItemModel => CreateDefaultItem(x, y, width, height),
             ControlKind.WidgetList => new FolderItemModel
             {
                 Kind = ControlKind.WidgetList,
@@ -3024,7 +3025,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                 BrokerHost = BrokerWidgetDefaults.Host,
                 BrokerPort = BrokerWidgetDefaults.Port,
                 BrokerBaseTopic = BrokerWidgetDefaults.BaseTopic,
-                BrokerClientId = BrokerWidgetClientId.Create(),
+                ServerClientId = BrokerWidgetClientId.Create(),
                 BrokerMode = BrokerWidgetModes.External,
                 BrokerAutoConnect = false,
                 X = x,
@@ -3106,7 +3107,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         {
             Kind = ControlKind.Signal,
             ControlCaption = "Signal",
-            BodyCaption = "Value",
+            BodyCaption = "read",
             Unit = string.Empty,
             ShowFooter = false,
             BodyCornerRadius = 8,
@@ -3437,7 +3438,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                 var selectedTargetPath = GetSelectedTargetPath(item);
                 var choiceOptions = field.Key switch
                 {
-                    "TargetParameterPath" => GetTargetParameterOptions(selectedTargetPath, item.FolderName),
+                    "TargetParameterPath" => GetTargetPropertyOptions(selectedTargetPath, item.FolderName),
                     _ when field.Definition.OptionsFactory is not null => field.Definition.OptionsFactory(item),
                     _ => []
                 };
@@ -3598,7 +3599,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             var shouldSyncDefaultText = textField is null || IsDefaultTextValue(textField.Value, previousName);
 
             field.Definition.Apply(_editorDialogItem, field.Value);
-            _editorDialogItem.TargetParameterFormat = GetTargetFormatAutofill(_editorDialogItem);
+            _editorDialogItem.TargetPropertyFormat = GetTargetFormatAutofill(_editorDialogItem);
 
             if (shouldSyncDefaultText)
             {
@@ -3609,7 +3610,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             if (parameterField is not null)
             {
                 parameterField.Options.Clear();
-                foreach (var option in GetTargetParameterOptions(field.Value, _editorDialogItem.FolderName))
+                foreach (var option in GetTargetPropertyOptions(field.Value, _editorDialogItem.FolderName))
                 {
                     parameterField.Options.Add(option);
                 }
@@ -3647,7 +3648,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                     parameterField.Value = string.Empty;
                 }
 
-                parameterField.ToolTipText = GetFormatParameterToolTip(selectedFormatKind);
+                parameterField.ToolTipText = GetFormatPropertyToolTip(selectedFormatKind);
             }
 
             RefreshEditorDialogFieldValues(_editorDialogItem, "TargetParameterFormatKind", "TargetParameterFormatParameter");
@@ -4374,8 +4375,8 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
 
     private IReadOnlyList<EditorDialogField> BuildActionFieldsForItem(FolderItemModel item)
     {
-        // Allow Action/InteractionRules for Item, Signal and Button controls
-        if (item.Kind is not (ControlKind.Item or ControlKind.Signal or ControlKind.Button))
+        // Allow Action/InteractionRules for ItemModel, Signal and Button controls
+        if (item.Kind is not (ControlKind.ItemModel or ControlKind.Signal or ControlKind.Button))
         {
             return [];
         }
@@ -4478,14 +4479,14 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                     BindChoice("ButtonTextAlign", "Align", current => current.ButtonTextAlign, (current, value) => { current.ButtonTextAlign = value; return null; }, _ => AlignmentOptions)
                 }));
                 break;
-            case ControlKind.Item:
+            case ControlKind.ItemModel:
                 sections.Add(("Properties", new List<EditorDialogBindingDefinition>(commonSpecific)
                 {
                     BindTargetTree("TargetPath", "Uri", current => TargetPathHelper.ToPersistedLayoutTargetPath(current.TargetPath, current.FolderName), (current, value) => { current.ApplyTargetSelection(value); return null; }, current => GetSelectableTargetOptions(current)),
                     BindText("PythonScriptPath", "Python Script", current => current.PythonScriptPath, (current, value) => { current.PythonScriptPath = value; return null; }),
-                    BindChoice("TargetParameterPath", "Parameter", current => current.TargetParameterPath, (current, value) => { current.TargetParameterPath = value; return null; }, current => GetTargetParameterOptions(current.TargetPath, current.FolderName)),
-                    BindChoice("TargetParameterFormatKind", "Format", current => SplitParameterFormat(current.TargetParameterFormat).Kind, (current, value) => { current.TargetParameterFormat = ComposeParameterFormat(value, SplitParameterFormat(current.TargetParameterFormat).Parameter); return null; }, _ => ParameterFormatOptions),
-                    BindText("TargetParameterFormatParameter", "FormatParameter", current => SplitParameterFormat(current.TargetParameterFormat).Parameter, (current, value) => { current.TargetParameterFormat = ComposeParameterFormat(SplitParameterFormat(current.TargetParameterFormat).Kind, value); return null; }, EditorPropertyType.Text, GetFormatParameterToolTip),
+                    BindChoice("TargetPropertyPath", "Property", current => current.TargetPropertyPath, (current, value) => { current.TargetPropertyPath = value; return null; }, current => GetTargetPropertyOptions(current.TargetPath, current.FolderName)),
+                    BindChoice("TargetPropertyFormatKind", "Format", current => SplitPropertyFormat(current.TargetPropertyFormat).Kind, (current, value) => { current.TargetPropertyFormat = ComposePropertyFormat(value, SplitPropertyFormat(current.TargetPropertyFormat).Parameter); return null; }, _ => ParameterFormatOptions),
+                    BindText("TargetPropertyFormatProperty", "FormatProperty", current => SplitPropertyFormat(current.TargetPropertyFormat).Parameter, (current, value) => { current.TargetPropertyFormat = ComposePropertyFormat(SplitPropertyFormat(current.TargetPropertyFormat).Kind, value); return null; }, EditorPropertyType.Text, GetFormatPropertyToolTip),
                     BindChoice("IsReadOnly", "Readonly", current => current.IsReadOnly ? "True" : "False", (current, value) => { current.IsReadOnly = string.Equals(value, "True", StringComparison.OrdinalIgnoreCase); return null; }, _ => new[] { "False", "True" }),
                     BindInt("RefreshRateMs", "RefreshRate ms", current => current.RefreshRateMs, (current, value) => current.RefreshRateMs = value)
                 }));
@@ -4494,9 +4495,9 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                 sections.Add(("Properties", new List<EditorDialogBindingDefinition>(commonSpecific)
                 {
                     BindTargetTree("TargetPath", "Uri", current => TargetPathHelper.ToPersistedLayoutTargetPath(current.TargetPath, current.FolderName), (current, value) => { current.ApplyTargetSelection(value); return null; }, current => GetSelectableTargetOptions(current)),
-                    BindChoice("TargetParameterPath", "Parameter", current => current.TargetParameterPath, (current, value) => { current.TargetParameterPath = value; return null; }, current => GetTargetParameterOptions(current.TargetPath, current.FolderName)),
-                    BindChoice("TargetParameterFormatKind", "Format", current => SplitParameterFormat(current.TargetParameterFormat).Kind, (current, value) => { current.TargetParameterFormat = ComposeParameterFormat(value, SplitParameterFormat(current.TargetParameterFormat).Parameter); return null; }, _ => ParameterFormatOptions),
-                    BindText("TargetParameterFormatParameter", "FormatParameter", current => SplitParameterFormat(current.TargetParameterFormat).Parameter, (current, value) => { current.TargetParameterFormat = ComposeParameterFormat(SplitParameterFormat(current.TargetParameterFormat).Kind, value); return null; }, EditorPropertyType.Text, GetFormatParameterToolTip),
+                    BindChoice("TargetPropertyPath", "Property", current => current.TargetPropertyPath, (current, value) => { current.TargetPropertyPath = value; return null; }, current => GetTargetPropertyOptions(current.TargetPath, current.FolderName)),
+                    BindChoice("TargetPropertyFormatKind", "Format", current => SplitPropertyFormat(current.TargetPropertyFormat).Kind, (current, value) => { current.TargetPropertyFormat = ComposePropertyFormat(value, SplitPropertyFormat(current.TargetPropertyFormat).Parameter); return null; }, _ => ParameterFormatOptions),
+                    BindText("TargetPropertyFormatProperty", "FormatProperty", current => SplitPropertyFormat(current.TargetPropertyFormat).Parameter, (current, value) => { current.TargetPropertyFormat = ComposePropertyFormat(SplitPropertyFormat(current.TargetPropertyFormat).Kind, value); return null; }, EditorPropertyType.Text, GetFormatPropertyToolTip),
                     BindChoice("IsReadOnly", "Readonly", current => current.IsReadOnly ? "True" : "False", (current, value) => { current.IsReadOnly = string.Equals(value, "True", StringComparison.OrdinalIgnoreCase); return null; }, _ => new[] { "False", "True" }),
                     BindInt("RefreshRateMs", "RefreshRate ms", current => current.RefreshRateMs, (current, value) => current.RefreshRateMs = value)
                 }));
@@ -4606,7 +4607,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                     BindText("BrokerHost", "Host", current => current.BrokerHost, (current, value) => { current.BrokerHost = value; return null; }),
                     BindInt("BrokerPort", "Port", current => current.BrokerPort, (current, value) => current.BrokerPort = value),
                     BindText("BrokerBaseTopic", "BaseTopic", current => current.BrokerBaseTopic, (current, value) => { current.BrokerBaseTopic = value; return null; }),
-                    BindReadOnly("BrokerClientId", "LocalMqttClientId", current => current.BrokerClientId, _ => "Generated local MQTT client id for this widget. Existing saved values are preserved and should not be copied from remote clients."),
+                    BindReadOnly("ServerClientId", "LocalMqttClientId", current => current.ServerClientId, _ => "Generated local MQTT client id for this widget. Existing saved values are preserved and should not be copied from remote clients."),
                     BindChoice("BrokerMode", "BrokerMode", current => current.BrokerMode, (current, value) => { current.BrokerMode = value; return null; }, _ => new[] { BrokerWidgetModes.External, BrokerWidgetModes.Own }),
                     BindChoice("BrokerAutoConnect", "AutoConnect", current => current.BrokerAutoConnect ? "True" : "False", (current, value) => { current.BrokerAutoConnect = string.Equals(value, "True", StringComparison.OrdinalIgnoreCase); return null; }, _ => new[] { "False", "True" })
                 }));
@@ -4794,7 +4795,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                 }
                 else
                 {
-                    // Fallback auf das bestehende Item-basierten Logging, falls kein Signal gefunden werden kann.
+                    // Fallback auf das bestehende ItemModel-basierten Logging, falls kein Signal gefunden werden kann.
                     logger.AddItem(dataItem, string.Empty, displayName, unit);
                 }
             }
@@ -5153,8 +5154,9 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
 
     private static bool ShouldShowEditorDialogField(FolderItemModel item, string key)
     {
-        if (string.Equals(key, "TargetParameterPath", StringComparison.Ordinal)
-            && item.Kind is ControlKind.Item or ControlKind.Signal)
+        if ((string.Equals(key, "TargetPropertyPath", StringComparison.Ordinal)
+             || string.Equals(key, "TargetParameterPath", StringComparison.Ordinal))
+            && item.Kind is ControlKind.ItemModel or ControlKind.Signal)
         {
             return false;
         }
@@ -5686,8 +5688,8 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             AccentBackgroundColor = item.AccentBackgroundColor,
             AccentForegroundColor = item.AccentForegroundColor,
             TargetPath = TargetPathHelper.ToPersistedLayoutTargetPath(item.TargetPath, item.FolderName),
-            TargetParameterPath = item.TargetParameterPath,
-            TargetParameterFormat = item.TargetParameterFormat,
+            TargetPropertyPath = item.TargetPropertyPath,
+            TargetPropertyFormat = item.TargetPropertyFormat,
             Applications = item.ApplicationDefinitions,
             CustomSignals = CustomSignalDefinitionCodec.ToDocuments(item.CustomSignalDefinitions, item.FolderName),
             EnhancedSignals = ExtendedSignalDefinitionCodec.ToDocuments(item.EnhancedSignalDefinitions, item.FolderName),
@@ -5708,7 +5710,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             BrokerHost = item.BrokerHost,
             BrokerPort = item.BrokerPort,
             BrokerBaseTopic = item.BrokerBaseTopic,
-            BrokerClientId = item.BrokerClientId,
+            ServerClientId = item.ServerClientId,
             BrokerMode = item.BrokerMode,
             BrokerAutoConnect = item.BrokerAutoConnect,
             BrokerAttachedItemPaths = item.BrokerAttachedItemPaths,
@@ -5769,7 +5771,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
 
         var model = new FolderItemModel
         {
-            Kind = effectiveKind == ControlKind.Signal ? ControlKind.Item : effectiveKind,
+            Kind = effectiveKind == ControlKind.Signal ? ControlKind.ItemModel : effectiveKind,
             Name = item.Name,
             Id = Guid.NewGuid().ToString("N"),
             Title = item.Title,
@@ -5821,8 +5823,8 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             AccentBackgroundColor = item.AccentBackgroundColor,
             AccentForegroundColor = item.AccentForegroundColor,
             TargetPath = TargetPathHelper.NormalizeConfiguredTargetPath(item.TargetPath),
-            TargetParameterPath = item.TargetParameterPath,
-            TargetParameterFormat = item.TargetParameterFormat,
+            TargetPropertyPath = item.TargetPropertyPath,
+            TargetPropertyFormat = item.TargetPropertyFormat,
             ApplicationDefinitions = string.IsNullOrWhiteSpace(item.Applications) ? item.LegacyPythonEnvironments ?? string.Empty : item.Applications,
             CustomSignalDefinitions = CustomSignalDefinitionCodec.FromDocuments(item.CustomSignals, null),
             EnhancedSignalDefinitions = enhancedSignalDefinitions,
@@ -5843,7 +5845,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             BrokerHost = item.BrokerHost,
             BrokerPort = item.BrokerPort,
             BrokerBaseTopic = item.BrokerBaseTopic,
-            BrokerClientId = item.BrokerClientId,
+            ServerClientId = item.ServerClientId,
             BrokerMode = item.BrokerMode,
             BrokerAutoConnect = item.BrokerAutoConnect,
             BrokerAttachedItemPaths = item.BrokerAttachedItemPaths,
@@ -5883,7 +5885,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             {
                 ControlKind.Button => 140,
                 ControlKind.Signal => 150,
-                ControlKind.Item => 150,
+                ControlKind.ItemModel => 150,
                 ControlKind.WidgetList => 240,
                 ControlKind.TableControl => 240,
                 ControlKind.CircleDisplay => 280,
@@ -5901,7 +5903,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             {
                 ControlKind.Button => 56,
                 ControlKind.Signal => 72,
-                ControlKind.Item => 72,
+                ControlKind.ItemModel => 72,
                 ControlKind.WidgetList => 180,
                 ControlKind.TableControl => 180,
                 ControlKind.CircleDisplay => 220,
@@ -5940,7 +5942,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                 ControlKind.ApplicationExplorer => "ApplicationExplorer",
                 ControlKind.CustomSignals => "CustomSignals",
                 ControlKind.EnhancedSignals => "EnhancedSignals",
-                ControlKind.Item or ControlKind.Signal => "Signal",
+                ControlKind.ItemModel or ControlKind.Signal => "Signal",
                 _ => "Signal"
             };
         }
@@ -5966,7 +5968,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
 
     private static ControlKind ResolveDocumentKind(FolderItemDocument item)
     {
-        if (item.Kind == ControlKind.Signal || item.Kind == ControlKind.Item)
+        if (item.Kind == ControlKind.Signal || item.Kind == ControlKind.ItemModel)
         {
             var looksLikeCircleDisplay = (item.TableRows > 0 && item.TableColumns > 0)
                 || !string.IsNullOrWhiteSpace(item.DisplayBackColor)
@@ -6019,7 +6021,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             ? (targetPath?.Trim() ?? string.Empty)
             : TargetPathHelper.NormalizeConfiguredTargetPath(targetPath);
 
-    internal static (string Kind, string Parameter) SplitParameterFormat(string? format)
+    internal static (string Kind, string Parameter) SplitPropertyFormat(string? format)
     {
         if (string.IsNullOrWhiteSpace(format))
         {
@@ -6080,7 +6082,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         return (kind, parameter);
     }
 
-    private static string ComposeParameterFormat(string? kind, string? parameter)
+    private static string ComposePropertyFormat(string? kind, string? parameter)
     {
         var normalizedKind = string.IsNullOrWhiteSpace(kind) ? "Text" : kind.Trim();
         var normalizedParameter = string.IsNullOrWhiteSpace(parameter) ? string.Empty : parameter.Trim();
@@ -6128,8 +6130,8 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             || string.Equals(kind, "b16", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string GetFormatParameterToolTip(FolderItemModel item)
-        => GetFormatParameterToolTip(SplitParameterFormat(item.TargetParameterFormat).Kind);
+    private static string GetFormatPropertyToolTip(FolderItemModel item)
+        => GetFormatPropertyToolTip(SplitPropertyFormat(item.TargetPropertyFormat).Kind);
 
     private static string GetWriteMetadataToolTip(FolderItemModel item)
         => "Controlled by source target. Change write routing at the source definition, not in this widget.";
@@ -6139,15 +6141,15 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
 
     private static string GetTargetFormatAutofill(FolderItemModel item)
     {
-        if (item.Target is null || !item.Target.Params.Has("Format"))
+        if (item.Target is null || !item.Target.Properties.Has("format"))
         {
             return string.Empty;
         }
 
-        return item.Target.Params["Format"].Value?.ToString()?.Trim() ?? string.Empty;
+        return item.Target.Properties["format"].Value?.ToString()?.Trim() ?? string.Empty;
     }
 
-    private static string GetFormatParameterToolTip(string? kind)
+    private static string GetFormatPropertyToolTip(string? kind)
     {
         if (string.Equals(kind, "bool", StringComparison.OrdinalIgnoreCase))
         {
@@ -6195,8 +6197,8 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
     private static IEnumerable<string> GetProcessLogTargetOptions()
     {
         return HostRegistries.Data.GetKeysByCapability(DataRegistryItemCapabilities.Display)
-            .Select(key => HostRegistries.Data.TryGet(key, out var item) ? (Key: key, Item: item) : (Key: (string?)null, Item: null))
-            .Where(entry => !string.IsNullOrWhiteSpace(entry.Key) && entry.Item?.Value is ProcessLog)
+            .Select(key => HostRegistries.Data.TryGet(key, out var item) ? (Key: key, ItemModel: item) : (Key: (string?)null, ItemModel: null))
+            .Where(entry => !string.IsNullOrWhiteSpace(entry.Key) && entry.ItemModel?.Value is ProcessLog)
             .Select(entry => entry.Key!)
             .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -6223,7 +6225,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             : string.Empty;
     }
 
-    private static IEnumerable<string> GetTargetParameterOptions(string targetPath, string? pageName = null)
+    private static IEnumerable<string> GetTargetPropertyOptions(string targetPath, string? pageName = null)
     {
         if (string.IsNullOrWhiteSpace(targetPath))
         {
@@ -6235,20 +6237,20 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             return [];
         }
 
-        var options = item.Params.GetDictionary().Keys
-            .Where(HostRegistryParameterPolicy.CanShowInUserPicker)
+        var options = item.Properties.GetDictionary().Keys
+            .Where(HostRegistryPropertyPolicy.CanShowInUserPicker)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        if (!options.Contains("Value", StringComparer.OrdinalIgnoreCase))
+        if (!options.Contains("read", StringComparer.OrdinalIgnoreCase))
         {
-            options.Insert(0, "Value");
+            options.Insert(0, "read");
         }
         else
         {
-            options.RemoveAll(option => string.Equals(option, "Value", StringComparison.OrdinalIgnoreCase));
-            options.Insert(0, "Value");
+            options.RemoveAll(option => string.Equals(option, "read", StringComparison.OrdinalIgnoreCase));
+            options.Insert(0, "read");
         }
 
         return options;
@@ -6295,30 +6297,30 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
     {
         var baseName = kind switch
         {
-            ControlKind.Button => "Button",
-            ControlKind.WidgetList => "WidgetList",
-            ControlKind.TableControl => "TableControl",
-            ControlKind.CircleDisplay => "CircleDisplay",
-            ControlKind.LogControl => "LogControl",
-            ControlKind.ChartControl => "ChartControl",
-            ControlKind.UdlClientControl => "UdlClientControl",
-            ControlKind.BrokerWidget => "BrokerWidget",
-            ControlKind.CsvLoggerControl => "CsvLoggerControl",
-            ControlKind.SqlLoggerControl => "SqlLoggerControl",
-            ControlKind.CameraControl => "CameraControl",
-            ControlKind.PythonClient => "PythonClient",
-            ControlKind.ApplicationExplorer => "ApplicationExplorer",
-            ControlKind.CustomSignals => "CustomSignals",
-            ControlKind.EnhancedSignals => "EnhancedSignals",
-            ControlKind.Item or ControlKind.Signal => "Signal",
-            _ => "Signal"
+            ControlKind.Button => "button",
+            ControlKind.WidgetList => "widget_list",
+            ControlKind.TableControl => "table_control",
+            ControlKind.CircleDisplay => "circle_display",
+            ControlKind.LogControl => "log_control",
+            ControlKind.ChartControl => "chart_control",
+            ControlKind.UdlClientControl => "udl_client_control",
+            ControlKind.BrokerWidget => "broker_widget",
+            ControlKind.CsvLoggerControl => "csv_logger_control",
+            ControlKind.SqlLoggerControl => "sql_logger_control",
+            ControlKind.CameraControl => "camera_control",
+            ControlKind.PythonClient => "python_client",
+            ControlKind.ApplicationExplorer => "application_explorer",
+            ControlKind.CustomSignals => "custom_signals",
+            ControlKind.EnhancedSignals => "enhanced_signals",
+            ControlKind.ItemModel or ControlKind.Signal => "signal",
+            _ => "signal"
         };
         var index = 1;
-        var candidate = $"{baseName}{index}";
+        var candidate = $"{baseName}_{index}";
         while (!IsControlNameUnique(page, candidate, excludeItem))
         {
             index++;
-            candidate = $"{baseName}{index}";
+            candidate = $"{baseName}_{index}";
         }
 
         return candidate;
@@ -6332,7 +6334,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
     }
 
     private static string NormalizeControlName(string? name)
-        => string.IsNullOrWhiteSpace(name) ? string.Empty : name.Trim();
+        => TargetPathHelper.NormalizeIdentityName(name);
 
     private bool TryValidateControlName(string? proposedName, FolderModel page, FolderItemModel? excludeItem, out string normalizedName, out string error)
     {
@@ -6348,7 +6350,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
 
         if (!isUnchangedExistingName && !IsValidControlNameFormat(normalizedName))
         {
-            error = "Name must start with a letter, may only contain letters, numbers and '_', and must end with a number.";
+            error = "Name must use snake_case: lowercase letters, numbers and '_' only.";
             return false;
         }
 
@@ -6363,14 +6365,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
     }
 
     private static bool IsValidControlNameFormat(string name)
-    {
-        if (string.IsNullOrWhiteSpace(name) || !char.IsLetter(name[0]) || !char.IsDigit(name[^1]))
-        {
-            return false;
-        }
-
-        return name.All(static character => char.IsLetterOrDigit(character) || character == '_');
-    }
+        => TargetPathHelper.IsValidPathIdentityName(name);
 
     private bool IsControlNameUnique(FolderModel page, string name, FolderItemModel? excludeItem)
     {
@@ -6381,19 +6376,13 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
 
     private static IEnumerable<string> GetUdlAttachItemOptions(FolderItemModel item)
     {
-        var normalizedName = NormalizeUdlClientName(item.Name);
+        var normalizedName = UdlPathHelper.NormalizeClientName(item.Name);
         if (string.IsNullOrWhiteSpace(normalizedName))
         {
             return [];
         }
 
-        var prefixes = new[]
-        {
-            $"Studio.{item.FolderName}.{normalizedName}.Status.AttachOptions",
-            $"Project.{item.FolderName}.{normalizedName}.Status.AttachOptions",
-            $"UdlProject.{item.FolderName}.{normalizedName}.Status.AttachOptions",
-            $"Runtime.UdlClient.{normalizedName}"
-        };
+        var prefixes = UdlPathHelper.GetAttachOptionPrefixes(item.FolderName, normalizedName);
 
         return HostRegistries.Data.GetAllKeys()
             .SelectMany(key => prefixes.Select(prefix => TryGetUdlAttachRootOption(key, prefix, TargetPathHelper.NormalizeComparablePath(prefix))))
@@ -6406,13 +6395,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
 
     private static IEnumerable<string> GetBrokerAttachItemOptions(FolderItemModel item)
     {
-        var normalizedName = string.IsNullOrWhiteSpace(item.Name) ? "BrokerWidget" : TargetPathHelper.NormalizeConfiguredTargetPath(item.Name).Replace('.', '_');
-        var prefixes = new[]
-        {
-            $"Studio.{item.FolderName}.{normalizedName}.Status.AttachOptions",
-            $"Project.{item.FolderName}.{normalizedName}.Status.AttachOptions",
-            $"UdlProject.{item.FolderName}.{normalizedName}.Status.AttachOptions"
-        };
+        var prefixes = TargetPathHelper.GetBrokerAttachOptionPrefixes(item.FolderName, item.Name);
 
         var publishedOptions = HostRegistries.Data.GetAllKeys()
             .SelectMany(key => prefixes.Select(prefix => TryGetBrokerAttachRuntimePath(key, prefix)))
@@ -6437,7 +6420,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         => BrokerPublishedItemDefinitionCodec.SerializeDefinitions(BrokerPublishedItemDefinitionCodec.ParseDefinitions(value));
 
     private static string NormalizeUdlClientName(string? name)
-        => string.IsNullOrWhiteSpace(name) ? "UdlClientControl" : name.Trim();
+        => UdlPathHelper.NormalizeClientName(name);
 
     private static string? TryGetUdlAttachRootOption(string registryKey, string prefix, string comparablePrefix)
     {
@@ -6603,7 +6586,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         return item;
     }
 
-    private void ConfigureFooterSubItem(FolderItemModel parentItem, FolderItemModel childItem, string relativePath, Item targetItem, bool isNew)
+    private void ConfigureFooterSubItem(FolderItemModel parentItem, FolderItemModel childItem, string relativePath, ItemModel targetItem, bool isNew)
     {
         var previousBodyCaption = childItem.BodyCaption;
         childItem.ApplyTargetSelection(targetItem.Path ?? string.Empty);
@@ -6623,7 +6606,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
 
         if (isNew
             || string.IsNullOrWhiteSpace(previousBodyCaption)
-            || string.Equals(previousBodyCaption, "Value", StringComparison.OrdinalIgnoreCase))
+            || string.Equals(previousBodyCaption, "read", StringComparison.OrdinalIgnoreCase))
         {
             childItem.BodyCaption = childItem.ControlCaption;
         }
@@ -6655,7 +6638,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             : null;
     }
 
-    private static IEnumerable<string> EnumerateRelativeChildItemPaths(Item rootItem)
+    private static IEnumerable<string> EnumerateRelativeChildItemPaths(ItemModel rootItem)
     {
         foreach (var child in rootItem.GetDictionary().Values.OrderBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase))
         {
@@ -6680,7 +6663,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         var allOptions = HostRegistries.Data.GetKeysByCapability(DataRegistryItemCapabilities.Display)
             .SelectMany(static key => EnumerateSelectablePaths(key))
             .Select(TargetPathHelper.NormalizeConfiguredTargetPath)
-            .Where(static key => !key.StartsWith("Runtime.UdlClient.", StringComparison.OrdinalIgnoreCase))
+            .Where(static key => !UdlPathHelper.IsUdlRuntimePath(key))
             .Where(path => !HasExcludedTargetPrefix(path, excludedPrefixes))
             .Where(path => IsAllowedLoggerRuntimePath(path, allowedLoggerRuntimePrefixes))
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -6722,7 +6705,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
 
     private IReadOnlyList<string> GetAttachedUdlTargetOptions(FolderItemModel? item, IReadOnlyList<string> allOptions)
     {
-        if (item is null || (item.Kind != ControlKind.Item && item.Kind != ControlKind.Signal))
+        if (item is null || (item.Kind != ControlKind.ItemModel && item.Kind != ControlKind.Signal))
         {
             return [];
         }
@@ -6760,7 +6743,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
 
     private IReadOnlyList<string> GetAttachedBrokerTargetOptions(FolderItemModel? item)
     {
-        if (item is null || (item.Kind != ControlKind.Item && item.Kind != ControlKind.Signal))
+        if (item is null || (item.Kind != ControlKind.ItemModel && item.Kind != ControlKind.Signal))
         {
             return [];
         }
@@ -6798,7 +6781,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             .Where(pageItem => pageItem.Kind is ControlKind.CsvLoggerControl or ControlKind.SqlLoggerControl)
             .Select(pageItem => NormalizeTargetPathSegment(pageItem.Name))
             .Where(static name => !string.IsNullOrWhiteSpace(name))
-            .Select(name => $"Studio.{pageName}.LoggerRuntime.{name}")
+            .Select(name => $"studio.{pageName}.Loggerruntime.{name}")
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
@@ -6810,7 +6793,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             return false;
         }
 
-        const string loggerRuntimeMarker = ".LoggerRuntime.";
+        const string loggerRuntimeMarker = ".Loggerruntime.";
         if (path.IndexOf(loggerRuntimeMarker, StringComparison.OrdinalIgnoreCase) < 0)
         {
             return true;
@@ -6828,7 +6811,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
     private static string BuildAttachedUdlPrefix(string pageName, FolderItemModel clientItem)
     {
         var clientName = string.IsNullOrWhiteSpace(clientItem.Name) ? "UdlClientControl" : clientItem.Name.Trim();
-        return $"Studio.{pageName}.{clientName}";
+        return $"studio.{pageName}.{clientName}";
     }
 
     private HashSet<string> GetNonSelectableTargetPrefixes()
@@ -6856,10 +6839,14 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                     continue;
                 }
 
-                prefixes.Add($"Studio.{pageName}.{itemName}.Status");
-                prefixes.Add($"Project.{pageName}.{itemName}.Status");
-                prefixes.Add($"UdlProject.{pageName}.{itemName}.Status");
-                prefixes.Add($"UdlBook.{pageName}.{itemName}.Status");
+                prefixes.Add($"studio.{pageName}.{itemName}.status");
+                prefixes.Add($"studio.{pageName}.{itemName}.Status");
+                prefixes.Add($"project.{pageName}.{itemName}.status");
+                prefixes.Add($"project.{pageName}.{itemName}.Status");
+                prefixes.Add($"udl_project.{pageName}.{itemName}.status");
+                prefixes.Add($"udl_project.{pageName}.{itemName}.Status");
+                prefixes.Add($"udl_book.{pageName}.{itemName}.status");
+                prefixes.Add($"udl_book.{pageName}.{itemName}.Status");
             }
         }
 
@@ -6900,7 +6887,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             return string.Empty;
         }
 
-        var preferredStudioPrefix = $"Studio.{pageName}.";
+        var preferredStudioPrefix = $"studio.{pageName}.";
         if (allOptions.Any(path => path.StartsWith(preferredStudioPrefix, StringComparison.OrdinalIgnoreCase)))
         {
             return preferredStudioPrefix;
@@ -6955,7 +6942,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         return EnumerateItemPaths(item);
     }
 
-    private static IEnumerable<string> EnumerateItemPaths(Item item)
+    private static IEnumerable<string> EnumerateItemPaths(ItemModel item)
     {
         if (!string.IsNullOrWhiteSpace(item.Path))
         {
@@ -6971,10 +6958,10 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         }
     }
 
-    private static bool TryResolveDataItem(string targetPath, out Item? item)
+    private static bool TryResolveDataItem(string targetPath, out ItemModel? item)
         => TryResolveDataItem(targetPath, null, out item);
 
-    private static bool TryResolveDataItem(string targetPath, string? pageName, out Item? item)
+    private static bool TryResolveDataItem(string targetPath, string? pageName, out ItemModel? item)
     {
         foreach (var candidatePath in TargetPathHelper.EnumerateResolutionCandidates(targetPath, pageName))
         {
@@ -6996,7 +6983,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         return false;
     }
 
-    private static bool TryResolveRelativeChild(Item rootItem, string relativePath, out Item? item)
+    private static bool TryResolveRelativeChild(ItemModel rootItem, string relativePath, out ItemModel? item)
     {
         var current = rootItem;
         foreach (var segment in TargetPathHelper.SplitPathSegments(relativePath))
@@ -7069,7 +7056,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             new FolderModel
             {
                 Index = 1,
-                Name = "Page1"
+                Name = "page_1"
             }
         ];
     }

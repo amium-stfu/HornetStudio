@@ -14,11 +14,11 @@ The Item widget shows a bound target value with formatting, unit display, body c
 
 Defines which runtime item should be resolved.
 
-### TargetParameterPath
+### TargetPropertyPath
 
-Selects the parameter shown or edited on the target.
+Selects the property shown or edited on the target.
 
-### TargetParameterFormat
+### TargetPropertyFormat
 
 Controls formatting for the visible value.
 
@@ -71,4 +71,4 @@ The item widget shares much of its target resolution, formatting, and input beha
 
 ## Source
 
-- `src/HornetStudio.Editor/Models/PageItemModel.cs`
+- `src/Hornetstudio.Editor/Models/PageItemModel.cs`

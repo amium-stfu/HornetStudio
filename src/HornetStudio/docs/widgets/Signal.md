@@ -17,20 +17,20 @@ Displays a bound signal value and can open editors or execute interactions again
 ## Key Configuration
 
 - Target path
-- Target parameter and format
+- Target property and format
 - Unit and caption
 - Interaction rules
 - Header, body, and footer settings
 
 ## Runtime Notes
 
-The signal widget uses parameter visualization and can open typed value editors or send direct input to the configured target.
+The signal widget uses property visualization and can open typed value editors or send direct input to the configured target.
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/Signal/`
-- `src/HornetStudio.Editor/Widgets/Signal/EditorSignalControl.axaml.cs`
-- `src/HornetStudio.Editor/Widgets/Parameter/ParameterControl.axaml.cs`
+- `src/Hornetstudio.Editor/Widgets/Signal/`
+- `src/Hornetstudio.Editor/Widgets/Signal/EditorSignalControl.axaml.cs`
+- `src/Hornetstudio.Editor/Widgets/Property/PropertyControl.axaml.cs`
 
 ## Help
 

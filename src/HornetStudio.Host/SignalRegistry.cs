@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using HornetStudio.Contracts;
+using ItemModel = Amium.Items.Item;
 using Amium.Items;
 
 namespace HornetStudio.Host;
@@ -142,17 +143,17 @@ public sealed class SignalRegistry : ISignalRegistry
         return true;
     }
 
-    private static SignalDescriptor CreateDescriptorFromItem(string sourcePath, Item item)
+    private static SignalDescriptor CreateDescriptorFromItem(string sourcePath, ItemModel item)
     {
         var name = item.Name ?? sourcePath;
-        var unit = item.Params.Has("Unit") ? item.Params["Unit"].Value?.ToString() : null;
-        var format = item.Params.Has("Format") ? item.Params["Format"].Value?.ToString() : null;
+        var unit = item.Properties.Has("unit") ? item.Properties["unit"].Value?.ToString() : null;
+        var format = item.Properties.Has("format") ? item.Properties["format"].Value?.ToString() : null;
 
-        var value = item.Params.Has("Value") ? item.Params["Value"].Value : null;
+        var value = item.Properties.Has("value") ? item.Properties["value"].Value : null;
         var dataType = InferDataType(value);
 
         var isWritable = InferIsWritable(item);
-        var category = item.Params.Has("Kind") ? item.Params["Kind"].Value?.ToString() : null;
+        var category = item.Properties.Has("kind") ? item.Properties["kind"].Value?.ToString() : null;
 
         return new SignalDescriptor(
             id: sourcePath,
@@ -204,20 +205,25 @@ public sealed class SignalRegistry : ISignalRegistry
         }
     }
 
-    private static bool InferIsWritable(Item item)
+    private static bool InferIsWritable(ItemModel item)
     {
         bool writable;
-        if (item.Params.Has("Writable") && TryConvertBoolean((object?)item.Params["Writable"].Value, out writable))
+        if (item.Properties.Has("write"))
+        {
+            return true;
+        }
+
+        if (item.Properties.Has("writable") && TryConvertBoolean((object?)item.Properties["writable"].Value, out writable))
         {
             return writable;
         }
 
-        if (item.Params.Has("IsWritable") && TryConvertBoolean((object?)item.Params["IsWritable"].Value, out writable))
+        if (item.Properties.Has("is_writable") && TryConvertBoolean((object?)item.Properties["is_writable"].Value, out writable))
         {
             return writable;
         }
 
-        if (item.Params.Has("WritePath") || item.Params.Has("Set") || item.Params.Has("Write"))
+        if (item.Properties.Has("write_path") || item.Properties.Has("Set") || item.Properties.Has("Write"))
         {
             return true;
         }
@@ -261,7 +267,7 @@ public sealed class SignalRegistry : ISignalRegistry
             return;
         }
 
-        var currentValue = e.Item.Params.Has("Value") ? e.Item.Params["Value"].Value : e.Item.Value;
+        var currentValue = e.ItemModel.Properties.Has("value") ? e.ItemModel.Properties["value"].Value : e.ItemModel.Value;
         signal.OnSourceValueUpdated(currentValue);
 
         var args = new SignalValueChangedEventArgs(signal.Descriptor, null, currentValue, DateTimeOffset.FromUnixTimeMilliseconds((long)e.Timestamp));
@@ -275,8 +281,8 @@ public sealed class SignalRegistry : ISignalRegistry
             return true;
         }
 
-        if (!string.IsNullOrWhiteSpace(e.Item.Path)
-            && _signalsBySourcePath.TryGetValue(NormalizeSourcePath(e.Item.Path!), out signal))
+        if (!string.IsNullOrWhiteSpace(e.ItemModel.Path)
+            && _signalsBySourcePath.TryGetValue(NormalizeSourcePath(e.ItemModel.Path!), out signal))
         {
             return true;
         }

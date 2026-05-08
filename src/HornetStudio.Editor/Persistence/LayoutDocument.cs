@@ -136,9 +136,9 @@ public sealed class FolderItemDocument
 
     public string TargetPath { get; init; } = string.Empty;
 
-    public string TargetParameterPath { get; init; } = string.Empty;
+    public string TargetPropertyPath { get; init; } = string.Empty;
 
-    public string TargetParameterFormat { get; init; } = string.Empty;
+    public string TargetPropertyFormat { get; init; } = string.Empty;
 
     public string Applications { get; init; } = string.Empty;
 
@@ -197,7 +197,7 @@ public sealed class FolderItemDocument
 
     public string BrokerBaseTopic { get; init; } = BrokerWidgetDefaults.BaseTopic;
 
-    public string BrokerClientId { get; init; } = BrokerWidgetDefaults.ClientIdDisplay;
+    public string ServerClientId { get; init; } = BrokerWidgetDefaults.ClientIdDisplay;
 
     public string BrokerMode { get; init; } = BrokerWidgetModes.External;
 

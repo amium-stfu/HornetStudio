@@ -6,7 +6,7 @@
   xmlns:editorUi="using:HornetStudio.Editor.Controls">
 
   <controls:EditorSignalControl.BodyContent>
-    <controls:ParameterControl
+    <controls:PropertyControl
         x:Name="ParameterPresenter"
         HorizontalAlignment="Stretch"
         VerticalAlignment="Stretch"

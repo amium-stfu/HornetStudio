@@ -31,7 +31,7 @@ A later help window can resolve content using:
 - `Item.help.md`
 - `WidgetList.help.md`
 - `LogControl.help.md`
-- `Parameter.help.md`
+- `Property.help.md`
 - `PythonClient.help.md`
 - `Signal.help.md`
 - `SqlLoggerControl.help.md`

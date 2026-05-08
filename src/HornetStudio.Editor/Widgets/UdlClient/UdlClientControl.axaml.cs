@@ -16,6 +16,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using HornetStudio.Editor.Controls;
 using HornetStudio.Host;
+using ItemModel = Amium.Items.Item;
 using Amium.Items;
 using HornetStudio.Logging;
 using HornetStudio.Editor.Helpers;
@@ -26,7 +27,6 @@ namespace HornetStudio.Editor.Widgets;
 
 public partial class UdlClientControl : EditorTemplateControl
 {
-    private static readonly string[] PublishedStatusNames = ["Endpoint", "Connection", "ItemCount", "MessageCounter", "AutoConnect"];
     public static readonly DirectProperty<UdlClientControl, string> SocketTextProperty =
         AvaloniaProperty.RegisterDirect<UdlClientControl, string>(nameof(SocketText), control => control.SocketText);
 
@@ -285,7 +285,7 @@ public partial class UdlClientControl : EditorTemplateControl
         private set => SetAndRaise(ConnectionToggleTextProperty, ref _connectionToggleText, value);
     }
 
-    private FolderItemModel? Item => DataContext as FolderItemModel;
+    private FolderItemModel? ItemModel => DataContext as FolderItemModel;
 
     private static bool IsUdlClientItem(FolderItemModel? item) => item?.IsUdlClientControl == true;
 
@@ -329,7 +329,7 @@ public partial class UdlClientControl : EditorTemplateControl
 
     private void HookObservedItem()
     {
-        var item = Item;
+        var item = ItemModel;
         if (!IsUdlClientItem(item))
         {
             if (_observedItem is not null)
@@ -464,7 +464,7 @@ public partial class UdlClientControl : EditorTemplateControl
 
     private async System.Threading.Tasks.Task EnsureAutoConnectAsync()
     {
-        if (!IsUdlClientItem(Item) || Item?.UdlClientAutoConnect != true || _client is not null)
+        if (!IsUdlClientItem(ItemModel) || ItemModel?.UdlClientAutoConnect != true || _client is not null)
         {
             return;
         }
@@ -523,7 +523,7 @@ public partial class UdlClientControl : EditorTemplateControl
             return;
         }
 
-        var item = Item;
+        var item = ItemModel;
         if (item is null)
         {
             return;
@@ -604,7 +604,7 @@ public partial class UdlClientControl : EditorTemplateControl
         _publishedStatusValues.Clear();
         RemovePublishedAttachOptionItems();
         RemovePublishedExposureItems();
-        RemovePublishedRuntimeItems(Item);
+        RemovePublishedRuntimeItems(ItemModel);
         RebuildAttachSectionRows();
         RefreshPresentation();
         WriteDiagnosticLog("Disconnect completed");
@@ -634,7 +634,7 @@ public partial class UdlClientControl : EditorTemplateControl
         RemovePublishedAttachOptionItems();
         RemovePublishedExposureItems();
         ReleaseUiFolderContext();
-        RemovePublishedRuntimeItems(_observedItem ?? Item);
+        RemovePublishedRuntimeItems(_observedItem ?? ItemModel);
 
         _ = Task.Run(() =>
         {
@@ -674,7 +674,7 @@ public partial class UdlClientControl : EditorTemplateControl
         RemovePublishedAttachOptionItems();
         RemovePublishedExposureItems();
         ReleaseUiFolderContext();
-        RemovePublishedRuntimeItems(_observedItem ?? Item);
+        RemovePublishedRuntimeItems(_observedItem ?? ItemModel);
         _client.Dispose();
         _client = null;
     }
@@ -835,7 +835,7 @@ public partial class UdlClientControl : EditorTemplateControl
         RebuildModuleRows();
     }
 
-    private void LogRuntimeRootItems(IReadOnlyList<Item> runtimeItems)
+    private void LogRuntimeRootItems(IReadOnlyList<ItemModel> runtimeItems)
     {
         if (_client is null)
         {
@@ -845,14 +845,14 @@ public partial class UdlClientControl : EditorTemplateControl
         var rootItems = runtimeItems
             .Select(static item => new
             {
-                Item = item,
+                ItemModel = item,
                 RelativePath = GetRelativeRuntimePath(item)
             })
             .Where(static entry => IsRootAttachPath(entry.RelativePath))
             .OrderBy(static entry => entry.RelativePath, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        var signature = string.Join("|", rootItems.Select(static entry => $"{entry.Item.Name}:{entry.Item.Path}:{entry.RelativePath}"));
+        var signature = string.Join("|", rootItems.Select(static entry => $"{entry.ItemModel.Name}:{entry.ItemModel.Path}:{entry.RelativePath}"));
         if (string.Equals(_lastLoggedRuntimeRootsSignature, signature, StringComparison.Ordinal))
         {
             return;
@@ -861,9 +861,9 @@ public partial class UdlClientControl : EditorTemplateControl
         _lastLoggedRuntimeRootsSignature = signature;
         WriteDiagnosticLog($"Runtime root modules client={_client.Name} count={rootItems.Length}");
 
-        foreach (var rootItem in rootItems.Select(static (entry, index) => new { Index = index, entry.Item, entry.RelativePath }))
+        foreach (var rootItem in rootItems.Select(static (entry, index) => new { Index = index, entry.ItemModel, entry.RelativePath }))
         {
-            WriteDiagnosticLog($"Runtime root[{rootItem.Index}] name={rootItem.Item.Name ?? string.Empty} fullPath={rootItem.Item.Path ?? string.Empty} relativePath={rootItem.RelativePath}");
+            WriteDiagnosticLog($"Runtime root[{rootItem.Index}] name={rootItem.ItemModel.Name ?? string.Empty} fullPath={rootItem.ItemModel.Path ?? string.Empty} relativePath={rootItem.RelativePath}");
         }
     }
 
@@ -903,7 +903,7 @@ public partial class UdlClientControl : EditorTemplateControl
         RebuildAttachSectionRows();
         if (attachmentsChanged)
         {
-            Host?.RefreshFolderBindings(Item?.FolderName ?? string.Empty);
+            Host?.RefreshFolderBindings(ItemModel?.FolderName ?? string.Empty);
         }
         RefreshPresentation();
         WriteVerboseDiagnosticLog($"AttachToUi refreshed after item-settle delay itemCount={_lastPublishedClientItemCount} changed={attachmentsChanged}");
@@ -917,7 +917,7 @@ public partial class UdlClientControl : EditorTemplateControl
             return;
         }
 
-        var item = Item;
+        var item = ItemModel;
         foreach (var row in AttachRows)
         {
             row.PropertyChanged -= OnAttachRowPropertyChanged;
@@ -951,7 +951,7 @@ public partial class UdlClientControl : EditorTemplateControl
             return;
         }
 
-        var item = Item;
+        var item = ItemModel;
         if (item is null)
         {
             ReceivedItems.Clear();
@@ -971,7 +971,7 @@ public partial class UdlClientControl : EditorTemplateControl
             var summaryText = isAttached
                 ? "Runtime item is available and already attached to the UI."
                 : "Runtime item is available and can be attached to the UI.";
-            var alertText = isAttached ? "Item is already attached." : string.Empty;
+            var alertText = isAttached ? "ItemModel is already attached." : string.Empty;
 
             nextReceivedItems.Add(new UdlClientAttachSectionRow(
                 ownerItem: item,
@@ -1059,12 +1059,12 @@ public partial class UdlClientControl : EditorTemplateControl
             return;
         }
 
-        if (e.PropertyName != nameof(AttachItemEditorRow.IsAttached) || Item is null)
+        if (e.PropertyName != nameof(AttachItemEditorRow.IsAttached) || ItemModel is null)
         {
             return;
         }
 
-        Item.UdlAttachedItemPaths = SerializeAttachedPaths(AttachRows
+        ItemModel.UdlAttachedItemPaths = SerializeAttachedPaths(AttachRows
             .Where(static row => row.IsAttached)
             .Select(static row => row.RelativePath));
 
@@ -1075,21 +1075,21 @@ public partial class UdlClientControl : EditorTemplateControl
 
     private void OnAttachReceivedItemClicked(object? sender, RoutedEventArgs e)
     {
-        if (Item is null
+        if (ItemModel is null
             || sender is not Button { CommandParameter: UdlClientAttachSectionRow row }
             || !row.CanExecuteAction)
         {
             return;
         }
 
-        Item.UdlAttachedItemPaths = AddAttachedPath(Item.UdlAttachedItemPaths, row.RelativePath);
+        ItemModel.UdlAttachedItemPaths = AddAttachedPath(ItemModel.UdlAttachedItemPaths, row.RelativePath);
         e.Handled = true;
     }
 
     private async void OnAddDemoClicked(object? sender, RoutedEventArgs e)
     {
-        if (Item is null
-            || Item.UdlClientDemoEnabled != true
+        if (ItemModel is null
+            || ItemModel.UdlClientDemoEnabled != true
             || TopLevel.GetTopLevel(this) is not Window { DataContext: MainWindowViewModel viewModel } owner)
         {
             return;
@@ -1098,20 +1098,20 @@ public partial class UdlClientControl : EditorTemplateControl
         var result = await UdlDemoModulesDialogWindow.ShowAsync(
             owner: owner,
             viewModel: viewModel,
-            ownerItem: Item,
-            rawDefinitions: Item.UdlDemoModuleDefinitions);
+            ownerItem: ItemModel,
+            rawDefinitions: ItemModel.UdlDemoModuleDefinitions);
         if (result is null)
         {
             return;
         }
 
-        Item.UdlDemoModuleDefinitions = result;
+        ItemModel.UdlDemoModuleDefinitions = result;
         e.Handled = true;
     }
 
     private void OnToggleAllReceivedItemsClicked(object? sender, RoutedEventArgs e)
     {
-        if (Item is null || sender is not ToggleButton toggleButton)
+        if (ItemModel is null || sender is not ToggleButton toggleButton)
         {
             return;
         }
@@ -1125,15 +1125,15 @@ public partial class UdlClientControl : EditorTemplateControl
             return;
         }
 
-        Item.UdlAttachedItemPaths = toggleButton.IsChecked == true
-            ? AddAttachedPaths(Item.UdlAttachedItemPaths, receivedPaths)
-            : RemoveAttachedPaths(Item.UdlAttachedItemPaths, receivedPaths);
+        ItemModel.UdlAttachedItemPaths = toggleButton.IsChecked == true
+            ? AddAttachedPaths(ItemModel.UdlAttachedItemPaths, receivedPaths)
+            : RemoveAttachedPaths(ItemModel.UdlAttachedItemPaths, receivedPaths);
         e.Handled = true;
     }
 
     private async void OnEditAttachedItemClicked(object? sender, RoutedEventArgs e)
     {
-        if (Item is null
+        if (ItemModel is null
             || sender is not Button { CommandParameter: UdlClientAttachSectionRow row }
             || !row.CanEdit
             || TopLevel.GetTopLevel(this) is not Window { DataContext: MainWindowViewModel viewModel } owner)
@@ -1144,7 +1144,7 @@ public partial class UdlClientControl : EditorTemplateControl
         var result = await UdlModuleExposureDialogWindow.ShowAsync(
             owner: owner,
             viewModel: viewModel,
-            rawDefinitions: Item.UdlModuleExposureDefinitions,
+            rawDefinitions: ItemModel.UdlModuleExposureDefinitions,
             runtimeChannels: GetRuntimeChannelDescriptors(),
             moduleName: row.ModuleName);
         if (result is null)
@@ -1152,7 +1152,7 @@ public partial class UdlClientControl : EditorTemplateControl
             return;
         }
 
-        Item.UdlModuleExposureDefinitions = result;
+        ItemModel.UdlModuleExposureDefinitions = result;
         PublishExposureItems();
         RebuildModuleRows();
         RebuildAttachSectionRows();
@@ -1161,27 +1161,21 @@ public partial class UdlClientControl : EditorTemplateControl
 
     private void OnDetachAttachedItemClicked(object? sender, RoutedEventArgs e)
     {
-        if (Item is null
+        if (ItemModel is null
             || sender is not Button { CommandParameter: UdlClientAttachSectionRow row }
             || !row.CanDetach)
         {
             return;
         }
 
-        Item.UdlAttachedItemPaths = RemoveAttachedPath(Item.UdlAttachedItemPaths, row.RelativePath);
+        ItemModel.UdlAttachedItemPaths = RemoveAttachedPath(ItemModel.UdlAttachedItemPaths, row.RelativePath);
         e.Handled = true;
     }
 
     private static IEnumerable<string> GetUdlAttachOptions(FolderItemModel item)
     {
         var normalizedName = NormalizeClientName(item);
-        var prefixes = new[]
-        {
-            $"Studio.{item.FolderName}.{normalizedName}.Status.AttachOptions",
-            $"Project.{item.FolderName}.{normalizedName}.Status.AttachOptions",
-            $"UdlProject.{item.FolderName}.{normalizedName}.Status.AttachOptions",
-            $"Runtime.UdlClient.{normalizedName}"
-        };
+        var prefixes = UdlPathHelper.GetAttachOptionPrefixes(item.FolderName, normalizedName);
 
         return HostRegistries.Data.GetAllKeys()
             .SelectMany(key => prefixes.Select(prefix => TryGetAttachRootOption(key, prefix, TargetPathHelper.NormalizeComparablePath(prefix))))
@@ -1207,7 +1201,7 @@ public partial class UdlClientControl : EditorTemplateControl
 
     private void UpdateReceivedSectionActionsState()
     {
-        var item = Item;
+        var item = ItemModel;
         CanAddDemo = item?.UdlClientDemoEnabled == true;
 
         if (item is null)
@@ -1230,7 +1224,7 @@ public partial class UdlClientControl : EditorTemplateControl
 
     private bool SynchronizeAttachedItems()
     {
-        var item = Item;
+        var item = ItemModel;
         if (item is null || _client is null)
         {
             ReleaseUiFolderContext();
@@ -1246,7 +1240,7 @@ public partial class UdlClientControl : EditorTemplateControl
             return false;
         }
 
-        var attachments = new List<(string RelativePath, string Alias, Item RuntimeItem)>();
+        var attachments = new List<(string RelativePath, string Alias, ItemModel RuntimeItem)>();
         foreach (var relativePath in attachedPaths)
         {
             if (!TryResolveRuntimeItem(relativePath, out var runtimeItem) || runtimeItem?.Path is null)
@@ -1294,7 +1288,7 @@ public partial class UdlClientControl : EditorTemplateControl
         _uiFolderContext = null;
     }
 
-    private bool TryResolveRuntimeItem(string relativePath, out Item? resolved)
+    private bool TryResolveRuntimeItem(string relativePath, out ItemModel? resolved)
     {
         resolved = EnumerateClientItems()
             .FirstOrDefault(candidate => string.Equals(GetRelativeRuntimePath(candidate), relativePath, StringComparison.OrdinalIgnoreCase));
@@ -1302,14 +1296,14 @@ public partial class UdlClientControl : EditorTemplateControl
         return resolved is not null;
     }
 
-    private IReadOnlyList<Item> EnumerateClientItems()
+    private IReadOnlyList<ItemModel> EnumerateClientItems()
     {
         if (_client is null)
         {
             return [];
         }
 
-        var items = new List<Item>();
+        var items = new List<ItemModel>();
         foreach (var root in _client.Items.GetDictionary().Values.OrderBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase))
         {
             AppendItem(root, items);
@@ -1333,7 +1327,7 @@ public partial class UdlClientControl : EditorTemplateControl
         Volatile.Write(ref _hasAttachedPaths, HasAttachedPaths(item) ? 1 : 0);
     }
 
-    private static void AppendItem(Item item, ICollection<Item> items)
+    private static void AppendItem(ItemModel item, ICollection<ItemModel> items)
     {
         items.Add(item);
         foreach (var child in item.GetDictionary().Values.OrderBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase))
@@ -1344,10 +1338,9 @@ public partial class UdlClientControl : EditorTemplateControl
 
     private IEnumerable<string> GetAttachOptions(FolderItemModel item)
     {
-        var prefix = $"Runtime.UdlClient.{NormalizeClientName(item)}";
-        var comparablePrefix = TargetPathHelper.NormalizeComparablePath(prefix);
+        var runtimePrefixes = UdlPathHelper.GetRuntimeBasePaths(NormalizeClientName(item));
         var runtimeOptions = HostRegistries.Data.GetAllKeys()
-            .Select(key => TryGetAttachRootOption(key, prefix, comparablePrefix))
+            .SelectMany(key => runtimePrefixes.Select(prefix => TryGetAttachRootOption(key, prefix, TargetPathHelper.NormalizeComparablePath(prefix))))
             .Where(static path => !string.IsNullOrWhiteSpace(path))
             .Select(static path => path!);
 
@@ -1420,17 +1413,16 @@ public partial class UdlClientControl : EditorTemplateControl
             return;
         }
 
-        var item = Item;
+        var item = ItemModel;
         if (item is null)
         {
             WriteVerboseDiagnosticLog("Attach list open skipped because DataContext item is null");
             return;
         }
 
-        var prefix = $"Runtime.UdlClient.{NormalizeClientName(item)}.";
+        var runtimePrefixes = UdlPathHelper.GetRuntimeBasePaths(NormalizeClientName(item));
         var registryOptions = HostRegistries.Data.GetAllKeys()
-            .Where(key => key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-            .Select(key => key[prefix.Length..])
+            .SelectMany(key => runtimePrefixes.Select(prefix => TryGetPathSuffix(key, prefix)))
             .Where(static path => !string.IsNullOrWhiteSpace(path))
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -1485,7 +1477,7 @@ public partial class UdlClientControl : EditorTemplateControl
             return;
         }
 
-        var item = Item;
+        var item = ItemModel;
         if (!IsUdlClientItem(item))
         {
             SocketText = string.Empty;
@@ -1639,7 +1631,7 @@ public partial class UdlClientControl : EditorTemplateControl
         return $"defs:{definitionSignature}||runtime:{runtimeSignature}";
     }
 
-    private void PublishAttachOptionItems(IReadOnlyList<Item> runtimeItems)
+    private void PublishAttachOptionItems(IReadOnlyList<ItemModel> runtimeItems)
     {
         if (!Dispatcher.UIThread.CheckAccess())
         {
@@ -1647,7 +1639,7 @@ public partial class UdlClientControl : EditorTemplateControl
             return;
         }
 
-        var item = Item;
+        var item = ItemModel;
         if (item is null)
         {
             RemovePublishedAttachOptionItems();
@@ -1671,10 +1663,10 @@ public partial class UdlClientControl : EditorTemplateControl
         var desiredSnapshots = rootPaths
             .Select(rootPath =>
             {
-                var snapshot = new Item(rootPath, path: attachOptionsBasePath);
-                snapshot.Params["Kind"].Value = "Status";
-                snapshot.Params["Text"].Value = "AttachOption";
-                snapshot.Params["Title"].Value = rootPath;
+                var snapshot = new ItemModel(rootPath, path: attachOptionsBasePath);
+                snapshot.Properties["kind"].Value = "Status";
+                snapshot.Properties["text"].Value = "AttachOption";
+                snapshot.Properties["title"].Value = rootPath;
                 return snapshot;
             })
             .Where(static snapshot => !string.IsNullOrWhiteSpace(snapshot.Path))
@@ -1787,11 +1779,11 @@ public partial class UdlClientControl : EditorTemplateControl
             _publishedStatusBasePath = statusBasePath;
         }
 
-        PublishStatusValue(statusBasePath, "Endpoint", SocketText, "UdlClient endpoint");
-        PublishStatusValue(statusBasePath, "Connection", ConnectionStateText, "Connection state");
-        PublishStatusValue(statusBasePath, "ItemCount", GetRootItemCount(), "Discovered items");
-        PublishStatusValue(statusBasePath, "MessageCounter", Interlocked.Read(ref _messageCounter), "Received messages");
-        PublishStatusValue(statusBasePath, "AutoConnect", item.UdlClientAutoConnect, "AutoConnect");
+        PublishStatusValue(statusBasePath, "endpoint", SocketText, "UdlClient endpoint");
+        PublishStatusValue(statusBasePath, "connection", ConnectionStateText, "Connection state");
+        PublishStatusValue(statusBasePath, "item_count", GetRootItemCount(), "Discovered items");
+        PublishStatusValue(statusBasePath, "message_counter", Interlocked.Read(ref _messageCounter), "Received messages");
+        PublishStatusValue(statusBasePath, "auto_connect", item.UdlClientAutoConnect, "AutoConnect");
     }
 
     private void RemovePublishedStatusItems()
@@ -1817,10 +1809,10 @@ public partial class UdlClientControl : EditorTemplateControl
 
         _publishedStatusValues[cacheKey] = serializedValue;
 
-        var snapshot = new Item(name, value, statusBasePath);
-        snapshot.Params["Kind"].Value = "Status";
-        snapshot.Params["Text"].Value = title;
-        snapshot.Params["Title"].Value = title;
+        var snapshot = new ItemModel(name, value, statusBasePath);
+        snapshot.Properties["kind"].Value = "Status";
+        snapshot.Properties["text"].Value = title;
+        snapshot.Properties["title"].Value = title;
         WriteVerboseDiagnosticLog($"Status snapshot base={statusBasePath} name={name} value={serializedValue}");
         HostRegistries.Data.UpsertSnapshot(snapshot.Path!, snapshot, DataRegistryItemMetadata.WidgetStatus(), pruneMissingMembers: true);
     }
@@ -1838,7 +1830,7 @@ public partial class UdlClientControl : EditorTemplateControl
 
     private async void OnEditModuleClicked(object? sender, RoutedEventArgs e)
     {
-        if (Item is null
+        if (ItemModel is null
             || sender is not Button { CommandParameter: UdlClientModuleRow row }
             || TopLevel.GetTopLevel(this) is not Window { DataContext: MainWindowViewModel viewModel } owner)
         {
@@ -1848,7 +1840,7 @@ public partial class UdlClientControl : EditorTemplateControl
         var result = await UdlModuleExposureDialogWindow.ShowAsync(
             owner: owner,
             viewModel: viewModel,
-            rawDefinitions: Item.UdlModuleExposureDefinitions,
+            rawDefinitions: ItemModel.UdlModuleExposureDefinitions,
             runtimeChannels: GetRuntimeChannelDescriptors(),
             moduleName: row.ModuleName);
         if (result is null)
@@ -1856,7 +1848,7 @@ public partial class UdlClientControl : EditorTemplateControl
             return;
         }
 
-        Item.UdlModuleExposureDefinitions = result;
+        ItemModel.UdlModuleExposureDefinitions = result;
         PublishExposureItems();
         RebuildModuleRows();
         e.Handled = true;
@@ -1864,7 +1856,7 @@ public partial class UdlClientControl : EditorTemplateControl
 
     private async void OnDeleteModuleClicked(object? sender, RoutedEventArgs e)
     {
-        if (Item is null
+        if (ItemModel is null
             || sender is not Button { CommandParameter: UdlClientModuleRow row }
             || !row.CanDelete
             || TopLevel.GetTopLevel(this) is not Window owner)
@@ -1883,11 +1875,11 @@ public partial class UdlClientControl : EditorTemplateControl
             return;
         }
 
-        var definitions = UdlModuleExposureDefinitionCodec.ParseDefinitions(Item.UdlModuleExposureDefinitions)
+        var definitions = UdlModuleExposureDefinitionCodec.ParseDefinitions(ItemModel.UdlModuleExposureDefinitions)
             .Where(definition => !string.Equals(definition.ModuleName, row.ModuleName, StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
-        Item.UdlModuleExposureDefinitions = UdlModuleExposureDefinitionCodec.SerializeDefinitions(definitions);
+        ItemModel.UdlModuleExposureDefinitions = UdlModuleExposureDefinitionCodec.SerializeDefinitions(definitions);
         PublishExposureItems();
         RebuildModuleRows();
         e.Handled = true;
@@ -1901,7 +1893,7 @@ public partial class UdlClientControl : EditorTemplateControl
             return;
         }
 
-        var item = Item;
+        var item = ItemModel;
         if (item is null)
         {
             RemovePublishedExposureItems();
@@ -1911,7 +1903,7 @@ public partial class UdlClientControl : EditorTemplateControl
         RemoveLegacyExposureItems(item);
 
         var definitions = UdlModuleExposureDefinitionCodec.ParseDefinitions(item.UdlModuleExposureDefinitions);
-        var desiredChannels = new Dictionary<string, (UdlModuleExposureDefinition Definition, Item RuntimeChannel, int BitCount)>(StringComparer.OrdinalIgnoreCase);
+        var desiredChannels = new Dictionary<string, (UdlModuleExposureDefinition Definition, ItemModel RuntimeChannel, int BitCount)>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var definition in definitions)
         {
@@ -1964,9 +1956,9 @@ public partial class UdlClientControl : EditorTemplateControl
             structureChanged |= RemoveRuntimeExposureBits(runtimeChannel);
         }
 
-        if (Item is not null)
+        if (ItemModel is not null)
         {
-            RemoveLegacyExposureItems(Item);
+            RemoveLegacyExposureItems(ItemModel);
         }
 
         if (structureChanged)
@@ -1980,10 +1972,10 @@ public partial class UdlClientControl : EditorTemplateControl
         return EnumerateClientItems()
             .Select(static item => new
             {
-                Item = item,
+                ItemModel = item,
                 RelativePath = GetRelativeRuntimePath(item),
-                Format = item.Params.Has("Format") ? item.Params["Format"].Value?.ToString() ?? string.Empty : string.Empty,
-                Unit = item.Params.Has("Unit") ? item.Params["Unit"].Value?.ToString() ?? string.Empty : string.Empty
+                Format = item.Properties.Has("format") ? item.Properties["format"].Value?.ToString() ?? string.Empty : string.Empty,
+                Unit = item.Properties.Has("unit") ? item.Properties["unit"].Value?.ToString() ?? string.Empty : string.Empty
             })
             .Where(static entry => TargetPathHelper.SplitPathSegments(entry.RelativePath).Count == 2)
             .Select(static entry =>
@@ -2004,7 +1996,7 @@ public partial class UdlClientControl : EditorTemplateControl
             .ToArray();
     }
 
-    private bool TryResolveRuntimeChannel(UdlModuleExposureDefinition definition, out Item? runtimeChannel)
+    private bool TryResolveRuntimeChannel(UdlModuleExposureDefinition definition, out ItemModel? runtimeChannel)
     {
         runtimeChannel = EnumerateClientItems()
             .FirstOrDefault(candidate => string.Equals(GetRelativeRuntimePath(candidate), $"{definition.ModuleName}.{definition.ChannelName}", StringComparison.OrdinalIgnoreCase));
@@ -2018,18 +2010,18 @@ public partial class UdlClientControl : EditorTemplateControl
             return;
         }
 
-        if (!TryGetExposureBitMetadata(e.Item, out var moduleName, out var channelName, out var bitIndex))
+        if (!TryGetExposureBitMetadata(e.ItemModel, out var moduleName, out var channelName, out var bitIndex))
         {
             return;
         }
 
-        if (!string.Equals(e.ParameterName, "Value", StringComparison.Ordinal)
+        if (!string.Equals(e.ParameterName, "read", StringComparison.Ordinal)
             && e.ChangeKind != DataChangeKind.ValueUpdated)
         {
             return;
         }
 
-        ApplyBitWriteback(moduleName, channelName, bitIndex, TryReadBool(e.Item.Value, false));
+        ApplyBitWriteback(moduleName, channelName, bitIndex, TryReadBool(e.ItemModel.Value, false));
     }
 
     private void ApplyBitWriteback(string moduleName, string channelName, int bitIndex, bool enabled)
@@ -2095,12 +2087,12 @@ public partial class UdlClientControl : EditorTemplateControl
 
     private string ResolveEffectiveWriteChannelName(string moduleName, string channelName)
     {
-        if (!string.Equals(channelName, "Read", StringComparison.OrdinalIgnoreCase) || Item is null)
+        if (!string.Equals(channelName, "Read", StringComparison.OrdinalIgnoreCase) || ItemModel is null)
         {
             return channelName;
         }
 
-        var definition = UdlModuleExposureDefinitionCodec.ParseDefinitions(Item.UdlModuleExposureDefinitions)
+        var definition = UdlModuleExposureDefinitionCodec.ParseDefinitions(ItemModel.UdlModuleExposureDefinitions)
             .FirstOrDefault(candidate => string.Equals(candidate.ModuleName, moduleName, StringComparison.OrdinalIgnoreCase)
                                       && string.Equals(candidate.ChannelName, channelName, StringComparison.OrdinalIgnoreCase));
         if (definition?.RouteReadInputToSetRequest != true)
@@ -2131,7 +2123,7 @@ public partial class UdlClientControl : EditorTemplateControl
         RebuildAttachRows();
         if (attachmentsChanged)
         {
-            Host?.RefreshFolderBindings(Item?.FolderName ?? string.Empty);
+            Host?.RefreshFolderBindings(ItemModel?.FolderName ?? string.Empty);
         }
 
         RefreshPresentation();
@@ -2150,24 +2142,26 @@ public partial class UdlClientControl : EditorTemplateControl
         return false;
     }
 
-    private static bool IsRuntimeChannelItem(Item item)
+    private static bool IsRuntimeChannelItem(ItemModel item)
         => TargetPathHelper.SplitPathSegments(GetRelativeRuntimePath(item)).Count == 2;
 
-    private bool UpsertRuntimeExposureBits(Item runtimeChannel, UdlModuleExposureDefinition definition, int bitCount)
+    private bool UpsertRuntimeExposureBits(ItemModel runtimeChannel, UdlModuleExposureDefinition definition, int bitCount)
     {
         var structureChanged = false;
         if (!runtimeChannel.Has("Bits"))
         {
-            runtimeChannel["Bits"] = new Item("Bits", path: runtimeChannel.Path);
+            runtimeChannel["Bits"] = new ItemModel("Bits", path: runtimeChannel.Path);
             structureChanged = true;
         }
 
         var bitsRoot = runtimeChannel["Bits"];
-        structureChanged |= SetParameterValueIfDifferent(bitsRoot, "Kind", "Group");
-        structureChanged |= SetParameterValueIfDifferent(bitsRoot, "Title", $"{definition.ModuleName}.{definition.ChannelName} Bits");
+        structureChanged |= SetPropertyValueIfDifferent(bitsRoot, "Kind", "Group");
+        structureChanged |= SetPropertyValueIfDifferent(bitsRoot, "Title", $"{definition.ModuleName}.{definition.ChannelName} Bits");
 
         var writeTargetChannel = ResolveExposureWriteTargetChannel(runtimeChannel, definition);
-        var writable = !writeTargetChannel.Params.Has("Writable") || TryReadBool(writeTargetChannel.Params["Writable"].Value, false);
+        var writable = writeTargetChannel.Properties.Has("write")
+            || !writeTargetChannel.Properties.Has("writable")
+            || TryReadBool(writeTargetChannel.Properties["writable"].Value, false);
         var valueSourceItem = ResolveExposureBitValueSourceItem(runtimeChannel, definition, writeTargetChannel);
         var rawValue = TryReadUnsignedInteger(valueSourceItem.Value, out uint currentValue) ? currentValue : 0u;
         var labels = ParseBitLabels(definition.BitLabels);
@@ -2180,7 +2174,7 @@ public partial class UdlClientControl : EditorTemplateControl
 
             if (!bitsRoot.Has(bitName))
             {
-                bitsRoot[bitName] = new Item(bitName, path: bitsRoot.Path);
+                bitsRoot[bitName] = new ItemModel(bitName, path: bitsRoot.Path);
                 structureChanged = true;
             }
 
@@ -2189,17 +2183,17 @@ public partial class UdlClientControl : EditorTemplateControl
             var bitValue = ((rawValue >> bitIndex) & 1u) == 1u;
 
             SetItemValueIfDifferent(bitItem, bitValue);
-            structureChanged |= SetParameterValueIfDifferent(bitItem, "Kind", "Bool");
-            structureChanged |= SetParameterValueIfDifferent(bitItem, "Format", "bool");
-            structureChanged |= SetParameterValueIfDifferent(bitItem, "Title", label);
-            structureChanged |= SetParameterValueIfDifferent(bitItem, "Text", label);
-            structureChanged |= SetParameterValueIfDifferent(bitItem, "ModuleName", definition.ModuleName);
-            structureChanged |= SetParameterValueIfDifferent(bitItem, "ChannelName", definition.ChannelName);
-            structureChanged |= SetParameterValueIfDifferent(bitItem, "BitIndex", bitIndex);
-            structureChanged |= SetParameterValueIfDifferent(bitItem, "SourcePath", runtimeChannel.Path ?? string.Empty);
-            structureChanged |= SetParameterValueIfDifferent(bitItem, "Writable", writable);
-            structureChanged |= SetParameterValueIfDifferent(bitItem, "WritePath", string.Empty);
-            structureChanged |= SetParameterValueIfDifferent(bitItem, "WriteMode", string.Empty);
+            structureChanged |= SetPropertyValueIfDifferent(bitItem, "Kind", "Bool");
+            structureChanged |= SetPropertyValueIfDifferent(bitItem, "Format", "bool");
+            structureChanged |= SetPropertyValueIfDifferent(bitItem, "Title", label);
+            structureChanged |= SetPropertyValueIfDifferent(bitItem, "Text", label);
+            structureChanged |= SetPropertyValueIfDifferent(bitItem, "ModuleName", definition.ModuleName);
+            structureChanged |= SetPropertyValueIfDifferent(bitItem, "ChannelName", definition.ChannelName);
+            structureChanged |= SetPropertyValueIfDifferent(bitItem, "BitIndex", bitIndex);
+            structureChanged |= SetPropertyValueIfDifferent(bitItem, "SourcePath", runtimeChannel.Path ?? string.Empty);
+            structureChanged |= SetPropertyValueIfDifferent(bitItem, "Writable", writable);
+            structureChanged |= SetPropertyValueIfDifferent(bitItem, "WritePath", string.Empty);
+            structureChanged |= SetPropertyValueIfDifferent(bitItem, "WriteMode", string.Empty);
         }
 
         foreach (var staleBitName in bitsRoot.GetDictionary().Keys.Except(desiredBitNames, StringComparer.OrdinalIgnoreCase).ToArray())
@@ -2211,7 +2205,7 @@ public partial class UdlClientControl : EditorTemplateControl
         return structureChanged;
     }
 
-    private Item ResolveExposureWriteTargetChannel(Item runtimeChannel, UdlModuleExposureDefinition definition)
+    private ItemModel ResolveExposureWriteTargetChannel(ItemModel runtimeChannel, UdlModuleExposureDefinition definition)
     {
         if (!definition.RouteReadInputToSetRequest
             || !string.Equals(definition.ChannelName, "Read", StringComparison.OrdinalIgnoreCase)
@@ -2224,7 +2218,7 @@ public partial class UdlClientControl : EditorTemplateControl
         return setChannel;
     }
 
-    private Item ResolveExposureBitValueSourceItem(Item runtimeChannel, UdlModuleExposureDefinition definition, Item writeTargetChannel)
+    private ItemModel ResolveExposureBitValueSourceItem(ItemModel runtimeChannel, UdlModuleExposureDefinition definition, ItemModel writeTargetChannel)
     {
         if (string.Equals(definition.ChannelName, "Set", StringComparison.OrdinalIgnoreCase))
         {
@@ -2239,15 +2233,20 @@ public partial class UdlClientControl : EditorTemplateControl
         return runtimeChannel;
     }
 
-    private static Item ResolveWriteValueItem(Item runtimeChannel)
+    private static ItemModel ResolveWriteValueItem(ItemModel runtimeChannel)
     {
-        var writeMode = runtimeChannel.Params.Has("WriteMode") ? runtimeChannel.Params["WriteMode"].Value?.ToString() ?? string.Empty : string.Empty;
+        if (runtimeChannel.Properties.Has("write"))
+        {
+            return runtimeChannel;
+        }
+
+        var writeMode = runtimeChannel.Properties.Has("write_mode") ? runtimeChannel.Properties["write_mode"].Value?.ToString() ?? string.Empty : string.Empty;
         if (string.Equals(writeMode, SignalWriteMode.Request.ToString(), StringComparison.OrdinalIgnoreCase) && runtimeChannel.Has("Request"))
         {
             return runtimeChannel["Request"];
         }
 
-        if (runtimeChannel.Has("Request") && !runtimeChannel.Params.Has("WriteMode"))
+        if (runtimeChannel.Has("Request") && !runtimeChannel.Properties.Has("write_mode"))
         {
             return runtimeChannel["Request"];
         }
@@ -2255,7 +2254,7 @@ public partial class UdlClientControl : EditorTemplateControl
         return runtimeChannel;
     }
 
-    private static int ResolveBitCount(UdlModuleExposureDefinition definition, Item runtimeChannel)
+    private static int ResolveBitCount(UdlModuleExposureDefinition definition, ItemModel runtimeChannel)
     {
         if (definition.BitCount > 0)
         {
@@ -2271,13 +2270,13 @@ public partial class UdlClientControl : EditorTemplateControl
             }
         }
 
-        var runtimeFormat = runtimeChannel.Params.Has("Format")
-            ? runtimeChannel.Params["Format"].Value?.ToString() ?? string.Empty
+        var runtimeFormat = runtimeChannel.Properties.Has("format")
+            ? runtimeChannel.Properties["format"].Value?.ToString() ?? string.Empty
             : string.Empty;
         return GetBitCount(runtimeFormat);
     }
 
-    private static bool RemoveRuntimeExposureBits(Item runtimeChannel)
+    private static bool RemoveRuntimeExposureBits(ItemModel runtimeChannel)
     {
         if (!runtimeChannel.Has("Bits"))
         {
@@ -2293,7 +2292,7 @@ public partial class UdlClientControl : EditorTemplateControl
         HostRegistries.Data.Remove(GetLegacyExposureBasePath(item));
     }
 
-    private static bool SetItemValueIfDifferent(Item item, object? value)
+    private static bool SetItemValueIfDifferent(ItemModel item, object? value)
     {
         if (ValuesEqual(item.Value, value))
         {
@@ -2304,9 +2303,9 @@ public partial class UdlClientControl : EditorTemplateControl
         return true;
     }
 
-    private static bool SetParameterValueIfDifferent(Item item, string parameterName, object? value)
+    private static bool SetPropertyValueIfDifferent(ItemModel item, string parameterName, object? value)
     {
-        var parameter = item.Params[parameterName];
+        var parameter = item.Properties[parameterName];
         if (ValuesEqual(parameter.Value, value))
         {
             return false;
@@ -2334,24 +2333,24 @@ public partial class UdlClientControl : EditorTemplateControl
         };
     }
 
-    private static bool TryGetExposureBitMetadata(Item item, out string moduleName, out string channelName, out int bitIndex)
+    private static bool TryGetExposureBitMetadata(ItemModel item, out string moduleName, out string channelName, out int bitIndex)
     {
         moduleName = string.Empty;
         channelName = string.Empty;
         bitIndex = -1;
 
-        if (!item.Params.Has("ModuleName")
-            || !item.Params.Has("ChannelName")
-            || !item.Params.Has("BitIndex"))
+        if (!item.Properties.Has("module_name")
+            || !item.Properties.Has("channel_name")
+            || !item.Properties.Has("bit_index"))
         {
             return false;
         }
 
-        moduleName = item.Params["ModuleName"].Value?.ToString() ?? string.Empty;
-        channelName = item.Params["ChannelName"].Value?.ToString() ?? string.Empty;
+        moduleName = item.Properties["module_name"].Value?.ToString() ?? string.Empty;
+        channelName = item.Properties["channel_name"].Value?.ToString() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(moduleName)
             || string.IsNullOrWhiteSpace(channelName)
-            || !int.TryParse(item.Params["BitIndex"].Value?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out bitIndex))
+            || !int.TryParse(item.Properties["bit_index"].Value?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out bitIndex))
         {
             return false;
         }
@@ -2514,7 +2513,7 @@ public partial class UdlClientControl : EditorTemplateControl
     private static string NormalizeRuntimeSegment(string value)
     {
         var normalized = TargetPathHelper.NormalizeConfiguredTargetPath(value);
-        return string.IsNullOrWhiteSpace(normalized) ? "Item" : normalized.Replace('.', '_');
+        return string.IsNullOrWhiteSpace(normalized) ? "ItemModel" : normalized.Replace('.', '_');
     }
 
     private static HashSet<string> ParseAttachedPaths(string? serialized)
@@ -2607,7 +2606,7 @@ public partial class UdlClientControl : EditorTemplateControl
     }
 
     private static string NormalizeClientName(FolderItemModel item)
-        => string.IsNullOrWhiteSpace(item.Name) ? "UdlClientControl" : item.Name.Trim();
+        => UdlPathHelper.NormalizeClientName(item.Name);
 
     private static IHostUdlClient CreateClient(FolderItemModel item)
     {
@@ -2624,13 +2623,13 @@ public partial class UdlClientControl : EditorTemplateControl
     }
 
     private static string GetStatusBasePath(FolderItemModel item)
-        => $"Studio.{item.FolderName}.{NormalizeClientName(item)}.Status";
+        => UdlPathHelper.GetCanonicalStatusBasePath(item.FolderName, NormalizeClientName(item));
 
     private static string GetAttachOptionsBasePath(FolderItemModel item)
-        => $"{GetStatusBasePath(item)}/AttachOptions";
+        => UdlPathHelper.GetCanonicalAttachOptionsBasePath(item.FolderName, NormalizeClientName(item));
 
     private static string GetLegacyExposureBasePath(FolderItemModel item)
-        => $"Studio.{item.FolderName}.UdlClientRuntime.{NormalizeClientName(item)}.Modules";
+        => $"studio.{item.FolderName}.UdlClientruntime.{NormalizeClientName(item)}.Modules";
 
     private static void RemovePublishedRuntimeItems(FolderItemModel? item)
     {
@@ -2639,10 +2638,10 @@ public partial class UdlClientControl : EditorTemplateControl
             return;
         }
 
-        var prefix = $"Runtime.UdlClient.{NormalizeClientName(item)}";
+        var runtimePrefixes = UdlPathHelper.GetRuntimeBasePaths(NormalizeClientName(item));
         var keys = HostRegistries.Data.GetAllKeys()
-            .Where(key => string.Equals(key, prefix, StringComparison.OrdinalIgnoreCase)
-                || key.StartsWith(prefix + ".", StringComparison.OrdinalIgnoreCase))
+            .Where(key => runtimePrefixes.Any(prefix => string.Equals(key, prefix, StringComparison.OrdinalIgnoreCase)
+                || key.StartsWith(prefix + ".", StringComparison.OrdinalIgnoreCase)))
             .ToArray();
 
         foreach (var key in keys)
@@ -2651,39 +2650,8 @@ public partial class UdlClientControl : EditorTemplateControl
         }
     }
 
-    private static string GetRelativeRuntimePath(Item item)
-    {
-        var fullPath = item.Path ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(fullPath))
-        {
-            return string.Empty;
-        }
-
-        var segments = TargetPathHelper.SplitPathSegments(fullPath);
-        if (segments.Count == 0)
-        {
-            return string.Empty;
-        }
-
-        var runtimeRootIndex = -1;
-        for (var index = 0; index < segments.Count - 1; index++)
-        {
-            if (string.Equals(segments[index], "Runtime", StringComparison.OrdinalIgnoreCase)
-                && string.Equals(segments[index + 1], "UdlClient", StringComparison.OrdinalIgnoreCase))
-            {
-                runtimeRootIndex = index;
-                break;
-            }
-        }
-
-        if (runtimeRootIndex < 0)
-        {
-            return fullPath;
-        }
-
-        var relativeSegments = segments.Skip(runtimeRootIndex + 3).ToArray();
-        return relativeSegments.Length == 0 ? string.Empty : string.Join('.', relativeSegments);
-    }
+    private static string GetRelativeRuntimePath(ItemModel item)
+        => UdlPathHelper.GetRelativeRuntimePath(item.Path);
 }
 
 public partial class UdlClientWidget : UdlClientControl

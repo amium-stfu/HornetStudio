@@ -75,5 +75,5 @@ The widget separates editor interaction from runtime activation and integrates w
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/Button/EditorButtonControl.axaml.cs`
-- `src/HornetStudio.Editor/Models/PageItemModel.cs`
+- `src/Hornetstudio.Editor/Widgets/Button/EditorButtonControl.axaml.cs`
+- `src/Hornetstudio.Editor/Models/PageItemModel.cs`

@@ -4,7 +4,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using HornetStudio.Host;
+using ItemModel = Amium.Items.Item;
 using Amium.Items;
+using HornetStudio.Editor.Helpers;
 using HornetStudio.Editor.Models;
 
 namespace HornetStudio.Editor.Widgets;
@@ -15,7 +17,7 @@ public sealed class SimulatedHostUdlClient : IHostUdlClient
     {
         public required UdlDemoModuleDefinition Definition { get; init; }
 
-        public required Item Module { get; init; }
+        public required ItemModel Module { get; init; }
 
         public required uint ModuleId { get; init; }
 
@@ -61,7 +63,7 @@ public sealed class SimulatedHostUdlClient : IHostUdlClient
         Name = name.Trim();
         Host = string.IsNullOrWhiteSpace(host) ? "demo" : host.Trim();
         Port = port <= 0 ? 9001 : port;
-        _itemsPath = $"Runtime.UdlClient.{Name}";
+        _itemsPath = UdlPathHelper.GetCanonicalRuntimeBasePath(Name);
         Items = new ItemDictionary(_itemsPath);
         _definitions = definitions?
             .Where(static definition => definition is not null)
@@ -155,42 +157,37 @@ public sealed class SimulatedHostUdlClient : IHostUdlClient
             var definition = _definitions[index];
             var moduleId = (uint)(index + 1);
             var module = CreateModule(definition, _itemsPath);
-            module.Params["ModuleId"].Value = moduleId;
-            module.Params["Text"].Value = definition.Name.Trim();
-            module.Params["Kind"].Value = "UdlModule";
-            module.Params["Demo"].Value = true;
-            module.Params["DemoKind"].Value = definition.Kind.ToString();
-            module.Params["Generator"].Value = definition.Generator.ToString();
-            module.Params["Unit"].Value = definition.Unit;
-            module.Params["Format"].Value = definition.Format;
+            module.Properties["module_id"].Value = moduleId;
+            module.Properties["text"].Value = definition.Name.Trim();
+            module.Properties["kind"].Value = "UdlModule";
+            module.Properties["demo"].Value = true;
+            module.Properties["demo_kind"].Value = definition.Kind.ToString();
+            module.Properties["generator"].Value = definition.Generator.ToString();
+            module.Properties["unit"].Value = definition.Unit;
+            module.Properties["format"].Value = definition.Format;
 
             var read = GetChannel(module, "Read");
-            read.Params["Text"].Value = $"{definition.Name} Read";
-            read.Params["Unit"].Value = definition.Unit;
-            read.Params["Format"].Value = definition.Format;
-            GetRequest(read).Params["Text"].Value = $"{definition.Name} Read Request";
+            read.Properties["text"].Value = $"{definition.Name} Read";
+            read.Properties["unit"].Value = definition.Unit;
+            read.Properties["format"].Value = definition.Format;
+            read.Properties["write"].Value = definition.InitialValue;
 
             var set = GetChannel(module, "Set");
-            set.Params["Text"].Value = $"{definition.Name} Set";
-            set.Params["Unit"].Value = definition.Unit;
-            set.Params["Format"].Value = definition.Format;
-            var setRequest = GetRequest(set);
-            setRequest.Params["Text"].Value = $"{definition.Name} Set Request";
-            setRequest.Value = definition.InitialValue;
+            set.Properties["text"].Value = $"{definition.Name} Set";
+            set.Properties["unit"].Value = definition.Unit;
+            set.Properties["format"].Value = definition.Format;
+            set.Properties["write"].Value = definition.InitialValue;
 
             var output = GetChannel(module, "Out");
-            output.Params["Text"].Value = $"{definition.Name} Out";
-            output.Params["Unit"].Value = definition.Unit;
-            output.Params["Format"].Value = definition.Format;
-            GetRequest(output).Params["Text"].Value = $"{definition.Name} Out Request";
+            output.Properties["text"].Value = $"{definition.Name} Out";
+            output.Properties["unit"].Value = definition.Unit;
+            output.Properties["format"].Value = definition.Format;
+            output.Properties["write"].Value = definition.InitialValue;
 
-            GetChannel(module, "State").Params["Text"].Value = $"{definition.Name} State";
-            GetChannel(module, "Alert").Params["Text"].Value = $"{definition.Name} Alert";
-            var command = GetChannel(module, "Command");
-            command.Params["Text"].Value = $"{definition.Name} Command";
-            var commandRequest = GetRequest(command);
-            commandRequest.Params["Text"].Value = $"{definition.Name} Command Request";
-            commandRequest.Value = 1;
+            var stateChannel = GetChannel(module, "State");
+            stateChannel.Properties["text"].Value = $"{definition.Name} State";
+            stateChannel.Properties["write"].Value = 1;
+            GetChannel(module, "Alert").Properties["text"].Value = $"{definition.Name} Alert";
 
             var state = new ModuleRuntimeState
             {
@@ -297,7 +294,7 @@ public sealed class SimulatedHostUdlClient : IHostUdlClient
     private static double ComputeSetDrivenValue(ModuleRuntimeState state, DateTimeOffset now)
     {
         var definition = state.Definition;
-        var requestValue = TryReadDouble(GetRequest(GetChannel(state.Module, "Set")).Value, definition.InitialValue);
+        var requestValue = TryReadDouble(GetChannel(state.Module, "Set").Properties["write"].Value, definition.InitialValue);
         var targetValue = requestValue * definition.SetScale + definition.SetOffset;
         var tauSeconds = Math.Max(0, definition.SetTauSeconds);
 
@@ -377,22 +374,16 @@ public sealed class SimulatedHostUdlClient : IHostUdlClient
         state.Module.Value = value;
 
         var read = GetChannel(state.Module, "Read");
-        read.Value = value;
-        InitializeRequestValueIfMissing(read);
+        SetReadValue(read, value);
 
         var set = GetChannel(state.Module, "Set");
-        set.Value = value;
-        InitializeRequestValueIfMissing(set);
+        SetReadValue(set, value);
 
         var output = GetChannel(state.Module, "Out");
-        output.Value = value;
-        InitializeRequestValueIfMissing(output);
+        SetReadValue(output, value);
 
-        GetChannel(state.Module, "State").Value = stateCode;
+        SetReadValue(GetChannel(state.Module, "State"), stateCode);
         GetChannel(state.Module, "Alert").Value = alertText;
-        var command = GetChannel(state.Module, "Command");
-        command.Value = stateCode;
-        InitializeRequestValueIfMissing(command);
     }
 
     private void RaiseDiagnostic(string message)
@@ -406,36 +397,33 @@ public sealed class SimulatedHostUdlClient : IHostUdlClient
     private static UdlDemoFaultDefinition? GetFreezeFault(UdlDemoModuleDefinition definition)
         => definition.Faults.FirstOrDefault(static fault => fault.Kind == UdlDemoFaultKind.Freeze);
 
-    private static Item CreateModule(UdlDemoModuleDefinition definition, string itemsPath)
+    private static ItemModel CreateModule(UdlDemoModuleDefinition definition, string itemsPath)
     {
-        var module = new Item(definition.Name.Trim(), path: itemsPath);
-        module.Params["Kind"].Value = "UdlModule";
-        module.Params["Text"].Value = definition.Name.Trim();
-        module.Params["Unit"].Value = string.Empty;
+        var module = new ItemModel(definition.Name.Trim(), path: itemsPath);
+        module.Properties["kind"].Value = "UdlModule";
+        module.Properties["text"].Value = definition.Name.Trim();
+        module.Properties["unit"].Value = string.Empty;
 
-        AddRequestChannel(module, "Read");
-        AddRequestChannel(module, "Set");
-        AddRequestChannel(module, "Out");
-        AddItem(module, "State");
-        AddItem(module, "Alert");
-        AddRequestChannel(module, "Command");
+        AddChannel(module, "Read", hasWriteChannel: true);
+        AddChannel(module, "Set", hasWriteChannel: true);
+        AddChannel(module, "Out", hasWriteChannel: true);
+        AddChannel(module, "State", hasWriteChannel: true);
+        AddChannel(module, "Alert", hasReadChannel: false);
         return module;
     }
 
-    private static Item GetChannel(Item module, string name) => module[name];
+    private static ItemModel GetChannel(ItemModel module, string name) => module[name];
 
-    private static Item GetRequest(Item channel) => channel["Request"];
-
-    private static void AddRequestChannel(Item module, string name)
+    private static void AddChannel(ItemModel module, string name, bool hasWriteChannel = false, bool hasReadChannel = true)
     {
-        AddItem(module, name);
-        var channel = module[name];
-        AddItem(channel, "Request");
-        channel["Request"].Params["Text"].Value = $"{name} Request";
-        channel["Request"].Value = channel.Value;
+        module[name] = new ItemModel(
+            name,
+            path: module.Path,
+            hasWriteChannel: hasWriteChannel,
+            hasReadChannel: hasReadChannel);
     }
 
-    private static void AddItem(Item parent, string name)
+    private static void AddItem(ItemModel parent, string name)
     {
         if (!parent.Has(name))
         {
@@ -443,17 +431,9 @@ public sealed class SimulatedHostUdlClient : IHostUdlClient
         }
     }
 
-    private static void InitializeRequestValueIfMissing(Item item)
+    private static void SetReadValue(ItemModel item, object? value)
     {
-        if (!item.Has("Request"))
-        {
-            return;
-        }
-
-        if (item["Request"].Value is null)
-        {
-            item["Request"].Value = item.Value;
-        }
+        item.Properties["read"].Value = value!;
     }
 
     private static double TryReadDouble(object? value, double fallback)

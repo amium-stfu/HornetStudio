@@ -5,64 +5,82 @@ namespace Amium.UdlClient;
 
 public sealed class Module : ItemModel
 {
-    private const string RequestItemName = "Request";
     private const string ReadItemName = "Read";
     private const string SetItemName = "Set";
     private const string OutItemName = "Out";
     private const string StateItemName = "State";
     private const string AlertItemName = "Alert";
-    private const string CommandItemName = "Command";
-
-    
 
     public Module(string name, string? path = null)
         : base(name, path: path)
     {
-        Params["Kind"].Value = "UdlModule";
-        Params["Text"].Value = name;
-        Params["Unit"].Value = string.Empty;
+        Properties["kind"].Value = "UdlModule";
+        Properties["text"].Value = name;
+        Properties["unit"].Value = string.Empty;
 
-        AddRequestChannel(ReadItemName);
-        AddRequestChannel(SetItemName);
-        AddRequestChannel(OutItemName);
-        AddItem(StateItemName);
-        AddItem(AlertItemName);
-        AddRequestChannel(CommandItemName);
+        AddChannel(ReadItemName, hasWriteChannel: true);
+        AddChannel(SetItemName, hasWriteChannel: true);
+        AddChannel(OutItemName, hasWriteChannel: true);
+        AddChannel(StateItemName, hasWriteChannel: true);
+        AddChannel(AlertItemName, hasReadChannel: false);
     }
 
     public ItemModel Read => this[ReadItemName];
-    public ItemModel ReadRequest => Read[RequestItemName];
     public ItemModel Set => this[SetItemName];
-    public ItemModel SetRequest => Set[RequestItemName];
     public ItemModel Out => this[OutItemName];
-    public ItemModel OutRequest => Out[RequestItemName];
     public ItemModel State => this[StateItemName];
     public ItemModel Alert => this[AlertItemName];
-    public ItemModel Command => this[CommandItemName];
-    public ItemModel CommandRequest => Command[RequestItemName];
 
     public void EnsureWriteMetadata()
     {
-        ApplyWriteMetadata(Read);
-        ApplyWriteMetadata(Set);
-        ApplyWriteMetadata(Out);
-        ApplyWriteMetadata(Command);
+        EnsureWriteChannel(Read);
+        EnsureWriteChannel(Set);
+        EnsureWriteChannel(Out);
+        EnsureWriteChannel(State);
+        EnsureNoReadChannel(Alert);
+        RemoveLegacyCommand();
     }
 
-    private void AddRequestChannel(string name)
+    private void AddChannel(string name, bool hasWriteChannel = false, bool hasReadChannel = true)
     {
-        AddItem(name);
-        var channel = this[name];
-        channel.AddItem(RequestItemName);
-        channel[RequestItemName].Params["Text"].Value = $"{name} Request";
-        channel[RequestItemName].Value = channel.Value;
-        ApplyWriteMetadata(channel);
+        this[name] = new ItemModel(
+            name,
+            path: Path,
+            hasWriteChannel: hasWriteChannel,
+            hasReadChannel: hasReadChannel);
     }
 
-    private static void ApplyWriteMetadata(ItemModel channel)
+    private static void EnsureWriteChannel(ItemModel channel)
     {
-        channel.Params["Writable"].Value = true;
-        channel.Params["WritePath"].Value = channel.Path ?? string.Empty;
-        channel.Params["WriteMode"].Value = SignalWriteMode.Request.ToString();
+        if (!channel.Properties.Has("write"))
+        {
+            channel.Properties["write"].Value = channel.Properties.Has("read")
+                ? channel.Properties["read"].Value
+                : null!;
+        }
+    }
+
+    private static void EnsureNoReadChannel(ItemModel channel)
+    {
+        if (!channel.Properties.Has("read"))
+        {
+            return;
+        }
+
+        if (channel.Properties["read"].Value is not null && !channel.Properties.Has("value"))
+        {
+            channel.Properties["value"].Value = channel.Properties["read"].Value;
+        }
+
+        channel.Properties.Remove("read");
+        channel.Properties.Remove("write");
+    }
+
+    private void RemoveLegacyCommand()
+    {
+        if (Has("Command"))
+        {
+            Remove("Command");
+        }
     }
 }

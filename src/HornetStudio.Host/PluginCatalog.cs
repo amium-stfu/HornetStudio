@@ -240,7 +240,7 @@ public static class HostPluginCatalog
         }
 
         var fileName = Path.GetFileName(path);
-        if (fileName.Equals("Project.dll", StringComparison.OrdinalIgnoreCase)
+        if (fileName.Equals("project.dll", StringComparison.OrdinalIgnoreCase)
             || fileName.Equals("Book.dll", StringComparison.OrdinalIgnoreCase))
         {
             return false;

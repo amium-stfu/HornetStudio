@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using ItemModel = Amium.Items.Item;
 using Amium.Items;
 
 namespace HornetStudio.Host;
@@ -65,7 +66,7 @@ public sealed class HostUdlClient : IHostUdlClient
         Host = host ?? throw new ArgumentNullException(nameof(host));
         Port = port;
 
-        _itemsPath = $"Runtime.UdlClient.{Name}";
+        _itemsPath = $"runtime.UdlClient.{Name}";
         Items = new ItemDictionary(_itemsPath);
 
         _remoteEndpoint = ResolveRemoteEndpoint(Host, Port);
@@ -112,7 +113,7 @@ public sealed class HostUdlClient : IHostUdlClient
         // Heartbeat/Time-Sync-Loop starten, damit das UDL-Gerät aktiv bleibt und Daten sendet.
         _heartbeatTask = Task.Run(() => HeartbeatLoopAsync(lifetime.Token), lifetime.Token);
 
-        // Writeback-Loop starten, um geaenderte Request-Werte (z.B. Set/Request)
+        // Writeback-Loop starten, um geaenderte Request-Werte (z.B. set/request)
         // in zyklische CAN-Write-PDOs umzusetzen.
         _writebackTask = Task.Run(() => WritebackLoopAsync(lifetime.Token), lifetime.Token);
 
@@ -238,9 +239,7 @@ public sealed class HostUdlClient : IHostUdlClient
             case 1:
             {
                 var stateValue = Convert.ToInt32(Math.Round(BitConverter.ToSingle(data, 0), MidpointRounding.AwayFromZero));
-                module.State.Value = stateValue;
-                module.Command.Value = stateValue;
-                InitializeRequestValueIfMissing(module.Command);
+                SetChannelReadValue(module.State, stateValue);
                 TrackCommandState(moduleId, stateValue, module);
                 break;
             }
@@ -252,28 +251,25 @@ public sealed class HostUdlClient : IHostUdlClient
             case 3:
             {
                 var value = BitConverter.ToSingle(data, 0);
-                module.Read.Value = value;
-                InitializeRequestValueIfMissing(module.Read);
+                SetChannelReadValue(module.Read, value);
                 module.Value = value;
                 var metadata = (ushort)(data[4] | (data[5] << 8));
-                module.Read.Params["MetaData"].Value = metadata;
-                module.Params["MetaData"].Value = metadata;
+                module.Read.Properties["MetaData"].Value = metadata;
+                module.Properties["MetaData"].Value = metadata;
                 break;
             }
 
             case 4:
-                module.Set.Value = BitConverter.ToSingle(data, 0);
-                InitializeRequestValueIfMissing(module.Set);
+                SetChannelReadValue(module.Set, BitConverter.ToSingle(data, 0));
                 break;
 
             case 5:
-                module.Out.Value = BitConverter.ToSingle(data, 0);
-                InitializeRequestValueIfMissing(module.Out);
+                SetChannelReadValue(module.Out, BitConverter.ToSingle(data, 0));
                 break;
 
             default:
-                module.Params["LastType"].Value = type;
-                module.Params["LastRaw"].Value = $"dlc={dlc}";
+                module.Properties["LastType"].Value = type;
+                module.Properties["LastRaw"].Value = $"dlc={dlc}";
                 break;
         }
     }
@@ -289,43 +285,25 @@ public sealed class HostUdlClient : IHostUdlClient
 
         RaiseDiagnostic($"[HostUdlClient:{Name}] create module {key} from moduleId=0x{moduleId:X3}");
         var module = new UdlModule(key, _itemsPath);
-        module.Params["ModuleId"].Value = moduleId;
-        module.Params["Text"].Value = key;
-        module.Params["Kind"].Value = "UdlModule";
-        module.Params["SendStatus"].Value = "idle";
+        module.Properties["module_id"].Value = moduleId;
+        module.Properties["text"].Value = key;
+        module.Properties["kind"].Value = "UdlModule";
+        module.Properties["SendStatus"].Value = "idle";
 
-        module.Read.Params["Text"].Value = $"{key} Read";
-        module.ReadRequest.Params["Text"].Value = $"{key} Read Request";
-        module.Set.Params["Text"].Value = $"{key} Set";
-        module.SetRequest.Params["Text"].Value = $"{key} Set Request";
-        module.Out.Params["Text"].Value = $"{key} Out";
-        module.OutRequest.Params["Text"].Value = $"{key} Out Request";
-        module.State.Params["Text"].Value = $"{key} State";
-        module.Alert.Params["Text"].Value = $"{key} Alert";
-        module.Command.Params["Text"].Value = $"{key} Command";
-        module.CommandRequest.Params["Text"].Value = $"{key} Command Request";
+        module.Read.Properties["text"].Value = $"{key} Read";
+        module.Set.Properties["text"].Value = $"{key} Set";
+        module.Out.Properties["text"].Value = $"{key} Out";
+        module.State.Properties["text"].Value = $"{key} State";
+        module.Alert.Properties["text"].Value = $"{key} Alert";
 
-        module.ReadRequest.Changed += (_, e) => OnRequestItemChanged(moduleId, module, e);
-        module.SetRequest.Changed += (_, e) => OnRequestItemChanged(moduleId, module, e);
-        module.OutRequest.Changed += (_, e) => OnRequestItemChanged(moduleId, module, e);
-        module.CommandRequest.Changed += (_, e) => OnRequestItemChanged(moduleId, module, e);
+        module.Read.Changed += (_, e) => OnWriteItemChanged(moduleId, module, e);
+        module.Set.Changed += (_, e) => OnWriteItemChanged(moduleId, module, e);
+        module.Out.Changed += (_, e) => OnWriteItemChanged(moduleId, module, e);
+        module.State.Changed += (_, e) => OnWriteItemChanged(moduleId, module, e);
         module.EnsureWriteMetadata();
 
         Items[key] = module;
         return module;
-    }
-
-    private static void InitializeRequestValueIfMissing(Item item)
-    {
-        if (!item.Has("Request"))
-        {
-            return;
-        }
-
-        if (item["Request"].Value is null)
-        {
-            item["Request"].Value = item.Value;
-        }
     }
 
     private static string FormatModuleName(uint moduleId)
@@ -417,46 +395,44 @@ public sealed class HostUdlClient : IHostUdlClient
         }
     }
 
-    private void OnRequestItemChanged(uint moduleId, UdlModule module, ItemChangedEventArgs e)
+    private void OnWriteItemChanged(uint moduleId, UdlModule module, ItemChangedEventArgs e)
     {
-        if (!string.Equals(e.ParameterName, "Value", StringComparison.Ordinal)
-            && !string.Equals(e.ParameterName, "Set", StringComparison.Ordinal)
-            && !string.Equals(e.ParameterName, "Write", StringComparison.Ordinal))
+        if (!IsWriteTriggerProperty(e.PropertyName))
         {
             return;
         }
 
-        RaiseDiagnostic($"[HostUdlClient:{Name}] request changed moduleId=0x{moduleId:X3} item={e.Item.Path} parameter={e.ParameterName} value={FormatObject(e.Item.Value)}");
+        RaiseDiagnostic($"[HostUdlClient:{Name}] request changed moduleId=0x{moduleId:X3} item={e.Item.Path} parameter={e.PropertyName} value={FormatObject(TryGetWritePropertyValue(e.Item) ?? e.Item.Value)}");
         ProcessRequestWrite(moduleId, module, e.Item);
     }
 
-    private void ProcessRequestWrite(uint moduleId, UdlModule module, Item requestItem)
+    private void ProcessRequestWrite(uint moduleId, UdlModule module, ItemModel requestItem)
     {
-        if (ReferenceEquals(requestItem, module.ReadRequest))
+        if (ReferenceEquals(requestItem, module.Read))
         {
-            RaiseDiagnostic($"[HostUdlClient:{Name}] process request write moduleId=0x{moduleId:X3} channel=read readRequest={FormatObject(module.ReadRequest.Value)} read={FormatObject(module.Read.Value)}");
-            TryWrite(moduleId, module.ReadRequest, module.Read, 3);
+            RaiseDiagnostic($"[HostUdlClient:{Name}] process request write moduleId=0x{moduleId:X3} channel=read write={FormatObject(TryGetWritePropertyValue(module.Read))} read={FormatObject(module.Read.Value)}");
+            TryWrite(moduleId, module.Read, module.Read, 3);
             return;
         }
 
-        if (ReferenceEquals(requestItem, module.CommandRequest))
+        if (ReferenceEquals(requestItem, module.State))
         {
-            RaiseDiagnostic($"[HostUdlClient:{Name}] process request write moduleId=0x{moduleId:X3} channel=command commandRequest={FormatObject(module.CommandRequest.Value)} command={FormatObject(module.Command.Value)}");
+            RaiseDiagnostic($"[HostUdlClient:{Name}] process request write moduleId=0x{moduleId:X3} channel=state write={FormatObject(TryGetWritePropertyValue(module.State))} state={FormatObject(module.State.Value)}");
             TryWriteCommand(moduleId, module);
             return;
         }
 
-        if (ReferenceEquals(requestItem, module.SetRequest))
+        if (ReferenceEquals(requestItem, module.Set))
         {
-            RaiseDiagnostic($"[HostUdlClient:{Name}] process request write moduleId=0x{moduleId:X3} channel=set setRequest={FormatObject(module.SetRequest.Value)} set={FormatObject(module.Set.Value)}");
-            TryWrite(moduleId, module.SetRequest, module.Set, 4);
+            RaiseDiagnostic($"[HostUdlClient:{Name}] process request write moduleId=0x{moduleId:X3} channel=set write={FormatObject(TryGetWritePropertyValue(module.Set))} set={FormatObject(module.Set.Value)}");
+            TryWrite(moduleId, module.Set, module.Set, 4);
             return;
         }
 
-        if (ReferenceEquals(requestItem, module.OutRequest))
+        if (ReferenceEquals(requestItem, module.Out))
         {
-            RaiseDiagnostic($"[HostUdlClient:{Name}] process request write moduleId=0x{moduleId:X3} channel=out outRequest={FormatObject(module.OutRequest.Value)} out={FormatObject(module.Out.Value)}");
-            TryWrite(moduleId, module.OutRequest, module.Out, 5);
+            RaiseDiagnostic($"[HostUdlClient:{Name}] process request write moduleId=0x{moduleId:X3} channel=out write={FormatObject(TryGetWritePropertyValue(module.Out))} out={FormatObject(module.Out.Value)}");
+            TryWrite(moduleId, module.Out, module.Out, 5);
             return;
         }
 
@@ -467,28 +443,28 @@ public sealed class HostUdlClient : IHostUdlClient
     {
         if (!TryGetCommandRequest(moduleId, module, out var desiredValue, out var shouldSend, out var timedOut))
         {
-            RaiseDiagnostic($"[HostUdlClient:{Name}] command write skipped moduleId=0x{moduleId:X3} reason=no-request state={FormatObject(module.Command.Value)} request={FormatObject(module.CommandRequest.Value)}");
+            RaiseDiagnostic($"[HostUdlClient:{Name}] state write skipped moduleId=0x{moduleId:X3} reason=no-request state={FormatObject(module.State.Value)} request={FormatObject(TryGetWritePropertyValue(module.State))}");
             return;
         }
 
         if (timedOut)
         {
-            module.Params["SendStatus"].Value = "timeout";
-            ClearRequestedValue(module.Command);
-            RaiseDiagnostic($"[HostUdlClient:{Name}] command timeout moduleId=0x{moduleId:X3} desired={desiredValue:0.###}");
+            module.Properties["SendStatus"].Value = "timeout";
+            ClearRequestedValue(module.State);
+            RaiseDiagnostic($"[HostUdlClient:{Name}] state timeout moduleId=0x{moduleId:X3} desired={desiredValue:0.###}");
             return;
         }
 
         if (!shouldSend)
         {
-            RaiseDiagnostic($"[HostUdlClient:{Name}] command write deferred moduleId=0x{moduleId:X3} desired={desiredValue:0.###}");
+            RaiseDiagnostic($"[HostUdlClient:{Name}] state write deferred moduleId=0x{moduleId:X3} desired={desiredValue:0.###}");
             return;
         }
 
-        RaiseDiagnostic($"[HostUdlClient:{Name}] command write request moduleId=0x{moduleId:X3} desired={desiredValue:0.###} source={module.Command.Name}");
-        module.Params["SendStatus"].Value = "sending";
+        RaiseDiagnostic($"[HostUdlClient:{Name}] state write request moduleId=0x{moduleId:X3} desired={desiredValue:0.###} source={module.State.Name}");
+        module.Properties["SendStatus"].Value = "sending";
         var queued = SendWritePdo(moduleId, desiredValue, 1);
-        RaiseDiagnostic($"[HostUdlClient:{Name}] command write send result moduleId=0x{moduleId:X3} desired={desiredValue:0.###} queued={queued}");
+        RaiseDiagnostic($"[HostUdlClient:{Name}] state write send result moduleId=0x{moduleId:X3} desired={desiredValue:0.###} queued={queued}");
         if (queued)
         {
             lock (_sync)
@@ -508,7 +484,7 @@ public sealed class HostUdlClient : IHostUdlClient
                 }
             }
 
-            ClearRequestedValue(module.Command);
+            ClearRequestedValue(module.State);
         }
     }
 
@@ -518,7 +494,7 @@ public sealed class HostUdlClient : IHostUdlClient
         shouldSend = false;
         timedOut = false;
 
-        var hasRequest = TryGetRequestedValue(module.Command, out var requestedValue);
+        var hasRequest = TryGetRequestedValue(module.State, out var requestedValue);
         var now = DateTime.UtcNow;
         var sendTimeout = GetSendTimeout();
 
@@ -604,14 +580,14 @@ public sealed class HostUdlClient : IHostUdlClient
             return;
         }
 
-        ClearRequestedValue(module.Command);
-        module.Params["SendStatus"].Value = "ok";
-        RaiseDiagnostic($"[HostUdlClient:{Name}] command acknowledged moduleId=0x{moduleId:X3} value={stateValue:0.###}");
+        ClearRequestedValue(module.State);
+        module.Properties["SendStatus"].Value = "ok";
+        RaiseDiagnostic($"[HostUdlClient:{Name}] state acknowledged moduleId=0x{moduleId:X3} value={stateValue:0.###}");
     }
 
-    private void TryWrite(uint moduleId, Item requestItem, Item currentItem, int function)
+    private void TryWrite(uint moduleId, ItemModel requestItem, ItemModel currentItem, int function)
     {
-        RaiseDiagnostic($"[HostUdlClient:{Name}] try write moduleId=0x{moduleId:X3} function={function} requestPath={requestItem.Path} requestValue={FormatObject(requestItem.Value)} currentPath={currentItem.Path} currentValue={FormatObject(currentItem.Value)}");
+        RaiseDiagnostic($"[HostUdlClient:{Name}] try write moduleId=0x{moduleId:X3} function={function} requestPath={requestItem.Path} requestValue={FormatObject(TryGetWritePropertyValue(requestItem) ?? requestItem.Value)} currentPath={currentItem.Path} currentValue={FormatObject(currentItem.Value)}");
 
         if (!TryGetDesiredWriteValue(requestItem, currentItem, out var desiredValue))
         {
@@ -688,29 +664,39 @@ public sealed class HostUdlClient : IHostUdlClient
         return false;
     }
 
-    private static bool TryGetWriteValue(Item item, out double value)
+    private static bool TryGetWriteValue(ItemModel item, out double value)
     {
         value = 0;
-        if (!item.Params.Has("Write"))
+        if (item.Properties.Has("write"))
+        {
+            return TryConvertToDouble(item.Properties["write"].Value, out value) && !double.IsNaN(value);
+        }
+
+        if (!item.Properties.Has("Write"))
         {
             return false;
         }
 
-        return TryConvertToDouble(item.Params["Write"].Value, out value) && !double.IsNaN(value);
+        return TryConvertToDouble(item.Properties["Write"].Value, out value) && !double.IsNaN(value);
     }
 
-    private static bool TryGetSetValue(Item item, out double value)
+    private static bool TryGetSetValue(ItemModel item, out double value)
     {
         value = 0;
-        if (!item.Params.Has("Set"))
+        if (item.Properties.Has("set"))
+        {
+            return TryConvertToDouble(item.Properties["set"].Value, out value) && !double.IsNaN(value);
+        }
+
+        if (!item.Properties.Has("Set"))
         {
             return false;
         }
 
-        return TryConvertToDouble(item.Params["Set"].Value, out value) && !double.IsNaN(value);
+        return TryConvertToDouble(item.Properties["Set"].Value, out value) && !double.IsNaN(value);
     }
 
-    private static bool TryGetRequestItemValue(Item item, out double value)
+    private static bool TryGetRequestItemValue(ItemModel item, out double value)
     {
         value = 0;
         if (!item.Has("Request"))
@@ -721,16 +707,21 @@ public sealed class HostUdlClient : IHostUdlClient
         return TryConvertToDouble(item["Request"].Value, out value) && !double.IsNaN(value);
     }
 
-    private static bool TryGetRequestedValue(Item item, out double value)
+    private static bool TryGetRequestedValue(ItemModel item, out double value)
     {
         return TryGetRequestItemValue(item, out value)
             || TryGetSetValue(item, out value)
             || TryGetWriteValue(item, out value);
     }
 
-    private static bool TryGetDesiredWriteValue(Item requestItem, Item ownerItem, out double value)
+    private static bool TryGetDesiredWriteValue(ItemModel requestItem, ItemModel ownerItem, out double value)
     {
         value = 0;
+
+        if (TryGetRequestedValue(requestItem, out value))
+        {
+            return true;
+        }
 
         if (TryConvertToDouble(requestItem.Value, out value) && !double.IsNaN(value))
         {
@@ -741,25 +732,47 @@ public sealed class HostUdlClient : IHostUdlClient
             || TryGetWriteValue(ownerItem, out value);
     }
 
-    private static void ClearRequestedValue(Item item)
+    private static void ClearRequestedValue(ItemModel item)
     {
+        if (item.Properties.Has("write"))
+        {
+            item.Properties["write"].Value = item.Properties.Has("read")
+                ? item.Properties["read"].Value
+                : null!;
+        }
+
         if (item.Has("Request"))
         {
             if (item.Value is null)
             {
-                item["Request"].Params.Remove("Value");
+                item["Request"].Properties.Remove("Value");
             }
             else
             {
                 item["Request"].Value = item.Value;
             }
 
-            item["Request"].Params.Remove("Set");
-            item["Request"].Params.Remove("Write");
+            item["Request"].Properties.Remove("Set");
+            item["Request"].Properties.Remove("Write");
         }
 
-        item.Params.Remove("Set");
-        item.Params.Remove("Write");
+        item.Properties.Remove("Set");
+        item.Properties.Remove("Write");
+        item.Properties.Remove("set");
+    }
+
+    private static bool IsWriteTriggerProperty(string propertyName)
+        => string.Equals(propertyName, "write", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(propertyName, "set", StringComparison.OrdinalIgnoreCase);
+
+    private static object? TryGetWritePropertyValue(ItemModel item)
+        => item.Properties.Has("write")
+            ? item.Properties["write"].Value
+            : (item.Properties.Has("Write") ? item.Properties["Write"].Value : null);
+
+    private static void SetChannelReadValue(ItemModel item, object? value)
+    {
+        item.Properties["read"].Value = value!;
     }
 
     private static bool TryConvertToDouble(object? value, out double converted)

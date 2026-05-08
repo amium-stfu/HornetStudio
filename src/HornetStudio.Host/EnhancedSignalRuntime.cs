@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.Json;
+using ItemModel = Amium.Items.Item;
 using Amium.Items;
 using HornetStudio.Editor.Models;
 
@@ -103,7 +104,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
         _folderName = folderName;
         _definition = definition.Clone();
         _registryPath = BuildRegistryPath(folderName, _definition);
-        _setRequestPath = _registryPath + ".Set.Request";
+        _setRequestPath = _registryPath + ".set.request";
         _commandRequestPath = _registryPath + ".Command.Request";
         _kalmanRequestPath = _registryPath + ".Kalman.Request";
         _adjustmentRequestPath = _registryPath + ".Adjustment.Request";
@@ -178,7 +179,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
         ArgumentNullException.ThrowIfNull(definition);
         var normalizedFolder = EnhancedSignalPathHelper.NormalizeConfiguredTargetPath(folderName).Replace('/', '.');
         var normalizedName = EnhancedSignalPathHelper.NormalizeConfiguredTargetPath(definition.Name).Replace('/', '.');
-        return $"Studio.{normalizedFolder}.EnhancedSignals.{normalizedName}";
+        return $"studio.{normalizedFolder}.EnhancedSignals.{normalizedName}";
     }
 
     public static string BuildRegistryPath(string folderName, string definitionName)
@@ -195,73 +196,73 @@ public sealed class EnhancedSignalRuntime : IDisposable
 
         if (EnhancedSignalPathHelper.PathsEqual(e.Key, _setRequestPath))
         {
-            ProcessSetRequest(e.Item);
+            ProcessSetRequest(e.ItemModel);
             return;
         }
 
         if (EnhancedSignalPathHelper.PathsEqual(e.Key, _commandRequestPath))
         {
-            ProcessCommandRequest(e.Item);
+            ProcessCommandRequest(e.ItemModel);
             return;
         }
 
         if (EnhancedSignalPathHelper.PathsEqual(e.Key, _kalmanRequestPath))
         {
-            ProcessKalmanRequest(e.Item);
+            ProcessKalmanRequest(e.ItemModel);
             return;
         }
 
         if (EnhancedSignalPathHelper.PathsEqual(e.Key, _adjustmentRequestPath))
         {
-            ProcessAdjustmentRequest(e.Item);
+            ProcessAdjustmentRequest(e.ItemModel);
             return;
         }
 
         if (EnhancedSignalPathHelper.PathsEqual(e.Key, _adjustmentEnabledPath))
         {
-            ProcessAdjustmentEnabledWrite(e.Item);
+            ProcessAdjustmentEnabledWrite(e.ItemModel);
             return;
         }
 
         if (EnhancedSignalPathHelper.PathsEqual(e.Key, _adjustmentMappingModePath))
         {
-            ProcessAdjustmentMappingModeWrite(e.Item);
+            ProcessAdjustmentMappingModeWrite(e.ItemModel);
             return;
         }
 
         if (EnhancedSignalPathHelper.PathsEqual(e.Key, _adjustmentSplineInterpolationModePath))
         {
-            ProcessAdjustmentSplineInterpolationModeWrite(e.Item);
+            ProcessAdjustmentSplineInterpolationModeWrite(e.ItemModel);
             return;
         }
 
         if (EnhancedSignalPathHelper.PathsEqual(e.Key, _adjustmentSplinePath))
         {
-            ProcessAdjustmentSplineWrite(e.Item);
+            ProcessAdjustmentSplineWrite(e.ItemModel);
             return;
         }
 
         if (EnhancedSignalPathHelper.PathsEqual(e.Key, _adjustmentGainPath))
         {
-            ProcessAdjustmentScalarWrite(e.Item, isGain: true);
+            ProcessAdjustmentScalarWrite(e.ItemModel, isGain: true);
             return;
         }
 
         if (EnhancedSignalPathHelper.PathsEqual(e.Key, _adjustmentOffsetPath))
         {
-            ProcessAdjustmentScalarWrite(e.Item, isGain: false);
+            ProcessAdjustmentScalarWrite(e.ItemModel, isGain: false);
             return;
         }
 
         if (EnhancedSignalPathHelper.PathsEqual(e.Key, _adjustmentSupportsInverseMappingPath))
         {
-            ProcessAdjustmentSupportsInverseMappingWrite(e.Item);
+            ProcessAdjustmentSupportsInverseMappingWrite(e.ItemModel);
             return;
         }
 
         if (EnhancedSignalPathHelper.PathsEqual(e.Key, _statisticsResetPath))
         {
-            ProcessStatisticsResetWrite(e.Item);
+            ProcessStatisticsResetWrite(e.ItemModel);
             return;
         }
 
@@ -276,7 +277,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
         {
             lock (_sync)
             {
-                _latestSourceValue = ExtractValue(e.Item);
+                _latestSourceValue = ExtractValue(e.ItemModel);
             }
         }
     }
@@ -356,7 +357,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
         FlushPendingPersistedDefinitionUpdate();
     }
 
-    private void ProcessSetRequest(Item requestItem)
+    private void ProcessSetRequest(ItemModel requestItem)
     {
         if (string.IsNullOrWhiteSpace(_definition.SourcePath))
         {
@@ -364,7 +365,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
             return;
         }
 
-        var requestValue = requestItem.Params.Has("Value") ? requestItem.Params["Value"].Value : requestItem.Value;
+        var requestValue = requestItem.Properties.Has("value") ? requestItem.Properties["value"].Value : requestItem.Value;
         object? routedValue = requestValue;
 
         if (!TryApplyInverseAdjustment(requestValue, out routedValue, out string errorMessage))
@@ -374,7 +375,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
         }
 
         var routed = _definition.ForwardChildWritesToSource
-            ? ForwardChildValue("Set.Request", routedValue)
+            ? ForwardChildValue("set.request", routedValue)
             : UpdateTargetValue(_definition.SourcePath, routedValue);
 
         if (!routed)
@@ -397,9 +398,9 @@ public sealed class EnhancedSignalRuntime : IDisposable
         }
     }
 
-    private void ProcessCommandRequest(Item requestItem)
+    private void ProcessCommandRequest(ItemModel requestItem)
     {
-        var requestValue = requestItem.Params.Has("Value") ? requestItem.Params["Value"].Value : requestItem.Value;
+        var requestValue = requestItem.Properties.Has("value") ? requestItem.Properties["value"].Value : requestItem.Value;
         if (string.IsNullOrWhiteSpace(_definition.SourcePath))
         {
             SetAlert("SourcePath not configured");
@@ -430,9 +431,9 @@ public sealed class EnhancedSignalRuntime : IDisposable
         }
     }
 
-    private void ProcessKalmanRequest(Item requestItem)
+    private void ProcessKalmanRequest(ItemModel requestItem)
     {
-        var requestValue = requestItem.Params.Has("Value") ? requestItem.Params["Value"].Value : requestItem.Value;
+        var requestValue = requestItem.Properties.Has("value") ? requestItem.Properties["value"].Value : requestItem.Value;
         var command = NormalizeRequestCommand(requestValue);
         if (string.IsNullOrWhiteSpace(command))
         {
@@ -475,7 +476,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
         FlushPendingPersistedDefinitionUpdate();
     }
 
-    private void ProcessAdjustmentRequest(Item requestItem)
+    private void ProcessAdjustmentRequest(ItemModel requestItem)
     {
         if (!TryParseAdjustmentRequest(requestItem, out var action, out var targetValue, out var errorMessage))
         {
@@ -492,7 +493,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
         RefreshAdjustmentState();
     }
 
-    private void ProcessAdjustmentScalarWrite(Item item, bool isGain)
+    private void ProcessAdjustmentScalarWrite(ItemModel item, bool isGain)
     {
         var numericValue = ToNullableDouble(ExtractValue(item));
         if (numericValue is null)
@@ -519,7 +520,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
         RefreshAdjustmentState();
     }
 
-    private void ProcessAdjustmentEnabledWrite(Item item)
+    private void ProcessAdjustmentEnabledWrite(ItemModel item)
     {
         var enabled = ToNullableBoolean(ExtractValue(item));
         if (enabled is null)
@@ -538,7 +539,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
         RefreshAdjustmentState();
     }
 
-    private void ProcessAdjustmentMappingModeWrite(Item item)
+    private void ProcessAdjustmentMappingModeWrite(ItemModel item)
     {
         var rawValue = ExtractValue(item)?.ToString() ?? string.Empty;
         if (!TryParseAdjustmentMappingMode(rawValue, out var mappingMode))
@@ -557,7 +558,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
         RefreshAdjustmentState();
     }
 
-    private void ProcessAdjustmentSupportsInverseMappingWrite(Item item)
+    private void ProcessAdjustmentSupportsInverseMappingWrite(ItemModel item)
     {
         var supportsInverseMapping = ToNullableBoolean(ExtractValue(item));
         if (supportsInverseMapping is null)
@@ -575,7 +576,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
         RefreshAdjustmentState();
     }
 
-    private void ProcessAdjustmentSplineInterpolationModeWrite(Item item)
+    private void ProcessAdjustmentSplineInterpolationModeWrite(ItemModel item)
     {
         var rawValue = ExtractValue(item)?.ToString() ?? string.Empty;
         if (!TryParseSplineInterpolationMode(rawValue, out var interpolationMode))
@@ -594,7 +595,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
         RefreshAdjustmentState();
     }
 
-    private void ProcessAdjustmentSplineWrite(Item item)
+    private void ProcessAdjustmentSplineWrite(ItemModel item)
     {
         if (!TryParseSplinePoints(ExtractValue(item), out var splinePoints, out var errorMessage))
         {
@@ -612,7 +613,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
         RefreshAdjustmentState();
     }
 
-    private void ProcessStatisticsResetWrite(Item item)
+    private void ProcessStatisticsResetWrite(ItemModel item)
     {
         var resetRequested = ToNullableBoolean(ExtractValue(item));
         if (resetRequested is null)
@@ -675,7 +676,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
         return null;
     }
 
-    private static bool TryResolveRegistryItem(string path, out Item? item)
+    private static bool TryResolveRegistryItem(string path, out ItemModel? item)
     {
         if (HostRegistries.Data.TryGet(path, out item) && item is not null)
         {
@@ -710,11 +711,11 @@ public sealed class EnhancedSignalRuntime : IDisposable
         return true;
     }
 
-    private static object? ExtractValue(Item item)
+    private static object? ExtractValue(ItemModel item)
     {
-        if (item.Params.Has("Value"))
+        if (item.Properties.Has("value"))
         {
-            return item.Params["Value"].Value;
+            return item.Properties["value"].Value;
         }
 
         if (item.Value is not null)
@@ -725,13 +726,13 @@ public sealed class EnhancedSignalRuntime : IDisposable
         if (item.Has("Out"))
         {
             var outItem = item["Out"];
-            return outItem.Params.Has("Value") ? outItem.Params["Value"].Value : outItem.Value;
+            return outItem.Properties.Has("value") ? outItem.Properties["value"].Value : outItem.Value;
         }
 
         if (item.Has("Read"))
         {
             var readItem = item["Read"];
-            return readItem.Params.Has("Value") ? readItem.Params["Value"].Value : readItem.Value;
+            return readItem.Properties.Has("value") ? readItem.Properties["value"].Value : readItem.Value;
         }
 
         return null;
@@ -1147,43 +1148,43 @@ public sealed class EnhancedSignalRuntime : IDisposable
             _ => acceptedRawValue.ToString() ?? string.Empty
         };
 
-        _module.Config.Params["RawBufferCount"].Value = rawBufferCount;
-        _module.Config.Params["SmoothingWindowCount"].Value = smoothingWindowCount;
-        _module.Config.Params["EffectiveFilterTimeMs"].Value = effectiveFilterTimeMs;
-        _module.Config.Params["EffectiveSampleCount"].Value = effectiveSampleCount;
-        _module.Config.Params["CurrentAlpha"].Value = currentAlpha;
-        _module.Config.Params["AcceptedRawValue"].Value = acceptedRawText;
-        _module.Config.Params["DynamicSlope"].Value = dynamicSlope;
-        _module.Config.Params["DynamicResidual"].Value = dynamicResidual;
-        _module.Config.Params["DynamicThreshold"].Value = dynamicThreshold;
-        _module.Config.Params["DynamicRawAngleDeg"].Value = dynamicRawAngleDegrees;
-        _module.Config.Params["DynamicAngleDeg"].Value = dynamicAngleDegrees;
-        _module.Config.Params["DynamicAngleThresholdDeg"].Value = dynamicThreshold;
-        _module.Config.Params["DynamicAngleMaxDeg"].Value = dynamicMaxAngleDegrees;
-        _module.Config.Params["DynamicRelativeChange"].Value = dynamicSlopeRatio;
-        _module.Config.Params["DynamicReferenceValue"].Value = dynamicReferenceValue;
-        _module.Config.Params["DynamicEffectiveReferenceValue"].Value = dynamicEffectiveReferenceValue;
-        _module.Config.Params["DynamicNoiseReferenceValue"].Value = dynamicNoiseReferenceValue;
-        _module.Config.Params["KalmanDynamicNormalizationMode"].Value = KalmanDynamicNormalizationMode.HybridReferenceFloor.ToString();
-        _module.Config.Params["KalmanDynamicResidualWeight"].Value = _definition.KalmanDynamicResidualWeight;
-        _module.Config.Params["ScanIntervalMs"].Value = _definition.ScanIntervalMs;
-        _module.Config.Params["RecordInterval"].Value = _definition.RecordInterval;
-        _module.Config.Params["DynamicBufferCount"].Value = dynamicBufferCount;
-        _module.Config.Params["KalmanEnabled"].Value = kalmanEnabled;
-        _module.Config.Params["KalmanMeasurementNoiseR"].Value = kalmanMeasurementNoiseR;
-        _module.Config.Params["KalmanProcessNoiseQ"].Value = kalmanProcessNoiseQ;
-        _module.Config.Params["KalmanEffectiveProcessNoiseQ"].Value = effectiveKalmanProcessNoiseQ;
-        _module.Config.Params["KalmanInitialErrorCovarianceP"].Value = kalmanInitialErrorCovarianceP;
-        _module.Config.Params["KalmanDynamicQEnabled"].Value = _definition.KalmanDynamicQEnabled;
+        _module.Config.Properties["RawBufferCount"].Value = rawBufferCount;
+        _module.Config.Properties["SmoothingWindowCount"].Value = smoothingWindowCount;
+        _module.Config.Properties["EffectiveFilterTimeMs"].Value = effectiveFilterTimeMs;
+        _module.Config.Properties["EffectiveSampleCount"].Value = effectiveSampleCount;
+        _module.Config.Properties["CurrentAlpha"].Value = currentAlpha;
+        _module.Config.Properties["AcceptedRawValue"].Value = acceptedRawText;
+        _module.Config.Properties["DynamicSlope"].Value = dynamicSlope;
+        _module.Config.Properties["DynamicResidual"].Value = dynamicResidual;
+        _module.Config.Properties["DynamicThreshold"].Value = dynamicThreshold;
+        _module.Config.Properties["DynamicRawAngleDeg"].Value = dynamicRawAngleDegrees;
+        _module.Config.Properties["DynamicAngleDeg"].Value = dynamicAngleDegrees;
+        _module.Config.Properties["DynamicAngleThresholdDeg"].Value = dynamicThreshold;
+        _module.Config.Properties["DynamicAngleMaxDeg"].Value = dynamicMaxAngleDegrees;
+        _module.Config.Properties["DynamicRelativeChange"].Value = dynamicSlopeRatio;
+        _module.Config.Properties["DynamicReferenceValue"].Value = dynamicReferenceValue;
+        _module.Config.Properties["DynamicEffectiveReferenceValue"].Value = dynamicEffectiveReferenceValue;
+        _module.Config.Properties["DynamicNoiseReferenceValue"].Value = dynamicNoiseReferenceValue;
+        _module.Config.Properties["KalmanDynamicNormalizationMode"].Value = KalmanDynamicNormalizationMode.HybridReferenceFloor.ToString();
+        _module.Config.Properties["KalmanDynamicResidualWeight"].Value = _definition.KalmanDynamicResidualWeight;
+        _module.Config.Properties["ScanIntervalMs"].Value = _definition.ScanIntervalMs;
+        _module.Config.Properties["RecordInterval"].Value = _definition.RecordInterval;
+        _module.Config.Properties["DynamicBufferCount"].Value = dynamicBufferCount;
+        _module.Config.Properties["KalmanEnabled"].Value = kalmanEnabled;
+        _module.Config.Properties["KalmanMeasurementNoiseR"].Value = kalmanMeasurementNoiseR;
+        _module.Config.Properties["KalmanProcessNoiseQ"].Value = kalmanProcessNoiseQ;
+        _module.Config.Properties["KalmanEffectiveProcessNoiseQ"].Value = effectiveKalmanProcessNoiseQ;
+        _module.Config.Properties["KalmanInitialErrorCovarianceP"].Value = kalmanInitialErrorCovarianceP;
+        _module.Config.Properties["KalmanDynamicQEnabled"].Value = _definition.KalmanDynamicQEnabled;
 
         if (_definition.PeakFilter.Enabled)
         {
-            _module["Peak"].Params["Enabled"].Value = true;
-            _module["Peak"].Params["Threshold"].Value = _definition.PeakFilter.Threshold;
-            _module["Peak"].Params["MaxLengthMs"].Value = _definition.PeakFilter.MaxLengthMs;
-            _module["Peak"].Params["Active"].Value = peakActive;
-            _module["Peak"].Params["Suppressed"].Value = peakSuppressed;
-            _module["Peak"].Params["AcceptedRaw"].Value = acceptedRawText;
+            _module["Peak"].Properties["Enabled"].Value = true;
+            _module["Peak"].Properties["Threshold"].Value = _definition.PeakFilter.Threshold;
+            _module["Peak"].Properties["MaxLengthMs"].Value = _definition.PeakFilter.MaxLengthMs;
+            _module["Peak"].Properties["active"].Value = peakActive;
+            _module["Peak"].Properties["Suppressed"].Value = peakSuppressed;
+            _module["Peak"].Properties["AcceptedRaw"].Value = acceptedRawText;
         }
         else if (_module.Has("Peak"))
         {
@@ -1193,13 +1194,13 @@ public sealed class EnhancedSignalRuntime : IDisposable
         if (ShouldPublishDynamicDiagnostics())
         {
             var dynamic = EnsureDynamicBranch();
-            dynamic.Params["Enabled"].Value = true;
-            dynamic.Params["DetectionWindowMs"].Value = _definition.KalmanEnabled ? _definition.KalmanDynamicDetectionWindowMs : _definition.DynamicFilter.DetectionWindowMs;
-            dynamic.Params["AngleThresholdDeg"].Value = dynamicThreshold;
-            dynamic.Params["AngleMaxDeg"].Value = dynamicMaxAngleDegrees;
-            dynamic.Params["AppliedThreshold"].Value = dynamicThreshold;
-            dynamic.Params["DynamicFilterTimeMs"].Value = _definition.DynamicFilter.DynamicFilterTimeMs;
-            dynamic.Params["HoldTimeMs"].Value = _definition.DynamicFilter.HoldTimeMs;
+            dynamic.Properties["Enabled"].Value = true;
+            dynamic.Properties["DetectionWindowMs"].Value = _definition.KalmanEnabled ? _definition.KalmanDynamicDetectionWindowMs : _definition.DynamicFilter.DetectionWindowMs;
+            dynamic.Properties["AngleThresholdDeg"].Value = dynamicThreshold;
+            dynamic.Properties["AngleMaxDeg"].Value = dynamicMaxAngleDegrees;
+            dynamic.Properties["AppliedThreshold"].Value = dynamicThreshold;
+            dynamic.Properties["DynamicFilterTimeMs"].Value = _definition.DynamicFilter.DynamicFilterTimeMs;
+            dynamic.Properties["HoldTimeMs"].Value = _definition.DynamicFilter.HoldTimeMs;
             dynamic["Active"].Value = isDynamic;
             dynamic["Slope"].Value = dynamicSlope;
             dynamic["Residual"].Value = dynamicResidual;
@@ -1221,37 +1222,37 @@ public sealed class EnhancedSignalRuntime : IDisposable
         if (kalmanEnabled || kalmanTeachActive || !string.Equals(kalmanTeachState, "Idle", StringComparison.OrdinalIgnoreCase))
         {
             var kalman = EnsureKalmanBranch();
-            kalman.Params["Enabled"].Value = kalmanEnabled;
-            kalman.Params["Estimate"].Value = kalmanEstimate;
-            kalman.Params["Gain"].Value = kalmanGain;
-            kalman.Params["Innovation"].Value = kalmanInnovation;
-            kalman.Params["MeasurementNoiseR"].Value = kalmanMeasurementNoiseR;
-            kalman.Params["ProcessNoiseQ"].Value = kalmanProcessNoiseQ;
-            kalman.Params["EffectiveProcessNoiseQ"].Value = effectiveKalmanProcessNoiseQ;
-            kalman.Params["InitialErrorCovarianceP"].Value = kalmanInitialErrorCovarianceP;
-            kalman.Params["TeachActive"].Value = kalmanTeachActive;
-            kalman.Params["TeachState"].Value = kalmanTeachState;
-            kalman.Params["TeachProgress"].Value = kalmanTeachProgress;
-            kalman.Params["TeachSampleCount"].Value = kalmanTeachSampleCount;
-            kalman.Params["LearnedMeasurementNoiseR"].Value = kalmanTeachLearnedMeasurementNoiseR;
-            kalman.Params["DerivedProcessNoiseQ"].Value = kalmanTeachDerivedProcessNoiseQ;
-            kalman.Params["AdaptiveQActive"].Value = adaptiveKalmanQActive;
-            kalman.Params["AdaptiveQHoldRemainingMs"].Value = adaptiveKalmanQHoldRemainingMs;
-            kalman.Params["AdaptiveQMin"].Value = adaptiveKalmanQMin;
-            kalman.Params["AdaptiveQMax"].Value = adaptiveKalmanQMax;
-            kalman.Params["InnovationAbs"].Value = kalmanInnovationAbs;
-            kalman.Params["AdaptiveQIntensity"].Value = adaptiveKalmanQIntensity;
-            kalman.Params["DynamicSlopeRatio"].Value = dynamicSlopeRatio;
-            kalman.Params["DynamicRawAngleDeg"].Value = dynamicRawAngleDegrees;
-            kalman.Params["DynamicAngleDeg"].Value = dynamicAngleDegrees;
-            kalman.Params["DynamicReferenceValue"].Value = dynamicReferenceValue;
-            kalman.Params["DynamicEffectiveReferenceValue"].Value = dynamicEffectiveReferenceValue;
-            kalman.Params["DynamicNoiseReferenceValue"].Value = dynamicNoiseReferenceValue;
-            kalman.Params["DynamicMaxSlope"].Value = dynamicMaxSlope;
-            kalman.Params["DynamicMaxAngleDeg"].Value = dynamicMaxAngleDegrees;
-            kalman.Params["DynamicTrendConfidence"].Value = dynamicTrendConfidence;
-            kalman.Params["DynamicNormalizationMode"].Value = dynamicNormalizationMode;
-            kalman.Params["DynamicResidualWeight"].Value = dynamicResidualWeight;
+            kalman.Properties["Enabled"].Value = kalmanEnabled;
+            kalman.Properties["Estimate"].Value = kalmanEstimate;
+            kalman.Properties["Gain"].Value = kalmanGain;
+            kalman.Properties["Innovation"].Value = kalmanInnovation;
+            kalman.Properties["MeasurementNoiseR"].Value = kalmanMeasurementNoiseR;
+            kalman.Properties["ProcessNoiseQ"].Value = kalmanProcessNoiseQ;
+            kalman.Properties["EffectiveProcessNoiseQ"].Value = effectiveKalmanProcessNoiseQ;
+            kalman.Properties["InitialErrorCovarianceP"].Value = kalmanInitialErrorCovarianceP;
+            kalman.Properties["TeachActive"].Value = kalmanTeachActive;
+            kalman.Properties["TeachState"].Value = kalmanTeachState;
+            kalman.Properties["TeachProgress"].Value = kalmanTeachProgress;
+            kalman.Properties["TeachSampleCount"].Value = kalmanTeachSampleCount;
+            kalman.Properties["LearnedMeasurementNoiseR"].Value = kalmanTeachLearnedMeasurementNoiseR;
+            kalman.Properties["DerivedProcessNoiseQ"].Value = kalmanTeachDerivedProcessNoiseQ;
+            kalman.Properties["AdaptiveQActive"].Value = adaptiveKalmanQActive;
+            kalman.Properties["AdaptiveQHoldRemainingMs"].Value = adaptiveKalmanQHoldRemainingMs;
+            kalman.Properties["AdaptiveQMin"].Value = adaptiveKalmanQMin;
+            kalman.Properties["AdaptiveQMax"].Value = adaptiveKalmanQMax;
+            kalman.Properties["InnovationAbs"].Value = kalmanInnovationAbs;
+            kalman.Properties["AdaptiveQIntensity"].Value = adaptiveKalmanQIntensity;
+            kalman.Properties["DynamicSlopeRatio"].Value = dynamicSlopeRatio;
+            kalman.Properties["DynamicRawAngleDeg"].Value = dynamicRawAngleDegrees;
+            kalman.Properties["DynamicAngleDeg"].Value = dynamicAngleDegrees;
+            kalman.Properties["DynamicReferenceValue"].Value = dynamicReferenceValue;
+            kalman.Properties["DynamicEffectiveReferenceValue"].Value = dynamicEffectiveReferenceValue;
+            kalman.Properties["DynamicNoiseReferenceValue"].Value = dynamicNoiseReferenceValue;
+            kalman.Properties["DynamicMaxSlope"].Value = dynamicMaxSlope;
+            kalman.Properties["DynamicMaxAngleDeg"].Value = dynamicMaxAngleDegrees;
+            kalman.Properties["DynamicTrendConfidence"].Value = dynamicTrendConfidence;
+            kalman.Properties["DynamicNormalizationMode"].Value = dynamicNormalizationMode;
+            kalman.Properties["DynamicResidualWeight"].Value = dynamicResidualWeight;
             kalman["Estimate"].Value = kalmanEstimate;
             kalman["MeasurementNoiseR"].Value = kalmanMeasurementNoiseR;
             kalman["ProcessNoiseQ"].Value = kalmanProcessNoiseQ;
@@ -1399,16 +1400,16 @@ public sealed class EnhancedSignalRuntime : IDisposable
             return false;
         }
 
-        if (e.ChangeKind == DataChangeKind.ParameterUpdated)
+        if (e.ChangeKind == DataChangeKind.PropertyUpdated)
         {
             if (string.IsNullOrWhiteSpace(e.ParameterName)
-                || string.Equals(e.ParameterName, "Value", StringComparison.Ordinal)
-                || !e.Item.Params.Has(e.ParameterName))
+                || string.Equals(e.ParameterName, "value", StringComparison.Ordinal)
+                || !e.ItemModel.Properties.Has(e.ParameterName))
             {
                 return false;
             }
 
-            return ForwardChildParameter(relativePath, e.ParameterName, e.Item.Params[e.ParameterName].Value, e.Timestamp);
+            return ForwardChildParameter(relativePath, e.ParameterName, e.ItemModel.Properties[e.ParameterName].Value, e.Timestamp);
         }
 
         if (e.ChangeKind != DataChangeKind.ValueUpdated)
@@ -1416,7 +1417,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
             return false;
         }
 
-        return ForwardChildValue(relativePath, ExtractValue(e.Item), e.Timestamp);
+        return ForwardChildValue(relativePath, ExtractValue(e.ItemModel), e.Timestamp);
     }
 
     private bool ForwardChildValue(string relativePath, object? value, ulong? timestamp = null)
@@ -1436,7 +1437,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
     {
         foreach (var candidate in EnumerateForwardTargetCandidates(relativePath))
         {
-            if (HostRegistries.Data.UpdateParameter(candidate, parameterName, value, timestamp))
+            if (HostRegistries.Data.UpdateProperty(candidate, parameterName, value, timestamp))
             {
                 return true;
             }
@@ -1501,56 +1502,56 @@ public sealed class EnhancedSignalRuntime : IDisposable
 
     private void ApplyConfiguration()
     {
-        _module.Params["Title"].Value = _definition.Name;
-        _module.Params["Unit"].Value = _definition.Unit;
-        _module.Params["Format"].Value = _definition.Format;
-        _module.Params["PrimaryValuePath"].Value = _registryPath;
-        _module.Raw.Params["Text"].Value = $"{_definition.Name} Raw";
-        _module.Read.Params["Text"].Value = $"{_definition.Name} Read";
-        _module.Set.Params["Text"].Value = $"{_definition.Name} Set";
-        _module.Out.Params["Text"].Value = $"{_definition.Name} Out (reserved)";
-        _module.State.Params["Text"].Value = $"{_definition.Name} State";
-        _module.Alert.Params["Text"].Value = $"{_definition.Name} Alert";
-        _module.Command.Params["Text"].Value = $"{_definition.Name} Command";
-        _module.Config.Params["Text"].Value = $"{_definition.Name} Config";
-        _module.Params["Kind"].Value = "EnhancedSignal";
-        _module.Params["Writable"].Value = _definition.IsWritable;
-        _module.Params["WritePath"].Value = ResolveEffectiveWritePath();
-        _module.Params["WriteMode"].Value = _definition.WriteMode.ToString();
-        _module.Config.Params["Enabled"].Value = _definition.Enabled;
-        _module.Config.Params["SourcePath"].Value = _definition.SourcePath;
-        _module.Config.Params["ForwardChildWritesToSource"].Value = _definition.ForwardChildWritesToSource;
-        _module.Config.Params["FilterMode"].Value = _definition.FilterMode.ToString();
-        _module.Config.Params["ScanIntervalMs"].Value = _definition.ScanIntervalMs;
-        _module.Config.Params["RecordInterval"].Value = _definition.RecordInterval;
-        _module.Config.Params["FilterTimeMs"].Value = _definition.FilterTimeMs;
-        _module.Config.Params["FillMissingWithLastValue"].Value = _definition.FillMissingWithLastValue;
-        _module.Config.Params["KalmanEnabled"].Value = _definition.KalmanEnabled;
-        _module.Config.Params["KalmanMeasurementNoiseR"].Value = _definition.KalmanMeasurementNoiseR;
-        _module.Config.Params["KalmanProcessNoiseQ"].Value = _definition.KalmanProcessNoiseQ;
-        _module.Config.Params["KalmanInitialErrorCovarianceP"].Value = _definition.KalmanInitialErrorCovarianceP;
-        _module.Config.Params["KalmanTeachWindowMs"].Value = _definition.KalmanTeachWindowMs;
-        _module.Config.Params["KalmanTeachPauseOnDynamic"].Value = _definition.KalmanTeachPauseOnDynamic;
-        _module.Config.Params["KalmanTeachQFactor"].Value = _definition.KalmanTeachQFactor;
-        _module.Config.Params["KalmanTeachAutoApply"].Value = _definition.KalmanTeachAutoApply;
-        _module.Config.Params["KalmanDynamicQEnabled"].Value = _definition.KalmanDynamicQEnabled;
-        _module.Config.Params["KalmanDynamicQMin"].Value = _definition.KalmanDynamicQMin;
-        _module.Config.Params["KalmanDynamicQMax"].Value = _definition.KalmanDynamicQMax;
-        _module.Config.Params["KalmanDynamicQHoldMs"].Value = _definition.KalmanDynamicQHoldMs;
-        _module.Config.Params["KalmanDynamicDetectionWindowMs"].Value = _definition.KalmanDynamicDetectionWindowMs;
-        _module.Config.Params["KalmanDynamicAngleThresholdDeg"].Value = _definition.KalmanDynamicAngleThresholdDeg;
-        _module.Config.Params["KalmanDynamicAngleMaxDeg"].Value = _definition.KalmanDynamicAngleMaxDeg;
-        _module.Config.Params["KalmanDynamicReferenceFloor"].Value = _definition.KalmanDynamicReferenceFloor;
-        _module.Config.Params["KalmanDynamicNormalizationMode"].Value = KalmanDynamicNormalizationMode.HybridReferenceFloor.ToString();
-        _module.Config.Params["KalmanDynamicResidualWeight"].Value = _definition.KalmanDynamicResidualWeight;
-        _module.Config.Params["KalmanDynamicQUseExistingDynamic"].Value = _definition.KalmanDynamicQUseExistingDynamic;
-        _module.Config.Params["AdjustmentMode"].Value = _definition.Adjustment.MappingMode.ToString();
-        _module.Config.Params["AdjustmentMappingMode"].Value = _definition.Adjustment.MappingMode.ToString();
-        _module.Config.Params["AdjustmentOffset"].Value = _definition.Adjustment.Offset;
-        _module.Config.Params["AdjustmentGain"].Value = _definition.Adjustment.Gain;
-        _module.Config.Params["AdjustmentSplineInterpolationMode"].Value = _definition.Adjustment.SplineInterpolationMode.ToString();
-        _module.Config.Params["SupportsInverseMapping"].Value = _definition.Adjustment.SupportsInverseMapping;
-        _module.Config.Params["PipelineMode"].Value = "TwoStage";
+        _module.Properties["title"].Value = _definition.Name;
+        _module.Properties["unit"].Value = _definition.Unit;
+        _module.Properties["format"].Value = _definition.Format;
+        _module.Properties["primary_value_path"].Value = _registryPath;
+        _module.Raw.Properties["text"].Value = $"{_definition.Name} Raw";
+        _module.Read.Properties["text"].Value = $"{_definition.Name} Read";
+        _module.Set.Properties["text"].Value = $"{_definition.Name} Set";
+        _module.Out.Properties["text"].Value = $"{_definition.Name} Out (reserved)";
+        _module.State.Properties["text"].Value = $"{_definition.Name} State";
+        _module.Alert.Properties["text"].Value = $"{_definition.Name} Alert";
+        _module.Command.Properties["text"].Value = $"{_definition.Name} Command";
+        _module.Config.Properties["text"].Value = $"{_definition.Name} Config";
+        _module.Properties["kind"].Value = "EnhancedSignal";
+        _module.Properties["writable"].Value = _definition.IsWritable;
+        _module.Properties["write_path"].Value = ResolveEffectiveWritePath();
+        _module.Properties["write_mode"].Value = _definition.WriteMode.ToString();
+        _module.Config.Properties["Enabled"].Value = _definition.Enabled;
+        _module.Config.Properties["source_path"].Value = _definition.SourcePath;
+        _module.Config.Properties["ForwardChildWritesToSource"].Value = _definition.ForwardChildWritesToSource;
+        _module.Config.Properties["FilterMode"].Value = _definition.FilterMode.ToString();
+        _module.Config.Properties["ScanIntervalMs"].Value = _definition.ScanIntervalMs;
+        _module.Config.Properties["RecordInterval"].Value = _definition.RecordInterval;
+        _module.Config.Properties["FilterTimeMs"].Value = _definition.FilterTimeMs;
+        _module.Config.Properties["FillMissingWithLastValue"].Value = _definition.FillMissingWithLastValue;
+        _module.Config.Properties["KalmanEnabled"].Value = _definition.KalmanEnabled;
+        _module.Config.Properties["KalmanMeasurementNoiseR"].Value = _definition.KalmanMeasurementNoiseR;
+        _module.Config.Properties["KalmanProcessNoiseQ"].Value = _definition.KalmanProcessNoiseQ;
+        _module.Config.Properties["KalmanInitialErrorCovarianceP"].Value = _definition.KalmanInitialErrorCovarianceP;
+        _module.Config.Properties["KalmanTeachWindowMs"].Value = _definition.KalmanTeachWindowMs;
+        _module.Config.Properties["KalmanTeachPauseOnDynamic"].Value = _definition.KalmanTeachPauseOnDynamic;
+        _module.Config.Properties["KalmanTeachQFactor"].Value = _definition.KalmanTeachQFactor;
+        _module.Config.Properties["KalmanTeachAutoApply"].Value = _definition.KalmanTeachAutoApply;
+        _module.Config.Properties["KalmanDynamicQEnabled"].Value = _definition.KalmanDynamicQEnabled;
+        _module.Config.Properties["KalmanDynamicQMin"].Value = _definition.KalmanDynamicQMin;
+        _module.Config.Properties["KalmanDynamicQMax"].Value = _definition.KalmanDynamicQMax;
+        _module.Config.Properties["KalmanDynamicQHoldMs"].Value = _definition.KalmanDynamicQHoldMs;
+        _module.Config.Properties["KalmanDynamicDetectionWindowMs"].Value = _definition.KalmanDynamicDetectionWindowMs;
+        _module.Config.Properties["KalmanDynamicAngleThresholdDeg"].Value = _definition.KalmanDynamicAngleThresholdDeg;
+        _module.Config.Properties["KalmanDynamicAngleMaxDeg"].Value = _definition.KalmanDynamicAngleMaxDeg;
+        _module.Config.Properties["KalmanDynamicReferenceFloor"].Value = _definition.KalmanDynamicReferenceFloor;
+        _module.Config.Properties["KalmanDynamicNormalizationMode"].Value = KalmanDynamicNormalizationMode.HybridReferenceFloor.ToString();
+        _module.Config.Properties["KalmanDynamicResidualWeight"].Value = _definition.KalmanDynamicResidualWeight;
+        _module.Config.Properties["KalmanDynamicQUseExistingDynamic"].Value = _definition.KalmanDynamicQUseExistingDynamic;
+        _module.Config.Properties["AdjustmentMode"].Value = _definition.Adjustment.MappingMode.ToString();
+        _module.Config.Properties["AdjustmentMappingMode"].Value = _definition.Adjustment.MappingMode.ToString();
+        _module.Config.Properties["AdjustmentOffset"].Value = _definition.Adjustment.Offset;
+        _module.Config.Properties["AdjustmentGain"].Value = _definition.Adjustment.Gain;
+        _module.Config.Properties["AdjustmentSplineInterpolationMode"].Value = _definition.Adjustment.SplineInterpolationMode.ToString();
+        _module.Config.Properties["SupportsInverseMapping"].Value = _definition.Adjustment.SupportsInverseMapping;
+        _module.Config.Properties["PipelineMode"].Value = "TwoStage";
 
         var adjustment = EnsureAdjustmentBranch();
         adjustment["Enabled"].Value = _definition.Adjustment.Enabled;
@@ -2237,7 +2238,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
         }
     }
 
-    private Item EnsureKalmanBranch()
+    private ItemModel EnsureKalmanBranch()
     {
         if (!_module.Has("Kalman"))
         {
@@ -2245,11 +2246,11 @@ public sealed class EnhancedSignalRuntime : IDisposable
         }
 
         var kalman = _module["Kalman"];
-        kalman.Params["Text"].Value = $"{_definition.Name} Kalman";
+        kalman.Properties["text"].Value = $"{_definition.Name} Kalman";
         if (!kalman.Has("Request"))
         {
             kalman.AddItem("Request");
-            kalman["Request"].Params["Text"].Value = "Kalman Request";
+            kalman["Request"].Properties["text"].Value = "Kalman Request";
             kalman["Request"].Value = string.Empty;
         }
 
@@ -2277,7 +2278,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
         return kalman;
     }
 
-    private Item EnsureDynamicBranch()
+    private ItemModel EnsureDynamicBranch()
     {
         if (!_module.Has("Dynamic"))
         {
@@ -2285,7 +2286,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
         }
 
         var dynamic = _module["Dynamic"];
-        dynamic.Params["Text"].Value = $"{_definition.Name} Dynamic";
+        dynamic.Properties["text"].Value = $"{_definition.Name} Dynamic";
         EnsureDynamicValueItem(dynamic, "Active", "Dynamic Active");
         EnsureDynamicValueItem(dynamic, "Slope", "Dynamic Slope");
         EnsureDynamicValueItem(dynamic, "Residual", "Dynamic Residual");
@@ -2301,7 +2302,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
         return dynamic;
     }
 
-    private Item EnsureAdjustmentBranch()
+    private ItemModel EnsureAdjustmentBranch()
     {
         if (!_module.Has("Adjustment"))
         {
@@ -2309,11 +2310,11 @@ public sealed class EnhancedSignalRuntime : IDisposable
         }
 
         var adjustment = _module["Adjustment"];
-        adjustment.Params["Text"].Value = $"{_definition.Name} Adjustment";
+        adjustment.Properties["text"].Value = $"{_definition.Name} Adjustment";
         if (!adjustment.Has("Request"))
         {
             adjustment.AddItem("Request");
-            adjustment["Request"].Params["Text"].Value = "Adjustment Request";
+            adjustment["Request"].Properties["text"].Value = "Adjustment Request";
             adjustment["Request"].Value = string.Empty;
         }
 
@@ -2327,7 +2328,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
         return adjustment;
     }
 
-    private Item EnsureStatisticsBranch()
+    private ItemModel EnsureStatisticsBranch()
     {
         if (!_module.Has("Statistics"))
         {
@@ -2335,7 +2336,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
         }
 
         var statistics = _module["Statistics"];
-        statistics.Params["Text"].Value = $"{_definition.Name} Statistics";
+        statistics.Properties["text"].Value = $"{_definition.Name} Statistics";
         EnsureStatisticsExtremaItem(statistics, "Min", "Statistics Min", "Statistics Min Timestamp");
         EnsureStatisticsExtremaItem(statistics, "Max", "Statistics Max", "Statistics Max Timestamp");
         EnsureStatisticsValueItem(statistics, "Average", "Statistics Average");
@@ -2348,15 +2349,15 @@ public sealed class EnhancedSignalRuntime : IDisposable
     private void PublishStatisticsSnapshot(StatisticsSnapshot statistics)
     {
         var statisticsBranch = EnsureStatisticsBranch();
-        statisticsBranch.Params["Enabled"].Value = true;
-        statisticsBranch.Params["RetentionWindowMs"].Value = statistics.RetentionWindowMs;
-        statisticsBranch.Params["StdDevWindowMs"].Value = statistics.StdDevWindowMs;
-        statisticsBranch.Params["IntegralDivisorMs"].Value = statistics.IntegralDivisorMs;
-        statisticsBranch.Params["PublishMin"].Value = statistics.PublishMin;
-        statisticsBranch.Params["PublishMax"].Value = statistics.PublishMax;
-        statisticsBranch.Params["PublishAverage"].Value = statistics.PublishAverage;
-        statisticsBranch.Params["PublishStdDev"].Value = statistics.PublishStdDev;
-        statisticsBranch.Params["PublishIntegral"].Value = statistics.PublishIntegral;
+        statisticsBranch.Properties["Enabled"].Value = true;
+        statisticsBranch.Properties["RetentionWindowMs"].Value = statistics.RetentionWindowMs;
+        statisticsBranch.Properties["StdDevWindowMs"].Value = statistics.StdDevWindowMs;
+        statisticsBranch.Properties["IntegralDivisorMs"].Value = statistics.IntegralDivisorMs;
+        statisticsBranch.Properties["PublishMin"].Value = statistics.PublishMin;
+        statisticsBranch.Properties["PublishMax"].Value = statistics.PublishMax;
+        statisticsBranch.Properties["PublishAverage"].Value = statistics.PublishAverage;
+        statisticsBranch.Properties["PublishStdDev"].Value = statistics.PublishStdDev;
+        statisticsBranch.Properties["PublishIntegral"].Value = statistics.PublishIntegral;
 
         statisticsBranch["Min"].Value = (statistics.PublishMin && statistics.MinValue.HasValue) ? statistics.MinValue.Value : null!;
         statisticsBranch["Min"]["TimeStamp"].Value = (statistics.PublishMin && statistics.MinTimestampUnixMs.HasValue) ? statistics.MinTimestampUnixMs.Value : null!;
@@ -2368,7 +2369,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
         statisticsBranch["Reset"].Value = false;
     }
 
-    private static void EnsureDynamicValueItem(Item dynamic, string itemName, string text)
+    private static void EnsureDynamicValueItem(ItemModel dynamic, string itemName, string text)
     {
         if (dynamic.Has(itemName))
         {
@@ -2376,10 +2377,10 @@ public sealed class EnhancedSignalRuntime : IDisposable
         }
 
         dynamic.AddItem(itemName);
-        dynamic[itemName].Params["Text"].Value = text;
+        dynamic[itemName].Properties["text"].Value = text;
     }
 
-    private static void EnsureAdjustmentValueItem(Item adjustment, string itemName, string text)
+    private static void EnsureAdjustmentValueItem(ItemModel adjustment, string itemName, string text)
     {
         if (adjustment.Has(itemName))
         {
@@ -2387,15 +2388,15 @@ public sealed class EnhancedSignalRuntime : IDisposable
         }
 
         adjustment.AddItem(itemName);
-        adjustment[itemName].Params["Text"].Value = text;
+        adjustment[itemName].Properties["text"].Value = text;
     }
 
-    private static void EnsureStatisticsExtremaItem(Item statistics, string itemName, string text, string timeStampText)
+    private static void EnsureStatisticsExtremaItem(ItemModel statistics, string itemName, string text, string timeStampText)
     {
         if (!statistics.Has(itemName))
         {
             statistics.AddItem(itemName);
-            statistics[itemName].Params["Text"].Value = text;
+            statistics[itemName].Properties["text"].Value = text;
         }
 
         if (statistics[itemName].Has("TimeStamp"))
@@ -2404,10 +2405,10 @@ public sealed class EnhancedSignalRuntime : IDisposable
         }
 
         statistics[itemName].AddItem("TimeStamp");
-        statistics[itemName]["TimeStamp"].Params["Text"].Value = timeStampText;
+        statistics[itemName]["TimeStamp"].Properties["text"].Value = timeStampText;
     }
 
-    private static void EnsureStatisticsValueItem(Item statistics, string itemName, string text)
+    private static void EnsureStatisticsValueItem(ItemModel statistics, string itemName, string text)
     {
         if (statistics.Has(itemName))
         {
@@ -2415,10 +2416,10 @@ public sealed class EnhancedSignalRuntime : IDisposable
         }
 
         statistics.AddItem(itemName);
-        statistics[itemName].Params["Text"].Value = text;
+        statistics[itemName].Properties["text"].Value = text;
     }
 
-    private static void EnsureStatisticsResetItem(Item statistics)
+    private static void EnsureStatisticsResetItem(ItemModel statistics)
     {
         if (statistics.Has("Reset"))
         {
@@ -2426,7 +2427,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
         }
 
         statistics.AddItem("Reset");
-        statistics["Reset"].Params["Text"].Value = "Statistics Reset";
+        statistics["Reset"].Properties["text"].Value = "Statistics Reset";
         statistics["Reset"].Value = false;
     }
 
@@ -2450,7 +2451,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
         return true;
     }
 
-    private static void EnsureKalmanValueItem(Item kalman, string itemName, string text)
+    private static void EnsureKalmanValueItem(ItemModel kalman, string itemName, string text)
     {
         if (kalman.Has(itemName))
         {
@@ -2458,19 +2459,19 @@ public sealed class EnhancedSignalRuntime : IDisposable
         }
 
         kalman.AddItem(itemName);
-        kalman[itemName].Params["Text"].Value = text;
+        kalman[itemName].Properties["text"].Value = text;
     }
 
-    private bool TryParseAdjustmentRequest(Item requestItem, out string action, out double targetValue, out string error)
+    private bool TryParseAdjustmentRequest(ItemModel requestItem, out string action, out double targetValue, out string error)
     {
         action = string.Empty;
         targetValue = 0d;
         error = string.Empty;
 
-        if (requestItem.Params.Has("Action"))
+        if (requestItem.Properties.Has("Action"))
         {
-            action = requestItem.Params["Action"].Value?.ToString() ?? string.Empty;
-            var requestValue = requestItem.Params.Has("Value") ? requestItem.Params["Value"].Value : requestItem.Value;
+            action = requestItem.Properties["Action"].Value?.ToString() ?? string.Empty;
+            var requestValue = requestItem.Properties.Has("value") ? requestItem.Properties["value"].Value : requestItem.Value;
             var numericValue = ToNullableDouble(requestValue);
             if (string.IsNullOrWhiteSpace(action))
             {

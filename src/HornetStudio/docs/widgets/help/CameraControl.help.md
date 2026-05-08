@@ -51,4 +51,4 @@ Camera subscription is bound to the current model and updates whenever the confi
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/Camera/EditorCameraControl.axaml.cs`
+- `src/Hornetstudio.Editor/Widgets/Camera/EditorCameraControl.axaml.cs`

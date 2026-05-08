@@ -166,7 +166,7 @@ if temperature.value > 80.0:
 Beispiel:
 
 - In der UI wird konfiguriert:
-  - `speed|UdlBook/Page1/udl1/m310/Set/Request`
+  - `speed|UdlBook/Page1/udl1/m310/set/request`
   - `temperature|UdlBook/Page1/udl1/m310/Read/Value`
 - Im `ScriptContext` entsteht:
   - `Signals["speed"]` → `ISignal` mit `SourcePath` des Set-Requests.

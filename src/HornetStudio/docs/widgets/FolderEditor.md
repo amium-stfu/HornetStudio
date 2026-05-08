@@ -26,7 +26,7 @@ The editor exposes add actions for the persisted control kinds and is a useful r
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/FolderEditor/FolderEditorControl.axaml.cs`
+- `src/Hornetstudio.Editor/Widgets/FolderEditor/FolderEditorControl.axaml.cs`
 
 ## Help
 

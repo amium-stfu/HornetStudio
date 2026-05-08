@@ -55,5 +55,5 @@ TableControl is a structural container and manages layout-related behavior rathe
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/Table/EditorTableControl.axaml.cs`
-- `src/HornetStudio.Editor/Models/PageItemModel.cs`
+- `src/Hornetstudio.Editor/Widgets/Table/EditorTableControl.axaml.cs`
+- `src/Hornetstudio.Editor/Models/PageItemModel.cs`

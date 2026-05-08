@@ -26,8 +26,8 @@ The SQL logger follows the same logger runtime pattern as the CSV logger, but st
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/SqlLogger/`
-- `src/HornetStudio.Editor/Widgets/SqlLogger/EditorSqlLoggerControl.axaml.cs`
+- `src/Hornetstudio.Editor/Widgets/SqlLogger/`
+- `src/Hornetstudio.Editor/Widgets/SqlLogger/EditorSqlLoggerControl.axaml.cs`
 
 ## Help
 

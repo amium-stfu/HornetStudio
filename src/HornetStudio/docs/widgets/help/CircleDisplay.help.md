@@ -59,4 +59,4 @@ CircleDisplay runtime values are published as child items so other runtime featu
 
 ## Source
 
-- `src/HornetStudio.Editor/Models/PageItemModel.cs`
+- `src/Hornetstudio.Editor/Models/PageItemModel.cs`

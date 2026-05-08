@@ -7,7 +7,7 @@
 			"command": "dotnet",
 			"args": [
 				"restore",
-				"${workspaceFolder}/src/HornetStudio/HornetStudio.csproj"
+				"${workspaceFolder}/HornetStudio.sln"
 			],
 			"problemMatcher": []
 		},
@@ -17,7 +17,7 @@
 			"command": "dotnet",
 			"args": [
 				"build",
-				"${workspaceFolder}/src/HornetStudio/HornetStudio.csproj",
+				"${workspaceFolder}/HornetStudio.sln",
 				"-c",
 				"Debug"
 			],
@@ -34,10 +34,14 @@
 			"label": "run-automationexplorer",
 			"type": "process",
 			"command": "dotnet",
+			"dependsOn": [
+				"build-automationexplorer-debug"
+			],
 			"args": [
 				"run",
 				"--project",
 				"${workspaceFolder}/src/HornetStudio/HornetStudio.csproj",
+				"--no-build",
 				"-c",
 				"Debug"
 			],
@@ -49,7 +53,7 @@
 			"command": "dotnet",
 			"args": [
 				"build",
-				"src/HornetStudio/HornetStudio.csproj",
+				"HornetStudio.sln",
 				"-c",
 				"Debug"
 			],
@@ -65,7 +69,7 @@
 			"command": "dotnet",
 			"args": [
 				"build",
-				"src/HornetStudio/HornetStudio.csproj",
+				"HornetStudio.sln",
 				"-c",
 				"Debug"
 			],
@@ -81,7 +85,7 @@
 			"command": "dotnet",
 			"args": [
 				"build",
-				"src/HornetStudio/HornetStudio.csproj",
+				"HornetStudio.sln",
 				"-c",
 				"Debug"
 			],
@@ -97,7 +101,7 @@
 			"command": "dotnet",
 			"args": [
 				"build",
-				"src/HornetStudio/HornetStudio.csproj",
+				"HornetStudio.sln",
 				"-c",
 				"Debug"
 			],
@@ -113,7 +117,7 @@
 			"command": "dotnet",
 			"args": [
 				"build",
-				"src/HornetStudio/HornetStudio.csproj",
+				"HornetStudio.sln",
 				"-c",
 				"Debug"
 			],
@@ -129,7 +133,7 @@
 			"command": "dotnet",
 			"args": [
 				"build",
-				"src/HornetStudio/HornetStudio.csproj",
+				"HornetStudio.sln",
 				"-c",
 				"Debug"
 			],
@@ -145,7 +149,7 @@
 			"command": "dotnet",
 			"args": [
 				"build",
-				"src/HornetStudio/HornetStudio.csproj",
+				"HornetStudio.sln",
 				"-c",
 				"Debug"
 			],
@@ -161,7 +165,7 @@
 			"command": "dotnet",
 			"args": [
 				"build",
-				"src/HornetStudio/HornetStudio.csproj",
+				"HornetStudio.sln",
 				"-c",
 				"Debug"
 			],
@@ -177,7 +181,7 @@
 			"command": "dotnet",
 			"args": [
 				"build",
-				"src/HornetStudio/HornetStudio.csproj",
+				"HornetStudio.sln",
 				"-c",
 				"Debug"
 			],
@@ -193,7 +197,7 @@
 			"command": "dotnet",
 			"args": [
 				"build",
-				"src/HornetStudio/HornetStudio.csproj",
+				"HornetStudio.sln",
 				"-c",
 				"Debug"
 			],
@@ -202,6 +206,335 @@
 				"$msCompile"
 			],
 			"group": "build"
+		},
+		{
+			"label": "build-multimaster-demo-selftest-check",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"build",
+				"B:\\HornetStudio\\src\\amium_item_server_multimaster_demo\\amium_item_server_multimaster_demo.csproj",
+				"--no-restore"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-multimaster-demo-selftest-check-2",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"build",
+				"B:\\HornetStudio\\src\\amium_item_server_multimaster_demo\\amium_item_server_multimaster_demo.csproj",
+				"--no-restore"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-multimaster-demo-selftest-check-3",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"build",
+				"B:\\HornetStudio\\src\\amium_item_server_multimaster_demo\\amium_item_server_multimaster_demo.csproj",
+				"--no-restore"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "run-multimaster-demo-selftest-check",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"B:\\HornetStudio\\src\\amium_item_server_multimaster_demo\\bin\\Debug\\net9.0-windows\\amium_item_server_multimaster_demo.dll",
+				"--self-test"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "build-multimaster-demo-ui-actions",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"build",
+				"B:\\HornetStudio\\src\\amium_item_server_multimaster_demo\\amium_item_server_multimaster_demo.csproj",
+				"--no-restore"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "run-multimaster-demo-selftest-recheck",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"B:\\HornetStudio\\src\\amium_item_server_multimaster_demo\\bin\\Debug\\net9.0-windows\\amium_item_server_multimaster_demo.dll",
+				"--self-test"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "build-multimaster-demo-crosswrite-allnodes",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"build",
+				"B:\\HornetStudio\\src\\amium_item_server_multimaster_demo\\amium_item_server_multimaster_demo.csproj",
+				"--no-restore"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "run-multimaster-demo-crosswrite-allnodes",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"B:\\HornetStudio\\src\\amium_item_server_multimaster_demo\\bin\\Debug\\net9.0-windows\\amium_item_server_multimaster_demo.dll",
+				"--self-test"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "run-multimaster-demo-selftest-evaluate",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"B:\\HornetStudio\\src\\amium_item_server_multimaster_demo\\bin\\Debug\\net9.0-windows\\amium_item_server_multimaster_demo.dll",
+				"--self-test"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "build-mesh-verify-alt-output",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"build",
+				"B:\\HornetStudio\\src\\amium_item_server_multimaster_demo\\amium_item_server_multimaster_demo.csproj",
+				"--no-restore",
+				"-o",
+				"B:\\HornetStudio\\artifacts\\mesh_verify_run"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "run-mesh-verify-alt-output",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"B:\\HornetStudio\\artifacts\\mesh_verify_run\\amium_item_server_multimaster_demo.dll",
+				"--mesh-self-test"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "inspect-mesh-port-owners",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"netstat -ano | findstr \":18831 :18832 :18833\""
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "inspect-mesh-port-owners-ps",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"Get-NetTCPConnection -State Listen | Where-Object { $_.LocalPort -in 18831,18832,18833 } | Select-Object LocalPort,OwningProcess | Format-Table -AutoSize"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "kill-mesh-port-owner",
+			"type": "shell",
+			"command": "taskkill",
+			"args": [
+				"/PID",
+				"11852",
+				"/T",
+				"/F"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "inspect-mesh-port-owners-ps-2",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"Get-NetTCPConnection -State Listen | Where-Object { $_.LocalPort -in 18831,18832,18833 } | Select-Object LocalPort,OwningProcess | Format-Table -AutoSize"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "run-mesh-verify-alt-output-2",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"B:\\HornetStudio\\artifacts\\mesh_verify_run\\amium_item_server_multimaster_demo.dll",
+				"--mesh-self-test"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "inspect-mesh-port-owners-ps-3",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"Get-NetTCPConnection -State Listen | Where-Object { $_.LocalPort -in 18831,18832,18833 } | Select-Object LocalPort,OwningProcess | Sort-Object LocalPort -Unique | Format-Table -AutoSize"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "inspect-process-47536",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"Get-CimInstance Win32_Process -Filter \"ProcessId = 47536\" | Select-Object ProcessId, Name, CommandLine | Format-List"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "inspect-process-47536-simple",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"Get-Process -Id 47536 | Select-Object Id, ProcessName, Path | Format-List"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "run-mesh-verify-alt-output-clean",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$ports = 18831,18832,18833; Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalPort -in $ports } | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force }; dotnet B:\\HornetStudio\\artifacts\\mesh_verify_run\\amium_item_server_multimaster_demo.dll --mesh-self-test"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "run-mesh-verify-alt-output-clean-2",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$ports = 18831,18832,18833; Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalPort -in $ports } | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }; dotnet B:\\HornetStudio\\artifacts\\mesh_verify_run\\amium_item_server_multimaster_demo.dll --mesh-self-test"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "build-mesh-verify-alt-output-2",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"build",
+				"B:\\HornetStudio\\src\\amium_item_server_multimaster_demo\\amium_item_server_multimaster_demo.csproj",
+				"--no-restore",
+				"-o",
+				"B:\\HornetStudio\\artifacts\\mesh_verify_run"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "build-mesh-verify-alt-output-3",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"build",
+				"B:\\HornetStudio\\src\\amium_item_server_multimaster_demo\\amium_item_server_multimaster_demo.csproj",
+				"--no-restore",
+				"-o",
+				"B:\\HornetStudio\\artifacts\\mesh_verify_run_2"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "run-mesh-verify-alt-output-3",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$ports = 18831,18832,18833; Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalPort -in $ports } | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }; dotnet B:\\HornetStudio\\artifacts\\mesh_verify_run_2\\amium_item_server_multimaster_demo.dll --mesh-self-test"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "build-mesh-verify-alt-output-4",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"build",
+				"B:\\HornetStudio\\src\\amium_item_server_multimaster_demo\\amium_item_server_multimaster_demo.csproj",
+				"--no-restore",
+				"-o",
+				"B:\\HornetStudio\\artifacts\\mesh_verify_run_3"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "run-mesh-verify-alt-output-4",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$ports = 18831,18832,18833; Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalPort -in $ports } | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }; dotnet B:\\HornetStudio\\artifacts\\mesh_verify_run_3\\amium_item_server_multimaster_demo.dll --mesh-self-test"
+			],
+			"isBackground": false,
+			"group": "test"
 		}
 	]
 }

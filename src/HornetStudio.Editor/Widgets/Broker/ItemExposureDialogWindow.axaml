@@ -90,8 +90,8 @@
                   <TextBlock Grid.Row="1" Margin="0,8,0,0" VerticalAlignment="Center" Foreground="{Binding PrimaryTextBrush}" Text="Format" />
                   <ComboBox Grid.Row="1" Grid.Column="1" Margin="10,8,0,0" ItemsSource="{Binding FormatOptions}" SelectedItem="{Binding SelectedRow.SelectedFormatKind, Mode=TwoWay}" />
 
-                  <TextBlock Grid.Row="2" Margin="0,8,0,0" VerticalAlignment="Center" Foreground="{Binding PrimaryTextBrush}" Text="FormatParameter" />
-                  <TextBox Grid.Row="2" Grid.Column="1" Margin="10,8,0,0" Background="{Binding EditorBackground}" BorderBrush="{Binding BorderColor}" Foreground="{Binding EditorForeground}" Text="{Binding SelectedRow.FormatParameter, Mode=TwoWay}" />
+                  <TextBlock Grid.Row="2" Margin="0,8,0,0" VerticalAlignment="Center" Foreground="{Binding PrimaryTextBrush}" Text="FormatProperty" />
+                  <TextBox Grid.Row="2" Grid.Column="1" Margin="10,8,0,0" Background="{Binding EditorBackground}" BorderBrush="{Binding BorderColor}" Foreground="{Binding EditorForeground}" Text="{Binding SelectedRow.FormatProperty, Mode=TwoWay}" />
 
                   <TextBlock Grid.Row="3" Margin="0,8,0,0" VerticalAlignment="Center" Foreground="{Binding PrimaryTextBrush}" Text="Unit" />
                   <TextBox Grid.Row="3" Grid.Column="1" Margin="10,8,0,0" Background="{Binding EditorBackground}" BorderBrush="{Binding BorderColor}" Foreground="{Binding EditorForeground}" Text="{Binding SelectedRow.Unit, Mode=TwoWay}" />

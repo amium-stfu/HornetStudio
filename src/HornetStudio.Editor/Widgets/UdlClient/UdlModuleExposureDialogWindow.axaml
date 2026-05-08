@@ -98,15 +98,15 @@
                               ItemsSource="{Binding FormatOptions}"
                               SelectedItem="{Binding SelectedRow.SelectedFormatKind, Mode=TwoWay}" />
 
-                    <TextBlock Grid.Row="3" Margin="0,8,0,0" VerticalAlignment="Center" Foreground="{Binding PrimaryTextBrush}" Text="FormatParameter" />
+                    <TextBlock Grid.Row="3" Margin="0,8,0,0" VerticalAlignment="Center" Foreground="{Binding PrimaryTextBrush}" Text="FormatProperty" />
                     <TextBox Grid.Row="3"
                              Grid.Column="1"
                              Margin="10,8,0,0"
                              Background="{Binding EditorBackground}"
                              BorderBrush="{Binding BorderColor}"
                              Foreground="{Binding EditorForeground}"
-                             Text="{Binding SelectedRow.FormatParameter, Mode=TwoWay}"
-                             ToolTip.Tip="{Binding SelectedRow.FormatParameterToolTip}" />
+                             Text="{Binding SelectedRow.FormatProperty, Mode=TwoWay}"
+                             ToolTip.Tip="{Binding SelectedRow.FormatPropertyToolTip}" />
 
                     <TextBlock Grid.Row="4" Margin="0,8,0,0" VerticalAlignment="Center" Foreground="{Binding PrimaryTextBrush}" Text="Unit" />
                     <TextBox Grid.Row="4"

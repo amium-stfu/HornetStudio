@@ -490,7 +490,7 @@ public partial class PythonClientControl : EditorTemplateControl
     {
         var folderName = string.IsNullOrWhiteSpace(item.FolderName) ? "Page" : item.FolderName.Trim();
         var widgetName = string.IsNullOrWhiteSpace(item.Name) ? item.Id : item.Name.Trim();
-        return $"Studio.{folderName}.{widgetName}";
+        return $"studio.{folderName}.{widgetName}";
     }
 }
 

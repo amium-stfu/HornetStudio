@@ -9,6 +9,7 @@ using Avalonia;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using ItemModel = Amium.Items.Item;
 using Amium.Items;
 using HornetStudio.Host;
 using HornetStudio.Host.Python.Client;
@@ -21,7 +22,7 @@ public enum ControlKind
 {
     Button,
     Signal,
-    Item,
+    ItemModel,
     WidgetList,
     TableControl,
     CircleDisplay,
@@ -190,7 +191,7 @@ public sealed class FolderItemModel : ObservableObject
     private string _udlAttachedItemPaths = string.Empty;
     private string _udlDemoModuleDefinitions = string.Empty;
     private string _udlModuleExposureDefinitions = string.Empty;
-    private Item? _target;
+    private ItemModel? _target;
     private int _refreshRateMs = 1000;
     private bool _isReadOnly;
     private string _effectiveBackground = LightBackground;
@@ -267,7 +268,7 @@ public sealed class FolderItemModel : ObservableObject
             return string.Empty;
         }
 
-        return $"Studio.{folderName}.LoggerRuntime.{itemName}";
+        return $"studio.{folderName}.Loggerruntime.{itemName}";
     }
 
     public string GetLoggerRuntimePath(string runtimeItemName)
@@ -298,7 +299,7 @@ public sealed class FolderItemModel : ObservableObject
             return string.Empty;
         }
 
-        return $"Studio.{folderName}.DisplayRuntime.{itemName}";
+        return $"studio.{folderName}.Displayruntime.{itemName}";
     }
 
     public string GetDisplayRuntimePath(string runtimeItemName)
@@ -374,11 +375,11 @@ public sealed class FolderItemModel : ObservableObject
                || TargetPathHelper.IsDescendantPath(runtimePath, e.Key);
     }
 
-    private static bool TryResolveCircleDisplayTargetCore(string candidatePath, out Item? targetItem, out Parameter? parameter)
+    private static bool TryResolveCircleDisplayTargetCore(string candidatePath, out ItemModel? targetItem, out ItemProperty? parameter)
     {
         if (HostRegistries.Data.TryResolve(candidatePath, out targetItem) && targetItem is not null)
         {
-            parameter = targetItem.Params.Has("Value") ? targetItem.Params["Value"] : null;
+            parameter = targetItem.Properties.Has("read") ? targetItem.Properties["read"] : null;
             return true;
         }
 
@@ -614,7 +615,7 @@ public sealed class FolderItemModel : ObservableObject
                     var slot = TableCellSlots.FirstOrDefault(s => s.Row == row && s.Column == column);
                     if (slot is not null)
                     {
-                        slot.ContentLabel = string.IsNullOrWhiteSpace(child.Name) ? "Item" : child.Name;
+                        slot.ContentLabel = string.IsNullOrWhiteSpace(child.Name) ? "ItemModel" : child.Name;
                     }
                 }
             }
@@ -652,7 +653,7 @@ public sealed class FolderItemModel : ObservableObject
 
             if (Target is null)
             {
-                RaisePropertyChanged(nameof(TargetParameterView));
+                RaisePropertyChanged(nameof(TargetPropertyView));
                 RaisePropertyChanged(nameof(ItemBodyPresentation));
             }
 
@@ -686,7 +687,7 @@ public sealed class FolderItemModel : ObservableObject
                 if (Target is null)
                 {
                     RaisePropertyChanged(nameof(DisplayValue));
-                    RaisePropertyChanged(nameof(TargetParameterView));
+                    RaisePropertyChanged(nameof(TargetPropertyView));
                     RaisePropertyChanged(nameof(ItemBodyPresentation));
                     RaisePropertyChanged(nameof(ItemValueFontSize));
                 }
@@ -752,7 +753,7 @@ public sealed class FolderItemModel : ObservableObject
                 if (Target is null)
                 {
                     RaisePropertyChanged(nameof(DisplayUnit));
-                    RaisePropertyChanged(nameof(TargetParameterView));
+                    RaisePropertyChanged(nameof(TargetPropertyView));
                     RaisePropertyChanged(nameof(ItemBodyPresentation));
                     RaisePropertyChanged(nameof(ItemUnitWidth));
                     RaisePropertyChanged(nameof(ItemValueFontSize));
@@ -782,7 +783,7 @@ public sealed class FolderItemModel : ObservableObject
                 if (Target is null)
                 {
                     RaisePropertyChanged(nameof(DisplayUnit));
-                    RaisePropertyChanged(nameof(TargetParameterView));
+                    RaisePropertyChanged(nameof(TargetPropertyView));
                     RaisePropertyChanged(nameof(ItemBodyPresentation));
                     RaisePropertyChanged(nameof(ItemUnitWidth));
                     RaisePropertyChanged(nameof(ItemValueFontSize));
@@ -1052,7 +1053,7 @@ public sealed class FolderItemModel : ObservableObject
 
     public bool IsSignal => Kind == ControlKind.Signal;
 
-    public bool IsItem => Kind == ControlKind.Item || Kind == ControlKind.Signal;
+    public bool IsItem => Kind == ControlKind.ItemModel || Kind == ControlKind.Signal;
 
     public bool IsWidgetList => Kind == ControlKind.WidgetList;
 
@@ -1083,7 +1084,7 @@ public sealed class FolderItemModel : ObservableObject
     public bool IsEnhancedSignals => Kind == ControlKind.EnhancedSignals;
 
     // Controls, die als Child in einem Table gerendert und selektiert werden duerfen.
-    public bool IsTableChildControl => Kind is ControlKind.Item
+    public bool IsTableChildControl => Kind is ControlKind.ItemModel
         or ControlKind.Signal
         or ControlKind.Button
         or ControlKind.LogControl
@@ -1682,15 +1683,15 @@ public sealed class FolderItemModel : ObservableObject
         set => SetProperty(ref _applicationAutoStart, value);
     }
 
-    public string TargetParameterPath
+    public string TargetPropertyPath
     {
         get => _targetParameterPath;
         set
         {
-            var normalizedValue = NormalizeTargetParameterPath(value);
+            var normalizedValue = NormalizeTargetPropertyPath(value);
             if (SetProperty(ref _targetParameterPath, normalizedValue))
             {
-                RaisePropertyChanged(nameof(TargetParameterView));
+                RaisePropertyChanged(nameof(TargetPropertyView));
                 RaisePropertyChanged(nameof(ItemBodyPresentation));
                 RaisePropertyChanged(nameof(ShowItemFooterPanel));
                 RaisePropertyChanged(nameof(ItemUnitWidth));
@@ -1702,14 +1703,14 @@ public sealed class FolderItemModel : ObservableObject
         }
     }
 
-    public string TargetParameterFormat
+    public string TargetPropertyFormat
     {
         get => _targetParameterFormat;
         set
         {
             if (SetProperty(ref _targetParameterFormat, value))
             {
-                RaisePropertyChanged(nameof(TargetParameterView));
+                RaisePropertyChanged(nameof(TargetPropertyView));
                 RaisePropertyChanged(nameof(ItemBodyPresentation));
                 RaisePropertyChanged(nameof(ShowItemFooterPanel));
                 RaisePropertyChanged(nameof(ItemUnitWidth));
@@ -1850,7 +1851,7 @@ public sealed class FolderItemModel : ObservableObject
         set => SetProperty(ref _brokerBaseTopic, string.IsNullOrWhiteSpace(value) ? BrokerWidgetDefaults.BaseTopic : value.Trim());
     }
 
-    public string BrokerClientId
+    public string ServerClientId
     {
         get => _brokerClientId;
         set => SetProperty(ref _brokerClientId, BrokerWidgetClientId.Normalize(value));
@@ -1931,7 +1932,7 @@ public sealed class FolderItemModel : ObservableObject
         set => SetProperty(ref _isReadOnly, value);
     }
 
-    public Item? Target
+    public ItemModel? Target
     {
         get => _target;
         private set
@@ -1942,7 +1943,7 @@ public sealed class FolderItemModel : ObservableObject
                 RaisePropertyChanged(nameof(DisplayUnit));
                 RaisePropertyChanged(nameof(RequestStatusText));
                 RaisePropertyChanged(nameof(DisplayFooter));
-                RaisePropertyChanged(nameof(TargetParameterView));
+                RaisePropertyChanged(nameof(TargetPropertyView));
                 RaisePropertyChanged(nameof(ItemBodyPresentation));
                 RaisePropertyChanged(nameof(ShowBodyCaption));
                 RaisePropertyChanged(nameof(ShowItemFooterPanel));
@@ -1968,7 +1969,7 @@ public sealed class FolderItemModel : ObservableObject
         => Target is null ? "-" : (IsDeclaredWritable(Target) ? "True" : "False");
 
     public string ResolvedTargetUsesFormatOverride
-        => Target is null ? "-" : (!string.IsNullOrWhiteSpace(TargetParameterFormat) ? "True" : "False");
+        => Target is null ? "-" : (!string.IsNullOrWhiteSpace(TargetPropertyFormat) ? "True" : "False");
 
     public string ResolvedTargetWriteMode
         => Target is null ? "-" : GetResolvedWriteMode(Target).ToString();
@@ -1979,13 +1980,13 @@ public sealed class FolderItemModel : ObservableObject
     public string ResolvedTargetSourceFormat
         => Target is null
             ? "-"
-            : Target.Params.Has("Format")
-                ? Target.Params["Format"].Value?.ToString() ?? "-"
+            : Target.Properties.Has("format")
+                ? Target.Properties["format"].Value?.ToString() ?? "-"
                 : "-";
 
     public string ResolvedTargetEffectiveFormat
-        => !string.IsNullOrWhiteSpace(TargetParameterFormat)
-            ? TargetParameterFormat
+        => !string.IsNullOrWhiteSpace(TargetPropertyFormat)
+            ? TargetPropertyFormat
             : ResolvedTargetSourceFormat;
 
     public int RefreshRateMs
@@ -2187,7 +2188,7 @@ public sealed class FolderItemModel : ObservableObject
     {
         ControlKind.Button => System.Math.Clamp(Height * 0.36, 20, 46),
         ControlKind.Signal => Height * 0.18,
-        ControlKind.Item => Height * 0.18,
+        ControlKind.ItemModel => Height * 0.18,
         ControlKind.LogControl => 18,
         ControlKind.ChartControl => 18,
         _ => 18
@@ -2234,11 +2235,11 @@ public sealed class FolderItemModel : ObservableObject
         }
     }
 
-    public ParameterDisplayModel ItemBodyPresentation => BuildTargetParameterView(string.Empty, DisplayValue);
+    public PropertyDisplayModel ItemBodyPresentation => BuildTargetParameterView(string.Empty, DisplayValue);
 
     public string RequestStatusText
-        => Target?.Params.Has("SendStatus") == true
-            ? Target.Params["SendStatus"].Value?.ToString() ?? string.Empty
+        => Target?.Properties.Has("SendStatus") == true
+            ? Target.Properties["SendStatus"].Value?.ToString() ?? string.Empty
             : string.Empty;
 
     public string DisplayFooter => string.Empty;
@@ -2397,7 +2398,7 @@ public sealed class FolderItemModel : ObservableObject
     {
         get
         {
-            if (TargetParameterView.Definition.Kind is not (ParameterVisualKind.Bool or ParameterVisualKind.Bits))
+            if (TargetPropertyView.Definition.Kind is not (PropertyVisualKind.Bool or PropertyVisualKind.Bits))
             {
                 return 0;
             }
@@ -2410,22 +2411,22 @@ public sealed class FolderItemModel : ObservableObject
     {
         get
         {
-            var reservedUnitWidth = TargetParameterView.ShowUnit ? ItemUnitWidth + 8 : 0;
+            var reservedUnitWidth = TargetPropertyView.ShowUnit ? ItemUnitWidth + 8 : 0;
             return System.Math.Max(Width - reservedUnitWidth - 16, 24);
         }
     }
 
     public int ValueCharacterCount
-        => System.Math.Max((TargetParameterView.ValueText ?? string.Empty).Length, 1);
+        => System.Math.Max((TargetPropertyView.ValueText ?? string.Empty).Length, 1);
 
     public int UnitCharacterCount
-        => System.Math.Max((TargetParameterView.UnitText ?? string.Empty).Length, 1);
+        => System.Math.Max((TargetPropertyView.UnitText ?? string.Empty).Length, 1);
 
     public double ItemValueFontSize
     {
         get
         {
-            if (TargetParameterView.Definition.Kind is ParameterVisualKind.Bool or ParameterVisualKind.Bits)
+            if (TargetPropertyView.Definition.Kind is PropertyVisualKind.Bool or PropertyVisualKind.Bits)
             {
                 var maxSize = System.Math.Max(ItemChoiceButtonHeight - 6, 9);
                 var minSize = System.Math.Min(9, maxSize);
@@ -2447,7 +2448,7 @@ public sealed class FolderItemModel : ObservableObject
             var rawOffset = BaselineHelper.GetBaselineOffsetBRelativeToA(
                 ItemValueTypeface,
                 ItemValueFontSize,
-                "Value",
+                "value",
                 ItemUnitTypeface,
                 ItemUnitFontSize,
                 "Unit");
@@ -2466,7 +2467,7 @@ public sealed class FolderItemModel : ObservableObject
     {
         get
         {
-            if (!TargetParameterView.ShowUnit)
+            if (!TargetPropertyView.ShowUnit)
             {
                 return 0;
             }
@@ -2494,7 +2495,7 @@ public sealed class FolderItemModel : ObservableObject
         }
     }
 
-    public ParameterDisplayModel TargetParameterView => BuildTargetParameterView();
+    public PropertyDisplayModel TargetPropertyView => BuildTargetPropertyView();
 
     public bool HasInteractionRules => ItemInteractionRuleCodec.ParseDefinitions(InteractionRules)
         .Any(rule => rule.Action != ItemInteractionAction.SendInputTo);
@@ -2524,9 +2525,9 @@ public sealed class FolderItemModel : ObservableObject
                 return false;
             }
 
-            var definition = TargetParameterView.Definition;
-            return definition.Kind is ParameterVisualKind.Text or ParameterVisualKind.Numeric or ParameterVisualKind.Hex or ParameterVisualKind.Bits
-                && ResolveTargetParameter() is not null
+            var definition = TargetPropertyView.Definition;
+            return definition.Kind is PropertyVisualKind.Text or PropertyVisualKind.Numeric or PropertyVisualKind.Hex or PropertyVisualKind.Bits
+                && ResolveTargetProperty() is not null
                 && ResolveWriteParameter() is not null
                 && IsDeclaredWritable(Target);
         }
@@ -2546,7 +2547,7 @@ public sealed class FolderItemModel : ObservableObject
                 return Name;
             }
 
-            return TargetParameterView.Label;
+            return TargetPropertyView.Label;
         }
     }
 
@@ -2567,7 +2568,7 @@ public sealed class FolderItemModel : ObservableObject
     {
         ControlKind.Button => 140,
         ControlKind.Signal => 50,
-        ControlKind.Item => 50,
+        ControlKind.ItemModel => 50,
         ControlKind.WidgetList => 240,
         ControlKind.TableControl => 240,
         ControlKind.CircleDisplay => 240,
@@ -2584,7 +2585,7 @@ public sealed class FolderItemModel : ObservableObject
     {
         ControlKind.Button => 56,
         ControlKind.Signal => 1,
-        ControlKind.Item => 1,
+        ControlKind.ItemModel => 1,
         ControlKind.WidgetList => 180,
         ControlKind.TableControl => 180,
         ControlKind.CircleDisplay => 220,
@@ -2740,7 +2741,7 @@ public sealed class FolderItemModel : ObservableObject
         if (string.IsNullOrWhiteSpace(TargetPath))
         {
             Target = null;
-            TargetParameterPath = string.Empty;
+            TargetPropertyPath = string.Empty;
             CancelPendingTargetRefresh();
             TriggerTargetRefresh();
             return;
@@ -2749,7 +2750,7 @@ public sealed class FolderItemModel : ObservableObject
         if (!TryResolveTargetItem(TargetPath, out var item))
         {
             Target = null;
-            TargetParameterPath = string.Empty;
+            TargetPropertyPath = string.Empty;
             CancelPendingTargetRefresh();
             TriggerTargetRefresh();
             return;
@@ -2764,7 +2765,7 @@ public sealed class FolderItemModel : ObservableObject
         }
 
         Target = selectedItem;
-        EnsureTargetParameterSelection(selectedItem);
+        EnsureTargetPropertySelection(selectedItem);
         CancelPendingTargetRefresh();
         TriggerTargetRefresh();
     }
@@ -2774,7 +2775,7 @@ public sealed class FolderItemModel : ObservableObject
         if (string.IsNullOrWhiteSpace(targetPath))
         {
             TargetPath = string.Empty;
-            TargetParameterPath = string.Empty;
+            TargetPropertyPath = string.Empty;
             Target = null;
             CancelPendingTargetRefresh();
             TriggerTargetRefresh();
@@ -2792,7 +2793,7 @@ public sealed class FolderItemModel : ObservableObject
         _targetPath = GetPersistedTargetPath(selectedItem.Path, targetPath);
         RaisePropertyChanged(nameof(TargetPath));
         Target = selectedItem;
-        EnsureTargetParameterSelection(selectedItem);
+        EnsureTargetPropertySelection(selectedItem);
         var suggestedName = GetSuggestedNameFromTargetPath(_targetPath);
 
         if (string.IsNullOrWhiteSpace(Name)
@@ -2817,14 +2818,14 @@ public sealed class FolderItemModel : ObservableObject
         }
 
         RaisePropertyChanged(nameof(DisplayUnit));
-        RaisePropertyChanged(nameof(TargetParameterView));
+        RaisePropertyChanged(nameof(TargetPropertyView));
         CancelPendingTargetRefresh();
         TriggerTargetRefresh();
     }
 
     public void RefreshTargetBindings()
     {
-        var targetParameterViewChanged = HasPresentationChanged(TargetParameterView, ref _lastTargetParameterViewSignature);
+        var targetParameterViewChanged = HasPresentationChanged(TargetPropertyView, ref _lastTargetParameterViewSignature);
         var itemBodyPresentationChanged = HasPresentationChanged(ItemBodyPresentation, ref _lastItemBodyPresentationSignature);
 
         RaisePropertyChanged(nameof(DisplayValue));
@@ -2833,7 +2834,7 @@ public sealed class FolderItemModel : ObservableObject
         RaisePropertyChanged(nameof(DisplayFooter));
         if (targetParameterViewChanged)
         {
-            RaisePropertyChanged(nameof(TargetParameterView));
+            RaisePropertyChanged(nameof(TargetPropertyView));
         }
 
         if (itemBodyPresentationChanged)
@@ -2979,11 +2980,11 @@ public sealed class FolderItemModel : ObservableObject
         return script;
     }
 
-    public bool TryUpdateTargetParameterValue(object? rawValue, out string error)
+    public bool TryUpdateTargetPropertyValue(object? rawValue, out string error)
     {
         if (IsReadOnly)
         {
-            error = "Item ist schreibgeschuetzt.";
+            error = "ItemModel ist schreibgeschuetzt.";
             return false;
         }
 
@@ -3008,7 +3009,7 @@ public sealed class FolderItemModel : ObservableObject
 
         try
         {
-            var targetParameter = ResolveTargetParameter();
+            var targetParameter = ResolveTargetProperty();
             var writeTargetItem = ResolveWriteTargetItem();
             var refreshDisplayImmediately = Target is not null
                 && (ReferenceEquals(writeTargetItem, Target)
@@ -3017,8 +3018,8 @@ public sealed class FolderItemModel : ObservableObject
             var targetLogPath = Target?.Path ?? TargetPath;
             Core.LogInfo(
                 $"[SignalWrite] item={Path} target={targetLogPath} targetParam={targetParameter?.Name ?? "<none>"} targetValue={FormatDiagnosticValue(targetParameter?.Value)} writeTarget={writeTargetItem.Path ?? "<none>"} writeParam={parameter.Name} raw={FormatDiagnosticValue(rawValue)} converted={FormatDiagnosticValue(convertedValue)}");
-            if (!string.Equals(parameter.Name, "Value", StringComparison.OrdinalIgnoreCase)
-                && !HostRegistryParameterPolicy.CanUserWriteParameter(parameter.Name))
+            if (!string.Equals(parameter.Name, "read", StringComparison.OrdinalIgnoreCase)
+                && !HostRegistryPropertyPolicy.CanUserWriteProperty(parameter.Name))
             {
                 error = $"Parameter '{parameter.Name}' is protected and cannot be written.";
                 Core.LogInfo($"[SignalWrite] result=blocked item={Path} writeParam={parameter.Name}");
@@ -3026,12 +3027,12 @@ public sealed class FolderItemModel : ObservableObject
             }
 
             var targetPath = writeTargetItem.Path ?? Target?.Path ?? TargetPath;
-            var updated = string.Equals(parameter.Name, "Value", StringComparison.OrdinalIgnoreCase)
+            var updated = string.Equals(parameter.Name, "read", StringComparison.OrdinalIgnoreCase)
                 ? HostRegistries.Data.UpdateValue(targetPath, convertedValue)
-                : HostRegistries.Data.TryUpdateUserParameter(targetPath, parameter.Name, convertedValue);
+                : HostRegistries.Data.TryUpdateUserProperty(targetPath, parameter.Name, convertedValue);
             if (!updated)
             {
-                if (string.Equals(parameter.Name, "Value", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(parameter.Name, "read", StringComparison.OrdinalIgnoreCase))
                 {
                     writeTargetItem.Value = convertedValue!;
                 }
@@ -3070,7 +3071,7 @@ public sealed class FolderItemModel : ObservableObject
 
         if (rules.Count == 0)
         {
-            return TryUpdateTargetParameterValue(rawValue, out error);
+            return TryUpdateTargetPropertyValue(rawValue, out error);
         }
 
         foreach (var rule in rules)
@@ -3100,7 +3101,7 @@ public sealed class FolderItemModel : ObservableObject
             return false;
         }
 
-        var readParameter = ResolveTargetParameter();
+        var readParameter = ResolveTargetProperty();
         var writeParameter = ResolveWriteParameter();
         var parameter = writeParameter ?? readParameter;
         if (parameter is null)
@@ -3359,7 +3360,7 @@ public sealed class FolderItemModel : ObservableObject
         }
     }
 
-    private bool TryResolveInteractionTarget(string? targetPath, out Item? item)
+    private bool TryResolveInteractionTarget(string? targetPath, out ItemModel? item)
     {
         if (string.IsNullOrWhiteSpace(targetPath) || string.Equals(targetPath, "this", StringComparison.OrdinalIgnoreCase))
         {
@@ -3370,27 +3371,27 @@ public sealed class FolderItemModel : ObservableObject
         return TryResolveTargetItem(targetPath, out item);
     }
 
-    private Parameter? ResolveInteractionReadParameter(string? targetPath, Item targetItem)
+    private ItemProperty? ResolveInteractionReadParameter(string? targetPath, ItemModel targetItem)
     {
         if ((string.IsNullOrWhiteSpace(targetPath) || string.Equals(targetPath, "this", StringComparison.OrdinalIgnoreCase))
             && ReferenceEquals(targetItem, Target))
         {
-            return ResolveTargetParameter();
+            return ResolveTargetProperty();
         }
 
-        if (targetItem.Params.Has("Value"))
+        if (targetItem.Properties.Has("read"))
         {
-            return targetItem.Params["Value"];
+            return targetItem.Properties["read"];
         }
 
-        var firstParameter = targetItem.Params.GetDictionary().Keys
-            .Where(HostRegistryParameterPolicy.CanShowInUserPicker)
+        var firstParameter = targetItem.Properties.GetDictionary().Keys
+            .Where(HostRegistryPropertyPolicy.CanShowInUserPicker)
             .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
             .FirstOrDefault();
-        return firstParameter is null ? null : targetItem.Params[firstParameter];
+        return firstParameter is null ? null : targetItem.Properties[firstParameter];
     }
 
-    private Parameter? ResolveInteractionWriteParameter(string? targetPath, Item targetItem)
+    private ItemProperty? ResolveInteractionWriteParameter(string? targetPath, ItemModel targetItem)
     {
         if ((string.IsNullOrWhiteSpace(targetPath) || string.Equals(targetPath, "this", StringComparison.OrdinalIgnoreCase))
             && ReferenceEquals(targetItem, Target))
@@ -3403,15 +3404,20 @@ public sealed class FolderItemModel : ObservableObject
             return ResolveValueParameter(declaredTarget);
         }
 
+        if (targetItem.Properties.Has("write"))
+        {
+            return targetItem.Properties["write"];
+        }
+
         if (targetItem.Has("Request"))
         {
-            return targetItem["Request"].Params["Value"];
+            return targetItem["Request"].Properties["read"];
         }
 
         return ResolveInteractionReadParameter(targetPath, targetItem);
     }
 
-    private bool TryApplyInteractionWrite(Item targetItem, string? targetPath, object? rawValue, out string error)
+    private bool TryApplyInteractionWrite(ItemModel targetItem, string? targetPath, object? rawValue, out string error)
     {
         if (!IsDeclaredWritable(targetItem))
         {
@@ -3431,20 +3437,20 @@ public sealed class FolderItemModel : ObservableObject
         try
         {
             var convertedValue = ConvertEditorValue(rawValue, writeParameter.Value?.GetType() ?? readParameter?.Value?.GetType());
-            if (!string.Equals(writeParameter.Name, "Value", StringComparison.OrdinalIgnoreCase)
-                && !HostRegistryParameterPolicy.CanUserWriteParameter(writeParameter.Name))
+            if (!string.Equals(writeParameter.Name, "read", StringComparison.OrdinalIgnoreCase)
+                && !HostRegistryPropertyPolicy.CanUserWriteProperty(writeParameter.Name))
             {
                 error = $"Parameter '{writeParameter.Name}' is protected and cannot be written.";
                 return false;
             }
 
             var resolvedTargetPath = writeTargetItem.Path ?? targetItem.Path ?? targetPath ?? string.Empty;
-            var updated = string.Equals(writeParameter.Name, "Value", StringComparison.OrdinalIgnoreCase)
+            var updated = string.Equals(writeParameter.Name, "read", StringComparison.OrdinalIgnoreCase)
                 ? HostRegistries.Data.UpdateValue(resolvedTargetPath, convertedValue)
-                : HostRegistries.Data.TryUpdateUserParameter(resolvedTargetPath, writeParameter.Name, convertedValue);
+                : HostRegistries.Data.TryUpdateUserProperty(resolvedTargetPath, writeParameter.Name, convertedValue);
             if (!updated)
             {
-                if (string.Equals(writeParameter.Name, "Value", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(writeParameter.Name, "read", StringComparison.OrdinalIgnoreCase))
                 {
                     writeTargetItem.Value = convertedValue!;
                 }
@@ -3692,14 +3698,14 @@ public sealed class FolderItemModel : ObservableObject
             return;
         }
 
-        if (isDirectTarget && (Target is null || !ReferenceEquals(Target, e.Item)))
+        if (isDirectTarget && (Target is null || !ReferenceEquals(Target, e.ItemModel)))
         {
-            Target = e.Item;
+            Target = e.ItemModel;
         }
 
         if (isAncestorTarget
             && TargetPathHelper.TryGetRelativePath(matchedTargetPath, e.Key, out var targetRelativePath)
-            && TryResolveRelativeChild(e.Item, targetRelativePath, out var resolvedTarget)
+            && TryResolveRelativeChild(e.ItemModel, targetRelativePath, out var resolvedTarget)
             && resolvedTarget is not null)
         {
             Target = resolvedTarget;
@@ -3715,7 +3721,7 @@ public sealed class FolderItemModel : ObservableObject
 
         if (Target is not null)
         {
-            EnsureTargetParameterSelection(Target);
+            EnsureTargetPropertySelection(Target);
         }
 
         RequestTargetRefresh();
@@ -3741,7 +3747,7 @@ public sealed class FolderItemModel : ObservableObject
         }, DispatcherPriority.Background);
     }
 
-    private static void ApplyChildRegistryUpdate(Item rootItem, string relativePath, DataChangedEventArgs e)
+    private static void ApplyChildRegistryUpdate(ItemModel rootItem, string relativePath, DataChangedEventArgs e)
     {
         var current = rootItem;
         foreach (var segment in TargetPathHelper.SplitPathSegments(relativePath))
@@ -3754,15 +3760,15 @@ public sealed class FolderItemModel : ObservableObject
             current = current[segment];
         }
 
-        if (string.Equals(e.ParameterName, "Value", StringComparison.Ordinal) || e.ChangeKind == DataChangeKind.ValueUpdated)
+        if (string.Equals(e.ParameterName, "read", StringComparison.Ordinal) || e.ChangeKind == DataChangeKind.ValueUpdated)
         {
-            current.Value = e.Item.Value;
+            current.Value = e.ItemModel.Value;
             return;
         }
 
-        if (!string.IsNullOrWhiteSpace(e.ParameterName) && e.Item.Params.Has(e.ParameterName) && current.Params.Has(e.ParameterName))
+        if (!string.IsNullOrWhiteSpace(e.ParameterName) && e.ItemModel.Properties.Has(e.ParameterName) && current.Properties.Has(e.ParameterName))
         {
-            current.Params[e.ParameterName].Value = e.Item.Params[e.ParameterName].Value;
+            current.Properties[e.ParameterName].Value = e.ItemModel.Properties[e.ParameterName].Value;
         }
     }
 
@@ -3776,7 +3782,7 @@ public sealed class FolderItemModel : ObservableObject
         PublishItemSnapshot(Target);
     }
 
-    private static void PublishItemSnapshot(Item item)
+    private static void PublishItemSnapshot(ItemModel item)
     {
         if (string.IsNullOrWhiteSpace(item.Path))
         {
@@ -3999,19 +4005,19 @@ public sealed class FolderItemModel : ObservableObject
             : string.Empty;
 
         // Einzelnes Script-Signal als eigenstaendigen Snapshot publizieren, so dass
-        // es unter Studio.<Folder>.Applications.Python.<Name> im Target-Tree und RealtimeChart
+        // es unter studio.<Folder>.Applications.Python.<Name> im Target-Tree und RealtimeChart
         // sichtbar und direkt aufloesbar ist.
-        Item item;
+        ItemModel item;
         if (string.IsNullOrWhiteSpace(parentPath))
         {
-            item = new Item(nameSegment, value);
+            item = new ItemModel(nameSegment, value);
         }
         else
         {
-            item = new Item(nameSegment, value, parentPath);
+            item = new ItemModel(nameSegment, value, parentPath);
         }
 
-        item.Params["Path"].Value = normalizedPath;
+        item.Properties["path"].Value = normalizedPath;
 
         HostRegistries.Data.UpsertSnapshot(normalizedPath, item, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: false);
     }
@@ -4048,7 +4054,7 @@ public sealed class FolderItemModel : ObservableObject
             nameSegment = Id;
         }
 
-        return $"Studio.{folderSegment}.Applications.Python.{nameSegment}";
+        return $"studio.{folderSegment}.Applications.Python.{nameSegment}";
     }
 
     private void RefreshPathRecursive()
@@ -4124,7 +4130,7 @@ public sealed class FolderItemModel : ObservableObject
         }
     }
 
-    private bool TryResolveTargetItem(string targetPath, out Item? item)
+    private bool TryResolveTargetItem(string targetPath, out ItemModel? item)
     {
         foreach (var candidatePath in TargetPathHelper.EnumerateResolutionCandidates(targetPath, FolderName))
         {
@@ -4148,15 +4154,15 @@ public sealed class FolderItemModel : ObservableObject
 
     private static string GetPersistedTargetPath(string? resolvedPath, string? configuredPath)
     {
-        if (!string.IsNullOrWhiteSpace(resolvedPath) && TargetPathHelper.IsRuntimeItemBrokerPath(resolvedPath))
+        if (!string.IsNullOrWhiteSpace(resolvedPath) && TargetPathHelper.IsRuntimeItemServerPath(resolvedPath))
         {
-            return TargetPathHelper.ToFlatItemBrokerPath(resolvedPath);
+            return TargetPathHelper.ToFlatItemServerPath(resolvedPath);
         }
 
         return resolvedPath ?? TargetPathHelper.NormalizeConfiguredTargetPath(configuredPath);
     }
 
-    private static bool TryResolveRelativeChild(Item rootItem, string relativePath, out Item? item)
+    private static bool TryResolveRelativeChild(ItemModel rootItem, string relativePath, out ItemModel? item)
     {
         var current = rootItem;
         foreach (var segment in TargetPathHelper.SplitPathSegments(relativePath))
@@ -4190,7 +4196,7 @@ public sealed class FolderItemModel : ObservableObject
             return;
         }
 
-        Item snapshot;
+        ItemModel snapshot;
         if (HostRegistries.Data.TryGet(runtimeBasePath, out var existing) && existing is not null)
         {
             snapshot = existing.Clone();
@@ -4203,27 +4209,27 @@ public sealed class FolderItemModel : ObservableObject
                 : string.Empty;
 
             snapshot = string.IsNullOrWhiteSpace(parentPath)
-                ? new Item(nameSegment)
-                : new Item(nameSegment, null, parentPath);
+                ? new ItemModel(nameSegment)
+                : new ItemModel(nameSegment, null, parentPath);
         }
 
-        snapshot.Params["Path"].Value = runtimeBasePath;
-        snapshot.Params["Kind"].Value = "DisplayRuntime";
-        snapshot.Params["Text"].Value = string.IsNullOrWhiteSpace(Name) ? Title : Name;
+        snapshot.Properties["path"].Value = runtimeBasePath;
+        snapshot.Properties["kind"].Value = "DisplayRuntime";
+        snapshot.Properties["text"].Value = string.IsNullOrWhiteSpace(Name) ? Title : Name;
         snapshot[CircleDisplaySignalColorItemName].Value = string.IsNullOrWhiteSpace(SignalColor)
             ? CircleDisplayDefaultSignalColor
             : SignalColor;
-        snapshot[CircleDisplaySignalColorItemName].Params["Text"].Value = CircleDisplaySignalColorItemName;
+        snapshot[CircleDisplaySignalColorItemName].Properties["text"].Value = CircleDisplaySignalColorItemName;
         snapshot[CircleDisplaySignalRunItemName].Value = SignalRun;
-        snapshot[CircleDisplaySignalRunItemName].Params["Text"].Value = CircleDisplaySignalRunItemName;
+        snapshot[CircleDisplaySignalRunItemName].Properties["text"].Value = CircleDisplaySignalRunItemName;
         snapshot[CircleDisplayProgressBarItemName].Value = ProgressBar;
-        snapshot[CircleDisplayProgressBarItemName].Params["Text"].Value = CircleDisplayProgressBarItemName;
+        snapshot[CircleDisplayProgressBarItemName].Properties["text"].Value = CircleDisplayProgressBarItemName;
         snapshot[CircleDisplayProgressStateItemName].Value = System.Math.Clamp(ProgressState, 0d, 100d);
-        snapshot[CircleDisplayProgressStateItemName].Params["Text"].Value = CircleDisplayProgressStateItemName;
+        snapshot[CircleDisplayProgressStateItemName].Properties["text"].Value = CircleDisplayProgressStateItemName;
         snapshot[CircleDisplayProgressBarColorItemName].Value = string.IsNullOrWhiteSpace(ProgressBarColor)
             ? CircleDisplayDefaultProgressBarColor
             : ProgressBarColor;
-        snapshot[CircleDisplayProgressBarColorItemName].Params["Text"].Value = CircleDisplayProgressBarColorItemName;
+        snapshot[CircleDisplayProgressBarColorItemName].Properties["text"].Value = CircleDisplayProgressBarColorItemName;
 
         HostRegistries.Data.UpsertSnapshot(runtimeBasePath, snapshot, DataRegistryItemMetadata.WidgetInternal(), pruneMissingMembers: false);
         UpsertCircleDisplayRuntimeValue(
@@ -4256,10 +4262,10 @@ public sealed class FolderItemModel : ObservableObject
             return;
         }
 
-        var item = new Item(runtimeItemName, value, GetDisplayRuntimeBasePath());
-        item.Params["Kind"].Value = "DisplayRuntime";
-        item.Params["Text"].Value = title;
-        item.Params["Title"].Value = title;
+        var item = new ItemModel(runtimeItemName, value, GetDisplayRuntimeBasePath());
+        item.Properties["kind"].Value = "DisplayRuntime";
+        item.Properties["text"].Value = title;
+        item.Properties["title"].Value = title;
         HostRegistries.Data.UpsertSnapshot(runtimePath, item, DataRegistryItemMetadata.WidgetInternal(), pruneMissingMembers: true);
     }
 
@@ -4310,20 +4316,20 @@ public sealed class FolderItemModel : ObservableObject
         };
     }
 
-    private ParameterDisplayModel BuildTargetParameterView()
+    private PropertyDisplayModel BuildTargetPropertyView()
         => BuildTargetParameterView(null, Title);
 
-    private ParameterDisplayModel BuildTargetParameterView(string? labelOverride, string fallbackText)
+    private PropertyDisplayModel BuildTargetParameterView(string? labelOverride, string fallbackText)
     {
-        var parameter = ResolveTargetParameter();
-        var isValueParameter = parameter is not null && string.Equals(parameter.Name, "Value", StringComparison.OrdinalIgnoreCase);
-        var label = labelOverride ?? (isValueParameter && Target?.Params.Has("Text") == true
-            ? Target.Params["Text"].Value?.ToString() ?? string.Empty
+        var parameter = ResolveTargetProperty();
+        var isValueParameter = parameter is not null && string.Equals(parameter.Name, "read", StringComparison.OrdinalIgnoreCase);
+        var label = labelOverride ?? (isValueParameter && Target?.Properties.Has("text") == true
+            ? Target.Properties["text"].Value?.ToString() ?? string.Empty
             : (parameter?.Name ?? Header));
-        var format = !string.IsNullOrWhiteSpace(TargetParameterFormat)
-            ? TargetParameterFormat
-            : isValueParameter && Target?.Params.Has("Format") == true
-                ? Target.Params["Format"].Value?.ToString() ?? string.Empty
+        var format = !string.IsNullOrWhiteSpace(TargetPropertyFormat)
+            ? TargetPropertyFormat
+            : isValueParameter && Target?.Properties.Has("format") == true
+                ? Target.Properties["format"].Value?.ToString() ?? string.Empty
                 : string.Empty;
         var unitText = !string.IsNullOrWhiteSpace(Unit)
             ? Unit
@@ -4333,20 +4339,20 @@ public sealed class FolderItemModel : ObservableObject
         // Wenn ein Script-Wert aktiv ist, soll dieser auch durch die bestehende
         // Formatlogik (z.B. numeric:0.000) laufen. Dazu uebergeben wir den
         // Script-Wert als Fallback-Text und unterdruecken den Parameterwert,
-        // damit ParameterDisplayModel den Fallback formatiert.
+        // damit PropertyDisplayModel den Fallback formatiert.
         if (IsScriptTarget && _scriptValue is not null)
         {
             var scriptText = _scriptValue is IFormattable formattable
                 ? (formattable.ToString(null, CultureInfo.InvariantCulture) ?? _scriptValue.ToString() ?? string.Empty)
                 : (_scriptValue.ToString() ?? string.Empty);
 
-            return new ParameterDisplayModel(null, label, format, unitText, scriptText);
+            return new PropertyDisplayModel(null, label, format, unitText, scriptText);
         }
 
-        return new ParameterDisplayModel(parameter, label, format, unitText, fallbackText);
+        return new PropertyDisplayModel(parameter, label, format, unitText, fallbackText);
     }
 
-    private static bool HasPresentationChanged(ParameterDisplayModel presentation, ref string previousSignature)
+    private static bool HasPresentationChanged(PropertyDisplayModel presentation, ref string previousSignature)
     {
         var signature = BuildPresentationSignature(presentation);
         if (string.Equals(signature, previousSignature, StringComparison.Ordinal))
@@ -4358,14 +4364,14 @@ public sealed class FolderItemModel : ObservableObject
         return true;
     }
 
-    private static string BuildPresentationSignature(ParameterDisplayModel presentation)
+    private static string BuildPresentationSignature(PropertyDisplayModel presentation)
     {
-        var parameter = presentation.Parameter;
+        var property = presentation.Property;
         return string.Join(
             "|",
-            parameter?.Path ?? string.Empty,
-            parameter?.Name ?? string.Empty,
-            FormatDiagnosticValue(parameter?.Value),
+            property?.Path ?? string.Empty,
+            property?.Name ?? string.Empty,
+            FormatDiagnosticValue(property?.Value),
             presentation.Label,
             presentation.Format,
             presentation.UnitText,
@@ -4377,10 +4383,10 @@ public sealed class FolderItemModel : ObservableObject
             string.Join(",", presentation.Definition.Options));
     }
 
-    private static string GetTargetUnitText(Item? item)
+    private static string GetTargetUnitText(ItemModel? item)
     {
-        return item?.Params.Has("Unit") == true
-            ? item.Params["Unit"].Value?.ToString() ?? string.Empty
+        return item?.Properties.Has("unit") == true
+            ? item.Properties["unit"].Value?.ToString() ?? string.Empty
             : string.Empty;
     }
 
@@ -4400,7 +4406,7 @@ public sealed class FolderItemModel : ObservableObject
 
         var ignoredTailSegments = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "Value",
+            "read",
             "Request",
             "Status",
             "Command",
@@ -4488,7 +4494,7 @@ public sealed class FolderItemModel : ObservableObject
             ControlKind.SqlLoggerControl => "SqlLoggerControl",
             ControlKind.CameraControl => "CameraControl",
             ControlKind.ApplicationExplorer => "ApplicationExplorer",
-            ControlKind.Item or ControlKind.Signal => "Signal",
+            ControlKind.ItemModel or ControlKind.Signal => "Signal",
             _ => "Signal"
         };
 
@@ -4516,24 +4522,24 @@ public sealed class FolderItemModel : ObservableObject
         return IsAutoGeneratedControlName(caption);
     }
 
-    private Parameter? ResolveTargetParameter()
+    private ItemProperty? ResolveTargetProperty()
     {
         if (Target is null)
         {
             return null;
         }
 
-        if (!string.IsNullOrWhiteSpace(TargetParameterPath)
-            && HostRegistryParameterPolicy.CanShowInUserPicker(TargetParameterPath)
-            && Target.Params.Has(TargetParameterPath))
+        if (!string.IsNullOrWhiteSpace(TargetPropertyPath)
+            && HostRegistryPropertyPolicy.CanShowInUserPicker(TargetPropertyPath)
+            && Target.Properties.Has(TargetPropertyPath))
         {
-            return Target.Params[TargetParameterPath];
+            return Target.Properties[TargetPropertyPath];
         }
 
-        return Target.Params.Has("Value") ? Target.Params["Value"] : null;
+        return Target.Properties.Has("read") ? Target.Properties["read"] : null;
     }
 
-    private Parameter? ResolveWriteParameter()
+    private ItemProperty? ResolveWriteParameter()
     {
         if (Target is null)
         {
@@ -4545,15 +4551,20 @@ public sealed class FolderItemModel : ObservableObject
             return ResolveValueParameter(declaredTarget);
         }
 
-        if (Target.Has("Request"))
+        if (Target.Properties.Has("write"))
         {
-            return Target["Request"].Params["Value"];
+            return Target.Properties["write"];
         }
 
-        return ResolveTargetParameter();
+        if (Target.Has("Request"))
+        {
+            return Target["Request"].Properties["read"];
+        }
+
+        return ResolveTargetProperty();
     }
 
-    private Item ResolveWriteTargetItem()
+    private ItemModel ResolveWriteTargetItem()
     {
         if (Target is null)
         {
@@ -4565,6 +4576,11 @@ public sealed class FolderItemModel : ObservableObject
             return declaredTarget;
         }
 
+        if (Target.Properties.Has("write"))
+        {
+            return Target;
+        }
+
         if (Target.Has("Request"))
         {
             return Target["Request"];
@@ -4573,11 +4589,16 @@ public sealed class FolderItemModel : ObservableObject
         return Target;
     }
 
-    private static Item ResolveInteractionWriteTargetItem(Item targetItem)
+    private static ItemModel ResolveInteractionWriteTargetItem(ItemModel targetItem)
     {
         if (TryResolveDeclaredWriteBinding(targetItem, out var declaredTarget))
         {
             return declaredTarget;
+        }
+
+        if (targetItem.Properties.Has("write"))
+        {
+            return targetItem;
         }
 
         if (targetItem.Has("Request"))
@@ -4588,29 +4609,29 @@ public sealed class FolderItemModel : ObservableObject
         return targetItem;
     }
 
-    private void EnsureTargetParameterSelection(Item targetItem)
+    private void EnsureTargetPropertySelection(ItemModel targetItem)
     {
-        if (!string.IsNullOrWhiteSpace(TargetParameterPath)
-            && HostRegistryParameterPolicy.CanShowInUserPicker(TargetParameterPath)
-            && targetItem.Params.Has(TargetParameterPath))
+        if (!string.IsNullOrWhiteSpace(TargetPropertyPath)
+            && HostRegistryPropertyPolicy.CanShowInUserPicker(TargetPropertyPath)
+            && targetItem.Properties.Has(TargetPropertyPath))
         {
             return;
         }
 
-        if (targetItem.Params.Has("Value"))
+        if (targetItem.Properties.Has("read"))
         {
-            TargetParameterPath = "Value";
+            TargetPropertyPath = "read";
             return;
         }
 
-        var firstParameter = targetItem.Params.GetDictionary().Keys
-            .Where(HostRegistryParameterPolicy.CanShowInUserPicker)
+        var firstParameter = targetItem.Properties.GetDictionary().Keys
+            .Where(HostRegistryPropertyPolicy.CanShowInUserPicker)
             .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
             .FirstOrDefault();
-        TargetParameterPath = firstParameter ?? string.Empty;
+        TargetPropertyPath = firstParameter ?? string.Empty;
     }
 
-    private string NormalizeTargetParameterPath(string? value)
+    private string NormalizeTargetPropertyPath(string? value)
     {
         var trimmed = value?.Trim() ?? string.Empty;
         if (Target is null)
@@ -4619,19 +4640,19 @@ public sealed class FolderItemModel : ObservableObject
         }
 
         if (!string.IsNullOrWhiteSpace(trimmed)
-            && HostRegistryParameterPolicy.CanShowInUserPicker(trimmed)
-            && Target.Params.Has(trimmed))
+            && HostRegistryPropertyPolicy.CanShowInUserPicker(trimmed)
+            && Target.Properties.Has(trimmed))
         {
             return trimmed;
         }
 
-        if (Target.Params.Has("Value"))
+        if (Target.Properties.Has("read"))
         {
-            return "Value";
+            return "read";
         }
 
-        return Target.Params.GetDictionary().Keys
-            .Where(HostRegistryParameterPolicy.CanShowInUserPicker)
+        return Target.Properties.GetDictionary().Keys
+            .Where(HostRegistryPropertyPolicy.CanShowInUserPicker)
             .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
             .FirstOrDefault() ?? string.Empty;
     }
@@ -4763,31 +4784,41 @@ public sealed class FolderItemModel : ObservableObject
         }
     }
 
-    private static bool IsDeclaredWritable(Item? item)
+    private static bool IsDeclaredWritable(ItemModel? item)
     {
         if (item is null)
         {
             return false;
         }
 
-        if (item.Params.Has("Writable"))
+        if (item.Properties.Has("write"))
         {
-            return ToBooleanLikeValue(item.Params["Writable"].Value);
+            return true;
+        }
+
+        if (item.Properties.Has("writable"))
+        {
+            return ToBooleanLikeValue(item.Properties["writable"].Value);
         }
 
         return true;
     }
 
-    private static Parameter? ResolveValueParameter(Item item)
+    private static ItemProperty? ResolveValueParameter(ItemModel item)
     {
-        return item.Params.Has("Value") ? item.Params["Value"] : null;
+        return item.Properties.Has("read") ? item.Properties["read"] : null;
     }
 
-    private static SignalWriteMode GetResolvedWriteMode(Item sourceItem)
+    private static SignalWriteMode GetResolvedWriteMode(ItemModel sourceItem)
     {
+        if (sourceItem.Properties.Has("write"))
+        {
+            return SignalWriteMode.Direct;
+        }
+
         var parsedMode = SignalWriteMode.Direct;
-        if (sourceItem.Params.Has("WriteMode")
-            && Enum.TryParse<SignalWriteMode>(sourceItem.Params["WriteMode"].Value?.ToString(), true, out parsedMode))
+        if (sourceItem.Properties.Has("write_mode")
+            && Enum.TryParse<SignalWriteMode>(sourceItem.Properties["write_mode"].Value?.ToString(), true, out parsedMode))
         {
             return parsedMode;
         }
@@ -4795,10 +4826,15 @@ public sealed class FolderItemModel : ObservableObject
         return sourceItem.Has("Request") ? SignalWriteMode.Request : SignalWriteMode.Direct;
     }
 
-    private static string GetResolvedWritePath(Item sourceItem)
+    private static string GetResolvedWritePath(ItemModel sourceItem)
     {
-        var declaredWritePath = sourceItem.Params.Has("WritePath")
-            ? sourceItem.Params["WritePath"].Value?.ToString()?.Trim() ?? string.Empty
+        if (sourceItem.Properties.Has("write"))
+        {
+            return sourceItem.Path ?? "-";
+        }
+
+        var declaredWritePath = sourceItem.Properties.Has("write_path")
+            ? sourceItem.Properties["write_path"].Value?.ToString()?.Trim() ?? string.Empty
             : string.Empty;
 
         if (!string.IsNullOrWhiteSpace(declaredWritePath))
@@ -4819,21 +4855,27 @@ public sealed class FolderItemModel : ObservableObject
         return sourceItem.Path ?? "-";
     }
 
-    private static bool TryResolveDeclaredWriteBinding(Item sourceItem, out Item writeTargetItem)
+    private static bool TryResolveDeclaredWriteBinding(ItemModel sourceItem, out ItemModel writeTargetItem)
     {
         writeTargetItem = null!;
-        if (!sourceItem.Params.Has("WritePath"))
+        if (sourceItem.Properties.Has("write"))
+        {
+            writeTargetItem = sourceItem;
+            return true;
+        }
+
+        if (!sourceItem.Properties.Has("write_path"))
         {
             return false;
         }
 
-        var writePath = sourceItem.Params["WritePath"].Value?.ToString()?.Trim() ?? string.Empty;
+        var writePath = sourceItem.Properties["write_path"].Value?.ToString()?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(writePath))
         {
             return false;
         }
 
-        Item? resolvedItem;
+        ItemModel? resolvedItem;
         if (!HostRegistries.Data.TryResolve(writePath, out resolvedItem) || resolvedItem is null)
         {
             return false;
@@ -4841,8 +4883,8 @@ public sealed class FolderItemModel : ObservableObject
 
         var writeMode = SignalWriteMode.Direct;
         var parsedMode = SignalWriteMode.Direct;
-        if (sourceItem.Params.Has("WriteMode")
-            && Enum.TryParse<SignalWriteMode>(sourceItem.Params["WriteMode"].Value?.ToString(), true, out parsedMode))
+        if (sourceItem.Properties.Has("write_mode")
+            && Enum.TryParse<SignalWriteMode>(sourceItem.Properties["write_mode"].Value?.ToString(), true, out parsedMode))
         {
             writeMode = parsedMode;
         }

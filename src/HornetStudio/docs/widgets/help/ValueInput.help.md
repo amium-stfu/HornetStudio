@@ -14,17 +14,17 @@ The ValueInput component provides the on-screen editing surface for writable tar
 
 Border color for the editor card.
 
-### ParameterEditBackgrundColor
+### PropertyEditBackgrundColor
 
-Background color used for parameter editing surfaces.
+Background color used for property editing surfaces.
 
-### ParameterEditForeColor
+### PropertyEditForeColor
 
-Foreground color for parameter text.
+Foreground color for property text.
 
-### ParameterHoverColor
+### PropertyHoverColor
 
-Hover color used by parameter selection surfaces.
+Hover color used by property selection surfaces.
 
 ### ButtonBackColor / ButtonForeColor / ButtonHoverColor
 
@@ -38,7 +38,7 @@ Border color for edit panel buttons.
 
 ### Select input mode
 
-The control selects text, numeric, hex, or bits input mode based on the target parameter kind.
+The control selects text, numeric, hex, or bits input mode based on the target property kind.
 
 ### Handle on-screen pad input
 
@@ -63,4 +63,4 @@ This is an editor support component used by the shared value editing workflow, n
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/ValueInput/EditorValueInputControl.axaml.cs`
+- `src/Hornetstudio.Editor/Widgets/ValueInput/EditorValueInputControl.axaml.cs`

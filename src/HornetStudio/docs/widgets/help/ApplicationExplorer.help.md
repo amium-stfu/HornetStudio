@@ -51,4 +51,4 @@ The widget reacts to item changes and refreshes its environment list from the st
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/ApplicationExplorer/ApplicationExplorerControl.axaml.cs`
+- `src/Hornetstudio.Editor/Widgets/ApplicationExplorer/ApplicationExplorerControl.axaml.cs`

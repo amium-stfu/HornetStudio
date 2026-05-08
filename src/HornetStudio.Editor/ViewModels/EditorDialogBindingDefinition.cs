@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using ItemModel = Amium.Items.Item;
 using Amium.Items;
 using HornetStudio.Editor.Models;
 
@@ -46,7 +47,7 @@ public sealed class EditorDialogBindingDefinition
     public EditorDialogField CreateField(FolderItemModel item)
     {
         var parameterPath = string.IsNullOrWhiteSpace(item.Path) ? Key : $"{item.Path}.{Key}";
-        var field = new EditorDialogField(this, new Parameter(Key, ReadValue(item), parameterPath));
+        var field = new EditorDialogField(this, new ItemProperty(Key, ReadValue(item), parameterPath));
         field.OwnerItem = item;
         if (OptionsFactory is not null)
         {

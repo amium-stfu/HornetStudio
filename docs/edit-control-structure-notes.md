@@ -191,7 +191,7 @@ Der linke Einzug dieser drei Ebenen darf daher nicht separat voneinander abweich
 Beim Auswaehlen eines Targets gilt fuer `ItemControl`:
 
 - der Target-Parameter-`Text` ist nicht `BodyCaption`
-- der Target-Parameter-`Text` darf nicht als internes Body-Label im `ParameterControl` erscheinen
+- der Target-Parameter-`Text` darf nicht als internes Body-Label im `PropertyControl` erscheinen
 - wenn vorhanden, wird der Target-Parameter-`Text` in `ControlCaption` uebernommen
 - `BodyCaption` bleibt ein eigener, explizit gesetzter Text des Controls
 

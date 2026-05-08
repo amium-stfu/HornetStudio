@@ -5,7 +5,7 @@ using HornetStudio.Editor.Helpers;
 namespace HornetStudio.Editor.Models;
 
 /// <summary>
-/// Defines how a local HornetStudio registry item is published to the MQTT ItemBroker.
+/// Defines how a local HornetStudio registry item is published to the MQTT item_broker.
 /// </summary>
 public sealed class BrokerPublishedItemDefinition
 {

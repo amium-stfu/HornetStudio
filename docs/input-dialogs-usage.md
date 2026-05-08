@@ -166,7 +166,7 @@ Control:
 
 ### 3.3 SendInputTo (ohne Dialog)
 
-`SendInputTo` wird verwendet, wenn kein Dialog erscheinen soll, sondern direkt ein Wert an einen Set/Request-Pfad gesendet wird.
+`SendInputTo` wird verwendet, wenn kein Dialog erscheinen soll, sondern direkt ein Wert an einen set/request-Pfad gesendet wird.
 
 **Beispiel: Button, der einen festen Wert sendet**
 
@@ -174,7 +174,7 @@ Control:
 InteractionRules:
   - Event: BodyLeftClick
     Action: SendInputTo
-    TargetPath: "UdlBook/Page1/udl1/m310/Set/Request"
+    TargetPath: "UdlBook/Page1/udl1/m310/set/request"
     Argument: "1"   # fester Wert
 ```
 

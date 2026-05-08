@@ -75,5 +75,5 @@ The widget exposes runtime sub-items that can later be inspected or shown in hel
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/CsvLogger/EditorCsvLoggerControl.axaml.cs`
-- `src/HornetStudio.Editor/Models/PageItemModel.cs`
+- `src/Hornetstudio.Editor/Widgets/CsvLogger/EditorCsvLoggerControl.axaml.cs`
+- `src/Hornetstudio.Editor/Models/PageItemModel.cs`

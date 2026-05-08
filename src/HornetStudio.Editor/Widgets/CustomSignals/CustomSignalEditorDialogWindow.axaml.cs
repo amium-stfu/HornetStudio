@@ -133,6 +133,7 @@ public sealed class CustomSignalEditorDialogViewModel : ObservableObject
     private static readonly IReadOnlyList<string> ComputedDataTypeOptions = [nameof(CustomSignalDataType.Number), nameof(CustomSignalDataType.Boolean)];
 
     private readonly FolderItemModel _ownerItem;
+    private readonly string _originalName;
     private readonly IReadOnlyList<string> _allDataTypeOptions = Enum.GetNames<CustomSignalDataType>();
     private static readonly IReadOnlyList<string> ReadOnlyOptions = ["True", "False"];
     private string _name = string.Empty;
@@ -157,6 +158,7 @@ public sealed class CustomSignalEditorDialogViewModel : ObservableObject
     {
         _isInitializing = true;
         _ownerItem = ownerItem;
+        _originalName = definition?.Name ?? string.Empty;
         _availableDataTypeOptions = _allDataTypeOptions;
         ModeOptions = Enum.GetNames<CustomSignalMode>();
         TriggerOptions = Enum.GetNames<CustomSignalComputationTrigger>();
@@ -194,6 +196,10 @@ public sealed class CustomSignalEditorDialogViewModel : ObservableObject
             {
                 AddVariable(variable.Name, variable.SourcePath);
             }
+        }
+        else
+        {
+            Name = GenerateNextSignalName();
         }
 
         if (IsComputed && Variables.Count == 0)
@@ -490,6 +496,15 @@ public sealed class CustomSignalEditorDialogViewModel : ObservableObject
             return false;
         }
 
+        var normalizedName = TargetPathHelper.NormalizeIdentityName(Name);
+        var isUnchangedExistingName = !string.IsNullOrWhiteSpace(_originalName)
+            && string.Equals(_originalName, normalizedName, StringComparison.Ordinal);
+        if (!isUnchangedExistingName && !TargetPathHelper.IsValidPathIdentityName(normalizedName))
+        {
+            errorMessage = "Name must use snake_case: lowercase letters, numbers and '_' only.";
+            return false;
+        }
+
         if (!Enum.TryParse<CustomSignalMode>(SelectedMode, true, out var mode))
         {
             errorMessage = "Mode is invalid.";
@@ -529,7 +544,7 @@ public sealed class CustomSignalEditorDialogViewModel : ObservableObject
 
             definition = new CustomSignalDefinition
             {
-                Name = Name.Trim(),
+                Name = normalizedName,
                 Mode = mode,
                 DataType = dataType,
                 IsWritable = false,
@@ -563,7 +578,7 @@ public sealed class CustomSignalEditorDialogViewModel : ObservableObject
 
         definition = new CustomSignalDefinition
         {
-            Name = Name.Trim(),
+            Name = normalizedName,
             Mode = mode,
             DataType = dataType,
             IsWritable = IsWritable,
@@ -715,6 +730,13 @@ public sealed class CustomSignalEditorDialogViewModel : ObservableObject
         }
 
         RaisePropertyChanged(nameof(ShowFormulaStatus));
+    }
+
+    private string GenerateNextSignalName()
+    {
+        var existingNames = CustomSignalDefinitionCodec.ParseDefinitions(_ownerItem.CustomSignalDefinitions)
+            .Select(static definition => definition.Name);
+        return TargetPathHelper.GenerateIndexedPathIdentityName("signal", existingNames, "signal");
     }
 
     private string GenerateNextVariableName()

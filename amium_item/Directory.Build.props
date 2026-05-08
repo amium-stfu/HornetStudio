@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <Version>2026.04.28.0110</Version>
+    <AssemblyVersion>2026.04.28.0110</AssemblyVersion>
+    <FileVersion>2026.04.28.0110</FileVersion>
+    <InformationalVersion>2026.04.28.0110</InformationalVersion>
+    <PackageVersion>2026.04.28.0110</PackageVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+</Project>

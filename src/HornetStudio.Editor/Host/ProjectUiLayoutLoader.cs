@@ -316,8 +316,8 @@ public static class ProjectUiLayoutLoader
 
             properties["EnhancedSignals"] = array;
         }
-        SetPropertyIfPresent(properties, "TargetParameterPath", GetScalarJsonNode(control, "Parameter") ?? GetScalarJsonNode(control, "TargetParameterPath"));
-        SetPropertyIfPresent(properties, "TargetParameterFormat", GetScalarJsonNode(control, "Format") ?? GetScalarJsonNode(control, "TargetParameterFormat"));
+        SetPropertyIfPresent(properties, "TargetPropertyPath", GetScalarJsonNode(control, "Property") ?? GetScalarJsonNode(control, "Parameter") ?? GetScalarJsonNode(control, "TargetPropertyPath") ?? GetScalarJsonNode(control, "TargetParameterPath"));
+        SetPropertyIfPresent(properties, "TargetPropertyFormat", GetScalarJsonNode(control, "Format") ?? GetScalarJsonNode(control, "TargetPropertyFormat") ?? GetScalarJsonNode(control, "TargetParameterFormat"));
         SetPropertyIfPresent(properties, "IsReadOnly", GetScalarJsonNode(control, "IsReadOnly"));
         SetPropertyIfPresent(properties, "RefreshRateMs", GetScalarJsonNode(control, "RefreshRateMs"));
         SetPropertyIfPresent(properties, "ButtonText", GetScalarJsonNode(control, "ButtonText"));
@@ -339,7 +339,7 @@ public static class ProjectUiLayoutLoader
         SetPropertyIfPresent(properties, "BrokerHost", GetScalarJsonNode(control, "BrokerHost"));
         SetPropertyIfPresent(properties, "BrokerPort", GetScalarJsonNode(control, "BrokerPort"));
         SetPropertyIfPresent(properties, "BrokerBaseTopic", GetScalarJsonNode(control, "BrokerBaseTopic"));
-        SetPropertyIfPresent(properties, "BrokerClientId", GetScalarJsonNode(control, "BrokerClientId"));
+        SetPropertyIfPresent(properties, "ServerClientId", GetScalarJsonNode(control, "ServerClientId"));
         SetPropertyIfPresent(properties, "BrokerMode", GetScalarJsonNode(control, "BrokerMode"));
         SetPropertyIfPresent(properties, "BrokerAutoConnect", GetScalarJsonNode(control, "BrokerAutoConnect"));
         SetPropertyIfPresent(properties, "BrokerAttachedItemPaths", GetScalarJsonNode(control, "BrokerAttachedItemPaths"));

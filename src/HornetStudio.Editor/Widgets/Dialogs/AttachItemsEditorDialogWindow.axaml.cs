@@ -374,19 +374,13 @@ public partial class AttachItemsEditorDialogWindow : Window, INotifyPropertyChan
 
     private static IEnumerable<string> GetUdlAttachItemOptions(FolderItemModel item)
     {
-        var normalizedName = NormalizeUdlClientName(item.Name);
+        var normalizedName = UdlPathHelper.NormalizeClientName(item.Name);
         if (string.IsNullOrWhiteSpace(normalizedName))
         {
             return [];
         }
 
-        var prefixes = new[]
-        {
-            $"Studio.{item.FolderName}.{normalizedName}.Status.AttachOptions",
-            $"Project.{item.FolderName}.{normalizedName}.Status.AttachOptions",
-            $"UdlProject.{item.FolderName}.{normalizedName}.Status.AttachOptions",
-            $"Runtime.UdlClient.{normalizedName}"
-        };
+        var prefixes = UdlPathHelper.GetAttachOptionPrefixes(item.FolderName, normalizedName);
 
         return HostRegistries.Data.GetAllKeys()
             .SelectMany(key => prefixes.Select(prefix => TryGetUdlAttachRootOption(key, prefix, TargetPathHelper.NormalizeComparablePath(prefix))))
@@ -395,22 +389,6 @@ public partial class AttachItemsEditorDialogWindow : Window, INotifyPropertyChan
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
             .ToArray();
-    }
-
-    private static string NormalizeUdlClientName(string? rawName)
-    {
-        if (string.IsNullOrWhiteSpace(rawName))
-        {
-            return string.Empty;
-        }
-
-        var normalized = rawName.Trim();
-        if (normalized.EndsWith("Client", StringComparison.OrdinalIgnoreCase))
-        {
-            normalized = normalized[..^"Client".Length];
-        }
-
-        return normalized.Trim();
     }
 
     private static string? TryGetUdlAttachRootOption(string key, string attachOptionsPrefix, string comparablePrefix)
@@ -443,15 +421,7 @@ public partial class AttachItemsEditorDialogWindow : Window, INotifyPropertyChan
 
     private static IEnumerable<string> GetBrokerAttachItemOptions(FolderItemModel item)
     {
-        var normalizedName = string.IsNullOrWhiteSpace(item.Name)
-            ? "BrokerWidget"
-            : TargetPathHelper.NormalizeConfiguredTargetPath(item.Name).Replace('.', '_');
-        var prefixes = new[]
-        {
-            $"Studio.{item.FolderName}.{normalizedName}.Status.AttachOptions",
-            $"Project.{item.FolderName}.{normalizedName}.Status.AttachOptions",
-            $"UdlProject.{item.FolderName}.{normalizedName}.Status.AttachOptions"
-        };
+        var prefixes = TargetPathHelper.GetBrokerAttachOptionPrefixes(item.FolderName, item.Name);
 
         return HostRegistries.Data.GetAllKeys()
             .SelectMany(key => prefixes.Select(prefix => TryGetBrokerAttachRuntimePath(key, prefix)))
@@ -497,7 +467,7 @@ public partial class AttachItemsEditorDialogWindow : Window, INotifyPropertyChan
         }
 
         var normalizedPath = TargetPathHelper.NormalizeConfiguredTargetPath(path);
-        var markerIndex = normalizedPath.IndexOf("Runtime.ItemBroker.", StringComparison.OrdinalIgnoreCase);
+        var markerIndex = normalizedPath.IndexOf("runtime.item_broker.", StringComparison.OrdinalIgnoreCase);
         if (markerIndex >= 0)
         {
             return TargetPathHelper.ToBrokerReceivedAttachIdentity(normalizedPath[markerIndex..].Trim('.'));

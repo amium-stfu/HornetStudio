@@ -51,4 +51,4 @@ The editor exposes add actions for persisted widget types such as Button, Signal
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/FolderEditor/FolderEditorControl.axaml.cs`
+- `src/Hornetstudio.Editor/Widgets/FolderEditor/FolderEditorControl.axaml.cs`

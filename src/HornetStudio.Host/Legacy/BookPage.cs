@@ -1,5 +1,6 @@
 using System;
 using HornetStudio.Logging;
+using ItemModel = Amium.Items.Item;
 using Amium.Items;
 
 namespace HornetStudio.Host;
@@ -29,7 +30,7 @@ public abstract class ProjectFolder : IDisposable
     /// <param name="source">The source item that should be attached to this folder.</param>
     /// <param name="alias">An optional folder-local path segment used instead of the source item name.</param>
     /// <returns>The attached item instance bound to the current folder context.</returns>
-    protected Item Attach(Item source, string? alias = null)
+    protected ItemModel Attach(ItemModel source, string? alias = null)
         => _context.Attach(source, alias);
 
     /// <summary>
@@ -51,7 +52,7 @@ public abstract class ProjectFolder : IDisposable
     /// <summary>
     /// Publishes an item to the UI. Raw source items are attached to this folder automatically, while already folder-bound items are published as-is.
     /// </summary>
-    protected Item PublishItem(Item item, string? alias = null, bool pruneMissingMembers = false)
+    protected ItemModel PublishItem(ItemModel item, string? alias = null, bool pruneMissingMembers = false)
     {
         ArgumentNullException.ThrowIfNull(item);
 
@@ -85,7 +86,7 @@ public abstract class ProjectFolder : IDisposable
     /// <summary>
     /// Publishes a process log below the current folder using the convention &lt;Folder&gt;/Logs/&lt;name&gt;.
     /// </summary>
-    protected Item PublishProcessLog(string name, ProcessLog log, string? title = null, bool pruneMissingMembers = false)
+    protected ItemModel PublishProcessLog(string name, ProcessLog log, string? title = null, bool pruneMissingMembers = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(log);

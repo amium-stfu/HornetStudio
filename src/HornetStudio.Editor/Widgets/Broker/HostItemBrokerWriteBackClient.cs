@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Amium.ItemBroker;
+using Amium.Item.Server;
 using HornetStudio.Editor.Helpers;
 using HornetStudio.Editor.Models;
 using HornetStudio.Host;
@@ -100,7 +100,7 @@ public sealed class HostItemBrokerWriteBackClient : IDisposable, IAsyncDisposabl
         _subscriptions.Clear();
     }
 
-    private Task HandleMessageAsync(ItemBrokerMessage message, CancellationToken cancellationToken)
+    private Task HandleMessageAsync(ItemServerMessage message, CancellationToken cancellationToken)
     {
         if (_disposed || cancellationToken.IsCancellationRequested)
         {
@@ -126,7 +126,7 @@ public sealed class HostItemBrokerWriteBackClient : IDisposable, IAsyncDisposabl
 
         var writeTargetPath = definition.LocalPath;
         var echoItem = localItem;
-        if (string.Equals(parameterName, "Value", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(parameterName, "read", StringComparison.OrdinalIgnoreCase))
         {
             writeTargetPath = ResolveValueWriteTargetPath(localItem, definition.LocalPath);
             if (HostRegistries.Data.TryResolve(writeTargetPath, out var writeTargetItem) && writeTargetItem is not null)
@@ -140,9 +140,9 @@ public sealed class HostItemBrokerWriteBackClient : IDisposable, IAsyncDisposabl
             return Task.CompletedTask;
         }
 
-        var updated = string.Equals(parameterName, "Value", StringComparison.OrdinalIgnoreCase)
+        var updated = string.Equals(parameterName, "read", StringComparison.OrdinalIgnoreCase)
             ? HostRegistries.Data.UpdateValue(writeTargetPath, value)
-            : TryUpdateParameter(definition.LocalPath, parameterName, value);
+            : TryUpdateProperty(definition.LocalPath, parameterName, value);
 
         if (updated)
         {
@@ -161,25 +161,25 @@ public sealed class HostItemBrokerWriteBackClient : IDisposable, IAsyncDisposabl
             .GroupBy(static definition => definition.BrokerPath, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(static group => group.Key, static group => group.First(), StringComparer.OrdinalIgnoreCase);
 
-    private static string? GetParameterName(ItemBrokerMessage message)
+    private static string? GetParameterName(ItemServerMessage message)
         => message switch
         {
-            ItemValueChangedMessage => "Value",
-            ItemParameterChangedMessage parameterChanged => parameterChanged.ParameterName,
+            ItemValueChangedMessage => "read",
+            ItemPropertyChangedMessage parameterChanged => parameterChanged.PropertyName,
             _ => null,
         };
 
-    private static object? GetValue(ItemBrokerMessage message)
+    private static object? GetValue(ItemServerMessage message)
         => message switch
         {
             ItemValueChangedMessage valueChanged => valueChanged.Value,
-            ItemParameterChangedMessage parameterChanged => parameterChanged.Value,
+            ItemPropertyChangedMessage parameterChanged => parameterChanged.Value,
             _ => null,
         };
 
-    private static bool TryUpdateParameter(string localPath, string parameterName, object? value)
+    private static bool TryUpdateProperty(string localPath, string parameterName, object? value)
     {
-        if (!HostRegistryParameterPolicy.CanUserWriteParameter(parameterName))
+        if (!HostRegistryPropertyPolicy.CanUserWriteProperty(parameterName))
         {
             HostLogger.Log.Warning(
                 "[BrokerWidgetWriteBack] Blocked protected parameter write. LocalPath={LocalPath} Parameter={Parameter}",
@@ -188,11 +188,16 @@ public sealed class HostItemBrokerWriteBackClient : IDisposable, IAsyncDisposabl
             return false;
         }
 
-        return HostRegistries.Data.TryUpdateUserParameter(localPath, parameterName, value);
+        return HostRegistries.Data.TryUpdateUserProperty(localPath, parameterName, value);
     }
 
     private static string ResolveValueWriteTargetPath(Amium.Items.Item sourceItem, string fallbackPath)
     {
+        if (sourceItem.Properties.Has("write"))
+        {
+            return sourceItem.Path ?? fallbackPath;
+        }
+
         if (TryResolveDeclaredWriteTarget(sourceItem, out var declaredTarget))
         {
             return declaredTarget.Path ?? fallbackPath;
@@ -209,12 +214,18 @@ public sealed class HostItemBrokerWriteBackClient : IDisposable, IAsyncDisposabl
     private static bool TryResolveDeclaredWriteTarget(Amium.Items.Item sourceItem, out Amium.Items.Item writeTargetItem)
     {
         writeTargetItem = null!;
-        if (!sourceItem.Params.Has("WritePath"))
+        if (sourceItem.Properties.Has("write"))
+        {
+            writeTargetItem = sourceItem;
+            return true;
+        }
+
+        if (!sourceItem.Properties.Has("write_path"))
         {
             return false;
         }
 
-        var writePath = sourceItem.Params["WritePath"].Value?.ToString()?.Trim() ?? string.Empty;
+        var writePath = sourceItem.Properties["write_path"].Value?.ToString()?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(writePath))
         {
             return false;
@@ -226,11 +237,11 @@ public sealed class HostItemBrokerWriteBackClient : IDisposable, IAsyncDisposabl
         }
 
         var writeMode = SignalWriteMode.Direct;
-        object? rawWriteMode = sourceItem.Params.Has("WriteMode")
-            ? sourceItem.Params["WriteMode"].Value
+        object? rawWriteMode = sourceItem.Properties.Has("write_mode")
+            ? sourceItem.Properties["write_mode"].Value
             : null;
         var writeModeText = rawWriteMode?.ToString();
-        if (sourceItem.Params.Has("WriteMode")
+        if (sourceItem.Properties.Has("write_mode")
             && Enum.TryParse<SignalWriteMode>(writeModeText, true, out SignalWriteMode parsedMode))
         {
             writeMode = parsedMode;
@@ -256,12 +267,12 @@ public sealed class HostItemBrokerWriteBackClient : IDisposable, IAsyncDisposabl
             return false;
         }
 
-        if (string.Equals(parameterName, "Value", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(parameterName, "read", StringComparison.OrdinalIgnoreCase))
         {
             return ValuesEqual(localItem.Value, value);
         }
 
-        return localItem.Params.Has(parameterName) && ValuesEqual(localItem.Params[parameterName].Value, value);
+        return localItem.Properties.Has(parameterName) && ValuesEqual(localItem.Properties[parameterName].Value, value);
     }
 
     private static string GetStateKey(string brokerPath, string parameterName)

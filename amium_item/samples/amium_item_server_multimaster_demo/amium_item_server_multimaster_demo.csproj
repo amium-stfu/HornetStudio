@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>amium_item_server_multimaster_demo</AssemblyName>
+    <RootNamespace>Amium.Item.Server.MultimasterDemo</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Amium.Item\Amium.Item.csproj" />
+    <ProjectReference Include="..\..\src\Amium.Item.Server\Amium.Item.Server.csproj" />
+    <ProjectReference Include="..\..\src\Amium.Item.Client\Amium.Item.Client.csproj" />
+    <ProjectReference Include="..\..\src\Amium.Item.Mesh\Amium.Item.Mesh.csproj" />
+  </ItemGroup>
+</Project>

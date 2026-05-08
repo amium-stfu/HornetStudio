@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>Amium.Item.Client.MqttDemoWinForms</AssemblyName>
+    <RootNamespace>Amium.Item.Client.MqttDemoWinForms</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Amium.Item\Amium.Item.csproj" />
+    <ProjectReference Include="..\..\src\Amium.Item.Server\Amium.Item.Server.csproj" />
+    <ProjectReference Include="..\..\src\Amium.Item.Client\Amium.Item.Client.csproj" />
+  </ItemGroup>
+</Project>

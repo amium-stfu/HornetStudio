@@ -59,4 +59,4 @@ WidgetList is a container widget and is primarily responsible for child layout c
 
 ## Source
 
-- `src/HornetStudio.Editor/Models/PageItemModel.cs`
+- `src/Hornetstudio.Editor/Models/PageItemModel.cs`

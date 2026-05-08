@@ -4,7 +4,7 @@ This file is copied into each generated Python client folder.
 It documents the predefined public commands of the bundled `ui_python_client` helper API.
 
 Source of truth:
-- `src/HornetStudio.Host/Python/Integration/ui-python-client-commands.md`
+- `src/Hornetstudio.Host/Python/Integration/ui-python-client-commands.md`
 
 Rule:
 - whenever the helper API changes, update this file in the same change
@@ -24,7 +24,7 @@ from ui_python_client import FunctionResult, PythonClient
 from hornet_studio_host import host
 
 temperature = host.values.temperature.value
-host.values["Runtime.Test.Setpoint"].value = 100
+host.values["runtime.Test.Setpoint"].value = 100
 ```
 
 Accesses the host-projected value view.
@@ -33,7 +33,7 @@ Notes:
 - attribute access uses generated aliases when available
 - index access accepts either a visible alias or a projected registry path
 - writes go back through the bridge and remain host-administered
-- projected registry paths may include runtime entries like `Studio.Dummy.Applications.Python.Raw.raw_b`
+- projected registry paths may include runtime entries like `studio.Dummy.Applications.Python.Raw.raw_b`
 
 ### Host Value Metadata
 

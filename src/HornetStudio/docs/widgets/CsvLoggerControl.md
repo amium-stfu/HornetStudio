@@ -29,8 +29,8 @@ The widget publishes runtime items such as record state, output path, status, an
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/CsvLogger/`
-- `src/HornetStudio.Editor/Widgets/CsvLogger/EditorCsvLoggerControl.axaml.cs`
+- `src/Hornetstudio.Editor/Widgets/CsvLogger/`
+- `src/Hornetstudio.Editor/Widgets/CsvLogger/EditorCsvLoggerControl.axaml.cs`
 
 ## Help
 

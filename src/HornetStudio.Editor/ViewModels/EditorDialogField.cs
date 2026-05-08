@@ -6,6 +6,7 @@ using System.Linq;
 using Avalonia.Media;
 using HornetStudio.Host;
 using HornetStudio.Host.Python.Client;
+using ItemModel = Amium.Items.Item;
 using Amium.Items;
 using HornetStudio.Editor.Helpers;
 using HornetStudio.Editor.Models;
@@ -17,7 +18,7 @@ public sealed class EditorDialogField : ObservableObject
     private bool _isReadOnly;
     private bool _isVisible = true;
 
-    public EditorDialogField(EditorDialogBindingDefinition definition, Parameter parameter)
+    public EditorDialogField(EditorDialogBindingDefinition definition, ItemProperty parameter)
     {
         Definition = definition;
         Parameter = parameter;
@@ -50,7 +51,7 @@ public sealed class EditorDialogField : ObservableObject
 
     public string OwnerWorkspaceDirectory { get; internal set; } = string.Empty;
 
-    public Parameter Parameter { get; }
+    public ItemProperty Parameter { get; }
 
     public string Key => Definition.Key;
 

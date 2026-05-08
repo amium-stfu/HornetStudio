@@ -52,7 +52,15 @@ The widget manages the connection lifecycle against the configured endpoint.
 
 ### Publish status values
 
-Connection and item-related status values are published into runtime paths.
+Connection and item-related status values are published into canonical snake_case runtime paths.
+
+- Runtime base: `runtime.udl_client.<client_name>`
+- Status base: `studio.<folder_name>.<client_name>.status`
+- Attach-option discovery base: `studio.<folder_name>.<client_name>.status.attach_options`
+
+Newly published status leaf items use snake_case names such as `endpoint`, `connection`, `item_count`, `message_counter`, and `auto_connect`.
+
+The widget still reads legacy mixed-case UDL paths such as `runtime.UdlClient.<client_name>` and `...Status.AttachOptions` so older persisted data can continue to resolve.
 
 ### Publish module exposures
 
@@ -64,7 +72,7 @@ The dialog can already contain additional fields for later source parameterizati
 
 The module-scoped editor is grouped into `Main`, `Bitmask`, `Settings`, and `Adjust`. The bitmask section currently focuses on the operational helper rows `Read / Set` and `Alert`, contains the helper-bit rule `Read helper bits route to Set`, and always exposes the `Publish Bits` switch plus an editable `Count`, so publishing no longer depends on selecting a format inside the dialog.
 
-Common bitmask channels start with a suggested default count of `4` so the first setup step stays short. If `Read helper bits route to Set` is enabled, writes that originate from published `Read` helper bits are redirected to the module `Set` channel instead of writing back into `Read` directly. If the `Set` channel itself uses request-based writing, the existing write-mode handling continues to forward the actual write to `Set.Request` automatically.
+Common bitmask channels start with a suggested default count of `4` so the first setup step stays short. If `Read helper bits route to Set` is enabled, writes that originate from published `Read` helper bits are redirected to the module `Set` channel instead of writing back into `Read` directly. New UDL channels write through the flat `write` property on the channel item itself.
 
 The inline module delete action removes all persisted exposure definitions for the selected module. Runtime-only modules stay visible while they are available at runtime, but the delete action is only enabled when persisted helper configuration exists.
 
@@ -74,7 +82,7 @@ When a UdlClient runtime path is attached to the page, those `Bits` children app
 
 Bit clicks on those published helper items update the helper value directly and no longer trigger a full attached-item republish cycle unless the exposure structure itself changed.
 
-Writes to those bool helper items are converted back into the underlying channel value or request child, depending on the source channel write metadata.
+Writes to those bool helper items are converted back into the underlying channel `write` property, with legacy `Request` routing kept only as a compatibility fallback.
 
 During that writeback, the widget preserves the numeric value type of the underlying runtime channel so floating-point request values remain floating-point instead of switching to an integer mask type.
 
@@ -101,4 +109,4 @@ Published exposure helper items are removed automatically when the client discon
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/UdlClient/UdlClientControl.axaml.cs`
+- `src/Hornetstudio.Editor/Widgets/UdlClient/UdlClientControl.axaml.cs`

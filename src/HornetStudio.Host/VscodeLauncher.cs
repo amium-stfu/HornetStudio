@@ -7,7 +7,7 @@ using System.Collections.Generic;
 
 public static class VsCodeLauncher
 {
-    private static readonly string[] ProjectEntryFiles = ["Project.aaep", "Project.udlb", "Book.udlb"];
+    private static readonly string[] ProjectEntryFiles = ["project.aaep", "project.udlb", "Book.udlb"];
 
     public static bool OpenFolder(string folderPath, bool newWindow = true)
     {

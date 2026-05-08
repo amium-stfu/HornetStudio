@@ -5,7 +5,7 @@
   
   Identity:
     Name: List
-    Path: UdlBook.Page1.List1
+    Path: udl_book.Page1.List1
     Id: demo-list-1
 
   Bounds:
@@ -59,7 +59,7 @@
     - Type: Signal
       Identity:
         Name: m310
-        Path: UdlBook.Page1.udl1.m310
+        Path: udl_book.Page1.udl1.m310
         Id: 31f1e6da8dea4cef89ba0b005110d0a2
 
       Bounds:
@@ -104,7 +104,7 @@
       InteractionRules:
         - Event: BodyLeftClick
           Action: SendInputTo
-          TargetPath: "UdlBook.Page1.udl1.m310.Set.Request"
+          TargetPath: "udl_book.Page1.udl1.m310.set.request"
           Argument: ""
 
       Properties:

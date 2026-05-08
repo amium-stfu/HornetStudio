@@ -1,6 +1,7 @@
+using ItemModel = Amium.Items.Item;
 using Amium.Items;
-using Amium.ItemBroker;
-using Amium.ItemBroker.Mqtt.Client;
+using Amium.Item.Server;
+using Amium.Item.Client.Mqtt;
 using HornetStudio.Logging;
 
 namespace HornetStudio.Host;
@@ -49,7 +50,7 @@ public interface IHostItemBrokerClient : IAsyncDisposable
     /// Gets snapshot clones of the current remote runtime item roots keyed by remote client id.
     /// </summary>
     /// <returns>The snapshot clones keyed by remote client id.</returns>
-    IReadOnlyDictionary<string, Item> GetItemSnapshots();
+    IReadOnlyDictionary<string, ItemModel> GetItemSnapshots();
 
     /// <summary>
     /// Publishes a local item snapshot to the broker.
@@ -57,7 +58,7 @@ public interface IHostItemBrokerClient : IAsyncDisposable
     /// <param name="item">The item snapshot.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task PublishSnapshotAsync(Item item, CancellationToken cancellationToken = default);
+    Task PublishSnapshotAsync(ItemModel item, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Publishes a value update for a previously registered broker item.
@@ -65,7 +66,7 @@ public interface IHostItemBrokerClient : IAsyncDisposable
     /// <param name="item">The item containing the broker path and value.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The broker acknowledgement.</returns>
-    Task<ItemBrokerAckMessage> UpdateValueAsync(Item item, CancellationToken cancellationToken = default);
+    Task<ItemServerAckMessage> UpdateValueAsync(ItemModel item, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Publishes a parameter update for a previously registered broker item.
@@ -74,7 +75,7 @@ public interface IHostItemBrokerClient : IAsyncDisposable
     /// <param name="parameterName">The parameter name.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The broker acknowledgement.</returns>
-    Task<ItemBrokerAckMessage> UpdateParameterAsync(Item item, string parameterName, CancellationToken cancellationToken = default);
+    Task<ItemServerAckMessage> UpdateParameterAsync(ItemModel item, string parameterName, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Subscribes to broker updates for one item path.
@@ -86,7 +87,7 @@ public interface IHostItemBrokerClient : IAsyncDisposable
     /// <returns>The active subscription.</returns>
     Task<IItemSubscription> SubscribeAsync(
         string path,
-        Func<ItemBrokerMessage, CancellationToken, Task> handler,
+        Func<ItemServerMessage, CancellationToken, Task> handler,
         ItemSubscriptionOptions? options = null,
         CancellationToken cancellationToken = default);
 
@@ -143,8 +144,8 @@ public sealed class HostItemBrokerClient : IHostItemBrokerClient
         Port = port <= 0 ? 1883 : port;
         BaseTopic = baseTopic.Trim();
         ClientId = clientId.Trim();
-        Items = new ItemDictionary($"Runtime.ItemBroker.{Name}");
-        _remoteClient = new MqttRemoteItemClient(new MqttItemBrokerClientOptions
+        Items = new ItemDictionary($"runtime.item_broker.{Name}");
+        _remoteClient = new MqttRemoteItemClient(new MqttItemClientOptions
         {
             Host = Host,
             Port = Port,
@@ -183,7 +184,7 @@ public sealed class HostItemBrokerClient : IHostItemBrokerClient
     public ItemDictionary Items { get; }
 
     /// <inheritdoc />
-    public IReadOnlyDictionary<string, Item> GetItemSnapshots()
+    public IReadOnlyDictionary<string, ItemModel> GetItemSnapshots()
     {
         lock (_sync)
         {
@@ -193,7 +194,7 @@ public sealed class HostItemBrokerClient : IHostItemBrokerClient
     }
 
     /// <inheritdoc />
-    public Task PublishSnapshotAsync(Item item, CancellationToken cancellationToken = default)
+    public Task PublishSnapshotAsync(ItemModel item, CancellationToken cancellationToken = default)
     {
         HostLogger.Log.Debug(
             "[HostItemBrokerClientPublish] kind=snapshot client={ClientId} path={Path} value={Value}",
@@ -204,7 +205,7 @@ public sealed class HostItemBrokerClient : IHostItemBrokerClient
     }
 
     /// <inheritdoc />
-    public Task<ItemBrokerAckMessage> UpdateValueAsync(Item item, CancellationToken cancellationToken = default)
+    public Task<ItemServerAckMessage> UpdateValueAsync(ItemModel item, CancellationToken cancellationToken = default)
     {
         HostLogger.Log.Debug(
             "[HostItemBrokerClientPublish] kind=value client={ClientId} path={Path} value={Value}",
@@ -215,22 +216,22 @@ public sealed class HostItemBrokerClient : IHostItemBrokerClient
     }
 
     /// <inheritdoc />
-    public Task<ItemBrokerAckMessage> UpdateParameterAsync(Item item, string parameterName, CancellationToken cancellationToken = default)
+    public Task<ItemServerAckMessage> UpdateParameterAsync(ItemModel item, string parameterName, CancellationToken cancellationToken = default)
     {
-        var value = item.Params.Has(parameterName) ? item.Params[parameterName].Value : null;
+        var value = item.Properties.Has(parameterName) ? item.Properties[parameterName].Value : null;
         HostLogger.Log.Debug(
             "[HostItemBrokerClientPublish] kind=parameter client={ClientId} path={Path} parameter={Parameter} value={Value}",
             ClientId,
             item.Path ?? string.Empty,
             parameterName,
             value);
-        return _remoteClient.UpdateParameterAsync(item, parameterName, cancellationToken);
+        return _remoteClient.UpdatePropertyAsync(item, parameterName, cancellationToken);
     }
 
     /// <inheritdoc />
     public Task<IItemSubscription> SubscribeAsync(
         string path,
-        Func<ItemBrokerMessage, CancellationToken, Task> handler,
+        Func<ItemServerMessage, CancellationToken, Task> handler,
         ItemSubscriptionOptions? options = null,
         CancellationToken cancellationToken = default)
     {

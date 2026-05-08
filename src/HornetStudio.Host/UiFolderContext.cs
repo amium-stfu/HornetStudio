@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using ItemModel = Amium.Items.Item;
 using Amium.Items;
 
 namespace HornetStudio.Host;
@@ -23,7 +24,7 @@ public sealed class UiFolderContext : IDisposable
     public string? ProjectName { get; }
     public string FolderPath => _folderPath;
 
-    public Item Attach(Item source, string? alias = null)
+    public ItemModel Attach(ItemModel source, string? alias = null)
     {
         ArgumentNullException.ThrowIfNull(source);
 
@@ -69,14 +70,14 @@ public sealed class UiFolderContext : IDisposable
 
     private sealed class AttachedItemLink : IDisposable
     {
-        private readonly Item _attachedItem;
-        private readonly Item _source;
-        private readonly List<Item> _subscribedSourceItems = [];
+        private readonly ItemModel _attachedItem;
+        private readonly ItemModel _source;
+        private readonly List<ItemModel> _subscribedSourceItems = [];
         private bool _isSyncingFromSource;
         private bool _isSyncingFromTarget;
         private readonly string _targetPath;
 
-        public AttachedItemLink(Item source, Item attachedItem, string targetPath)
+        public AttachedItemLink(ItemModel source, ItemModel attachedItem, string targetPath)
         {
             _source = source;
             _attachedItem = attachedItem;
@@ -85,9 +86,9 @@ public sealed class UiFolderContext : IDisposable
             HostRegistries.Data.ItemChanged += OnTargetChanged;
         }
 
-        public Item AttachedItem => _attachedItem;
+        public ItemModel AttachedItem => _attachedItem;
 
-        public bool Matches(Item source, string targetPath)
+        public bool Matches(ItemModel source, string targetPath)
             => ReferenceEquals(_source, source)
                 && string.Equals(_targetPath, targetPath, StringComparison.Ordinal);
 
@@ -105,7 +106,7 @@ public sealed class UiFolderContext : IDisposable
                 return;
             }
 
-            if (IsStructuralParameter(e.ParameterName))
+            if (IsStructuralParameter(e.PropertyName))
             {
                 return;
             }
@@ -128,18 +129,18 @@ public sealed class UiFolderContext : IDisposable
                     return;
                 }
 
-                var parameterName = e.ParameterName;
-                if (string.Equals(parameterName, "Value", StringComparison.Ordinal))
+                var parameterName = e.PropertyName;
+                if (string.Equals(parameterName, "value", StringComparison.Ordinal))
                 {
-                    var valueTimestamp = _source.Params.Has("Value") ? _source.Params["Value"].LastUpdate : (ulong?)null;
+                    var valueTimestamp = _source.Properties.Has("value") ? _source.Properties["value"].LastUpdate : (ulong?)null;
                     HostRegistries.Data.UpdateValue(_targetPath, _source.Value, valueTimestamp);
                     return;
                 }
 
-                if (_source.Params.Has(parameterName) && target.Params.Has(parameterName))
+                if (_source.Properties.Has(parameterName) && target.Properties.Has(parameterName))
                 {
-                    var sourceParameter = _source.Params[parameterName];
-                    HostRegistries.Data.UpdateParameter(_targetPath, parameterName, sourceParameter.Value, sourceParameter.LastUpdate);
+                    var sourceParameter = _source.Properties[parameterName];
+                    HostRegistries.Data.UpdateProperty(_targetPath, parameterName, sourceParameter.Value, sourceParameter.LastUpdate);
                     return;
                 }
 
@@ -155,10 +156,10 @@ public sealed class UiFolderContext : IDisposable
         private void SyncSourceChildChangeToTarget(string relativePath, ItemChangedEventArgs e)
         {
             var targetChildPath = $"{_targetPath}.{relativePath}";
-            var parameterName = e.ParameterName;
-            if (string.Equals(parameterName, "Value", StringComparison.Ordinal))
+            var parameterName = e.PropertyName;
+            if (string.Equals(parameterName, "value", StringComparison.Ordinal))
             {
-                var valueTimestamp = e.Item.Params.Has("Value") ? e.Item.Params["Value"].LastUpdate : (ulong?)null;
+                var valueTimestamp = e.Item.Properties.Has("value") ? e.Item.Properties["value"].LastUpdate : (ulong?)null;
                 if (!HostRegistries.Data.UpdateValue(targetChildPath, e.Item.Value, valueTimestamp))
                 {
                     var treeSnapshot = _source.Clone().Repath(_targetPath);
@@ -170,10 +171,10 @@ public sealed class UiFolderContext : IDisposable
 
             if (!string.IsNullOrWhiteSpace(parameterName)
                 && !IsStructuralParameter(parameterName)
-                && e.Item.Params.Has(parameterName))
+                && e.Item.Properties.Has(parameterName))
             {
-                var sourceParameter = e.Item.Params[parameterName];
-                if (!HostRegistries.Data.UpdateParameter(targetChildPath, parameterName, sourceParameter.Value, sourceParameter.LastUpdate))
+                var sourceParameter = e.Item.Properties[parameterName];
+                if (!HostRegistries.Data.UpdateProperty(targetChildPath, parameterName, sourceParameter.Value, sourceParameter.LastUpdate))
                 {
                     var treeSnapshot = _source.Clone().Repath(_targetPath);
                     HostRegistries.Data.UpsertSnapshot(_targetPath, treeSnapshot, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
@@ -181,7 +182,7 @@ public sealed class UiFolderContext : IDisposable
             }
         }
 
-        private bool TryGetSourceRelativePath(Item item, out string relativePath)
+        private bool TryGetSourceRelativePath(ItemModel item, out string relativePath)
         {
             relativePath = string.Empty;
             var sourcePath = _source.Path;
@@ -220,21 +221,21 @@ public sealed class UiFolderContext : IDisposable
                     return;
                 }
 
-                if (string.Equals(e.ParameterName, "Value", StringComparison.Ordinal) || e.ChangeKind == DataChangeKind.ValueUpdated)
+                if (string.Equals(e.ParameterName, "value", StringComparison.Ordinal) || e.ChangeKind == DataChangeKind.ValueUpdated)
                 {
-                    SetItemValueIfChanged(_source, e.Item.Value);
+                    SetItemValueIfChanged(_source, e.ItemModel.Value);
                     return;
                 }
 
                 if (!string.IsNullOrWhiteSpace(e.ParameterName)
                     && !IsStructuralParameter(e.ParameterName)
-                    && e.Item.Params.Has(e.ParameterName))
+                    && e.ItemModel.Properties.Has(e.ParameterName))
                 {
-                    SetParameterValueIfChanged(_source.Params[e.ParameterName], e.Item.Params[e.ParameterName].Value);
+                    SetParameterValueIfChanged(_source.Properties[e.ParameterName], e.ItemModel.Properties[e.ParameterName].Value);
                     return;
                 }
 
-                ApplySnapshotToSource(_source, e.Item);
+                ApplySnapshotToSource(_source, e.ItemModel);
             }
             finally
             {
@@ -255,31 +256,31 @@ public sealed class UiFolderContext : IDisposable
                 current = current[segment];
             }
 
-            if (string.Equals(e.ParameterName, "Value", StringComparison.Ordinal) || e.ChangeKind == DataChangeKind.ValueUpdated)
+            if (string.Equals(e.ParameterName, "value", StringComparison.Ordinal) || e.ChangeKind == DataChangeKind.ValueUpdated)
             {
-                SetItemValueIfChanged(current, e.Item.Value);
+                SetItemValueIfChanged(current, e.ItemModel.Value);
                 return;
             }
 
             if (!string.IsNullOrWhiteSpace(e.ParameterName)
                 && !IsStructuralParameter(e.ParameterName)
-                && e.Item.Params.Has(e.ParameterName)
-                && current.Params.Has(e.ParameterName))
+                && e.ItemModel.Properties.Has(e.ParameterName)
+                && current.Properties.Has(e.ParameterName))
             {
-                SetParameterValueIfChanged(current.Params[e.ParameterName], e.Item.Params[e.ParameterName].Value);
+                SetParameterValueIfChanged(current.Properties[e.ParameterName], e.ItemModel.Properties[e.ParameterName].Value);
             }
         }
 
-        private static void ApplySnapshotToSource(Item sourceItem, Item snapshotItem)
+        private static void ApplySnapshotToSource(ItemModel sourceItem, ItemModel snapshotItem)
         {
-            foreach (var parameterEntry in snapshotItem.Params.GetDictionary())
+            foreach (var parameterEntry in snapshotItem.Properties.GetDictionary())
             {
                 if (IsStructuralParameter(parameterEntry.Key))
                 {
                     continue;
                 }
 
-                SetParameterValueIfChanged(sourceItem.Params[parameterEntry.Key], parameterEntry.Value.Value);
+                SetParameterValueIfChanged(sourceItem.Properties[parameterEntry.Key], parameterEntry.Value.Value);
             }
 
             foreach (var childEntry in snapshotItem.GetDictionary())
@@ -293,7 +294,7 @@ public sealed class UiFolderContext : IDisposable
             => string.Equals(parameterName, "Path", StringComparison.Ordinal)
                 || string.Equals(parameterName, "Name", StringComparison.Ordinal);
 
-        private static void SetItemValueIfChanged(Item item, object? value)
+        private static void SetItemValueIfChanged(ItemModel item, object? value)
         {
             if (ValuesEqual(item.Value, value))
             {
@@ -303,7 +304,7 @@ public sealed class UiFolderContext : IDisposable
             item.Value = value!;
         }
 
-        private static void SetParameterValueIfChanged(Parameter parameter, object? value)
+        private static void SetParameterValueIfChanged(ItemProperty parameter, object? value)
         {
             if (ValuesEqual(parameter.Value, value))
             {
@@ -338,7 +339,7 @@ public sealed class UiFolderContext : IDisposable
             return Equals(left, right);
         }
 
-        private void SubscribeSourceTree(Item item)
+        private void SubscribeSourceTree(ItemModel item)
         {
             _subscribedSourceItems.Add(item);
             item.Changed += OnSourceChanged;

@@ -15,6 +15,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using HornetStudio.Editor.Controls;
 using HornetStudio.Host;
+using ItemModel = Amium.Items.Item;
 using Amium.Items;
 using HornetStudio.Editor.Models;
 using HornetStudio.Editor.ViewModels;
@@ -80,7 +81,7 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
     private bool _isUpdatingRuntimeSignals;
     private readonly Dictionary<string, string> _publishedRuntimeValues = new(StringComparer.OrdinalIgnoreCase);
 
-    private FolderItemModel? Item => _item;
+    private FolderItemModel? ItemModel => _item;
 
     private MainWindowViewModel? ViewModel
         => this.GetVisualRoot() is Window { DataContext: MainWindowViewModel viewModel } ? viewModel : null;
@@ -189,7 +190,7 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
     private void HookItemsCollection()
     {
         UnhookItemsCollection();
-        _itemsCollection = Item?.Items;
+        _itemsCollection = ItemModel?.Items;
         if (_itemsCollection is not null)
         {
             _itemsCollection.CollectionChanged += OnItemsCollectionChanged;
@@ -210,7 +211,7 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
     private void HookItemProperties()
     {
         UnhookItemProperties();
-        _itemPropertySource = Item;
+        _itemPropertySource = ItemModel;
         if (_itemPropertySource is not null)
         {
             _itemPropertySource.PropertyChanged += OnItemPropertyChanged;
@@ -262,7 +263,7 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
     {
         var previousRegistryPath = _registryPath;
 
-        if (Item?.IsCircleDisplay != true)
+        if (ItemModel?.IsCircleDisplay != true)
         {
             _registryPath = string.Empty;
             _signalColorRuntimePath = string.Empty;
@@ -274,12 +275,12 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
             return;
         }
 
-        _registryPath = Item.GetDisplayRuntimeBasePath();
-        _signalColorRuntimePath = Item.GetDisplayRuntimePath(SignalColorItemName);
-        _signalRunRuntimePath = Item.GetDisplayRuntimePath(SignalRunItemName);
-        _progressBarRuntimePath = Item.GetDisplayRuntimePath(ProgressBarItemName);
-        _progressStateRuntimePath = Item.GetDisplayRuntimePath(ProgressStateItemName);
-        _progressBarColorRuntimePath = Item.GetDisplayRuntimePath(ProgressBarColorItemName);
+        _registryPath = ItemModel.GetDisplayRuntimeBasePath();
+        _signalColorRuntimePath = ItemModel.GetDisplayRuntimePath(SignalColorItemName);
+        _signalRunRuntimePath = ItemModel.GetDisplayRuntimePath(SignalRunItemName);
+        _progressBarRuntimePath = ItemModel.GetDisplayRuntimePath(ProgressBarItemName);
+        _progressStateRuntimePath = ItemModel.GetDisplayRuntimePath(ProgressStateItemName);
+        _progressBarColorRuntimePath = ItemModel.GetDisplayRuntimePath(ProgressBarColorItemName);
 
         if (!string.Equals(previousRegistryPath, _registryPath, StringComparison.OrdinalIgnoreCase))
         {
@@ -330,7 +331,7 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
 
     private void RefreshItemOverlay()
     {
-        if (_itemContentGrid is null || _itemOverlayGrid is null || Item is null)
+        if (_itemContentGrid is null || _itemOverlayGrid is null || ItemModel is null)
         {
             return;
         }
@@ -340,13 +341,13 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
         _itemOverlayGrid.RowDefinitions.Clear();
         _itemOverlayGrid.ColumnDefinitions.Clear();
 
-        for (var row = 0; row < Item.TableRows; row++)
+        for (var row = 0; row < ItemModel.TableRows; row++)
         {
             _itemContentGrid.RowDefinitions.Add(new RowDefinition(GridLength.Star));
             _itemOverlayGrid.RowDefinitions.Add(new RowDefinition(GridLength.Star));
         }
 
-        for (var column = 0; column < Item.TableColumns; column++)
+        for (var column = 0; column < ItemModel.TableColumns; column++)
         {
             _itemContentGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
             _itemOverlayGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
@@ -355,7 +356,7 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
         _itemContentGrid.Children.Clear();
         _itemOverlayGrid.Children.Clear();
 
-        foreach (var child in Item.Items)
+        foreach (var child in ItemModel.Items)
         {
             if (!child.IsTableChildControl)
             {
@@ -520,16 +521,16 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
             return;
         }
 
-        if (Item?.IsCircleDisplay != true || string.IsNullOrWhiteSpace(_registryPath))
+        if (ItemModel?.IsCircleDisplay != true || string.IsNullOrWhiteSpace(_registryPath))
         {
             return;
         }
 
-        var signalColor = ReadRuntimeString(_signalColorRuntimePath, string.IsNullOrWhiteSpace(Item.SignalColor) ? DefaultSignalColor : Item.SignalColor);
-        var signalRun = ReadRuntimeBoolean(_signalRunRuntimePath, Item.SignalRun);
-        var progressBar = ReadRuntimeBoolean(_progressBarRuntimePath, Item.ProgressBar);
-        var progressState = ReadRuntimeDouble(_progressStateRuntimePath, Math.Clamp(Item.ProgressState, 0d, 100d), 0d, 100d);
-        var progressBarColor = ReadRuntimeString(_progressBarColorRuntimePath, string.IsNullOrWhiteSpace(Item.ProgressBarColor) ? DefaultProgressBarColor : Item.ProgressBarColor);
+        var signalColor = ReadRuntimeString(_signalColorRuntimePath, string.IsNullOrWhiteSpace(ItemModel.SignalColor) ? DefaultSignalColor : ItemModel.SignalColor);
+        var signalRun = ReadRuntimeBoolean(_signalRunRuntimePath, ItemModel.SignalRun);
+        var progressBar = ReadRuntimeBoolean(_progressBarRuntimePath, ItemModel.ProgressBar);
+        var progressState = ReadRuntimeDouble(_progressStateRuntimePath, Math.Clamp(ItemModel.ProgressState, 0d, 100d), 0d, 100d);
+        var progressBarColor = ReadRuntimeString(_progressBarColorRuntimePath, string.IsNullOrWhiteSpace(ItemModel.ProgressBarColor) ? DefaultProgressBarColor : ItemModel.ProgressBarColor);
 
         _isUpdatingRuntimeSignals = true;
         try
@@ -548,12 +549,12 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
 
     private void PublishRuntimeValue(string itemName, object? value, string title)
     {
-        if (Item is null)
+        if (ItemModel is null)
         {
             return;
         }
 
-        var path = Item.GetDisplayRuntimePath(itemName);
+        var path = ItemModel.GetDisplayRuntimePath(itemName);
         if (string.IsNullOrWhiteSpace(path))
         {
             return;
@@ -568,10 +569,10 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
 
         _publishedRuntimeValues[path] = serializedValue;
 
-        var snapshot = new Item(itemName, value, _registryPath);
-        snapshot.Params["Kind"].Value = "DisplayRuntime";
-        snapshot.Params["Text"].Value = title;
-        snapshot.Params["Title"].Value = title;
+        var snapshot = new ItemModel(itemName, value, _registryPath);
+        snapshot.Properties["kind"].Value = "DisplayRuntime";
+        snapshot.Properties["text"].Value = title;
+        snapshot.Properties["title"].Value = title;
         HostRegistries.Data.UpsertSnapshot(snapshot.Path!, snapshot, DataRegistryItemMetadata.WidgetStatus(), pruneMissingMembers: true);
     }
 
@@ -587,7 +588,7 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
 
     private void RefreshSignalState()
     {
-        if (Item is null)
+        if (ItemModel is null)
         {
             ApplyBeaconColor(DefaultSignalColor);
             ApplyProgressColor(DefaultProgressBarColor);
@@ -595,11 +596,11 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
             return;
         }
 
-        var signalColor = ReadRuntimeString(_signalColorRuntimePath, string.IsNullOrWhiteSpace(Item.SignalColor) ? DefaultSignalColor : Item.SignalColor);
-        var progressBarColor = ReadRuntimeString(_progressBarColorRuntimePath, string.IsNullOrWhiteSpace(Item.ProgressBarColor) ? DefaultProgressBarColor : Item.ProgressBarColor);
-        var progressBar = ReadRuntimeBoolean(_progressBarRuntimePath, Item.ProgressBar);
-        var progressState = ReadRuntimeDouble(_progressStateRuntimePath, Math.Clamp(Item.ProgressState, 0d, 100d), 0d, 100d);
-        var signalRun = ReadRuntimeBoolean(_signalRunRuntimePath, Item.SignalRun);
+        var signalColor = ReadRuntimeString(_signalColorRuntimePath, string.IsNullOrWhiteSpace(ItemModel.SignalColor) ? DefaultSignalColor : ItemModel.SignalColor);
+        var progressBarColor = ReadRuntimeString(_progressBarColorRuntimePath, string.IsNullOrWhiteSpace(ItemModel.ProgressBarColor) ? DefaultProgressBarColor : ItemModel.ProgressBarColor);
+        var progressBar = ReadRuntimeBoolean(_progressBarRuntimePath, ItemModel.ProgressBar);
+        var progressState = ReadRuntimeDouble(_progressStateRuntimePath, Math.Clamp(ItemModel.ProgressState, 0d, 100d), 0d, 100d);
+        var signalRun = ReadRuntimeBoolean(_signalRunRuntimePath, ItemModel.SignalRun);
 
         ApplyBeaconColor(signalColor);
         ApplyProgressColor(progressBarColor);
@@ -940,7 +941,7 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
 
     private void OnCellPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (ViewModel is null || Item is null || !ViewModel.IsEditMode)
+        if (ViewModel is null || ItemModel is null || !ViewModel.IsEditMode)
         {
             return;
         }
@@ -962,8 +963,8 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
 
         if (point.Properties.PointerUpdateKind == PointerUpdateKind.RightButtonPressed)
         {
-            ViewModel.ToggleTableCellSelection(Item, slot.Row, slot.Column, toggle: false);
-            ViewModel.AddItemToSelectedTableCells(Item);
+            ViewModel.ToggleTableCellSelection(ItemModel, slot.Row, slot.Column, toggle: false);
+            ViewModel.AddItemToSelectedTableCells(ItemModel);
             RefreshItemOverlay();
             e.Handled = true;
             return;
@@ -995,7 +996,7 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
             _previousCursor = control.Cursor;
             control.Cursor = new Cursor(StandardCursorType.Cross);
             e.Pointer.Capture(_contentHost);
-            ViewModel.SelectTableRectangle(Item, _selectionAnchorRow, _selectionAnchorColumn, _selectionCurrentRow, _selectionCurrentColumn);
+            ViewModel.SelectTableRectangle(ItemModel, _selectionAnchorRow, _selectionAnchorColumn, _selectionCurrentRow, _selectionCurrentColumn);
             UpdateSelectionOverlay(_selectionAnchorRow, _selectionAnchorColumn, _selectionCurrentRow, _selectionCurrentColumn);
             e.Handled = true;
             return;
@@ -1010,7 +1011,7 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
             return;
         }
 
-        if (!_isSelecting || ViewModel is null || Item is null || !ViewModel.IsEditMode)
+        if (!_isSelecting || ViewModel is null || ItemModel is null || !ViewModel.IsEditMode)
         {
             return;
         }
@@ -1039,7 +1040,7 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
 
         _selectionCurrentRow = slot.Row;
         _selectionCurrentColumn = slot.Column;
-        ViewModel.SelectTableRectangle(Item, _selectionAnchorRow, _selectionAnchorColumn, _selectionCurrentRow, _selectionCurrentColumn);
+        ViewModel.SelectTableRectangle(ItemModel, _selectionAnchorRow, _selectionAnchorColumn, _selectionCurrentRow, _selectionCurrentColumn);
         UpdateSelectionOverlay(_selectionAnchorRow, _selectionAnchorColumn, _selectionCurrentRow, _selectionCurrentColumn);
         e.Handled = true;
     }
@@ -1054,9 +1055,9 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
 
         if (e.InitialPressMouseButton == MouseButton.Left)
         {
-            if (_isSelecting && ViewModel is not null && Item is not null && ViewModel.IsEditMode)
+            if (_isSelecting && ViewModel is not null && ItemModel is not null && ViewModel.IsEditMode)
             {
-                ViewModel.SelectTableRectangle(Item, _selectionAnchorRow, _selectionAnchorColumn, _selectionCurrentRow, _selectionCurrentColumn);
+                ViewModel.SelectTableRectangle(ItemModel, _selectionAnchorRow, _selectionAnchorColumn, _selectionCurrentRow, _selectionCurrentColumn);
             }
 
             ReleaseSelectionPointer(e.Pointer);
@@ -1065,7 +1066,7 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
 
     private void OnChildMovePointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (ViewModel is null || Item is null || !ViewModel.IsEditMode || _contentHost is null)
+        if (ViewModel is null || ItemModel is null || !ViewModel.IsEditMode || _contentHost is null)
         {
             return;
         }
@@ -1105,7 +1106,7 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
 
     private void OnChildResizePointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (ViewModel is null || Item is null || !ViewModel.IsEditMode || _contentHost is null)
+        if (ViewModel is null || ItemModel is null || !ViewModel.IsEditMode || _contentHost is null)
         {
             return;
         }
@@ -1138,7 +1139,7 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
 
     private void HandleChildPointerMoved(object? sender, PointerEventArgs e)
     {
-        if (_activeChildItem is null || ViewModel is null || Item is null || _contentHost is null)
+        if (_activeChildItem is null || ViewModel is null || ItemModel is null || _contentHost is null)
         {
             return;
         }
@@ -1165,7 +1166,7 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
         {
             var targetRow = slot.Row - _dragRowOffset;
             var targetColumn = slot.Column - _dragColumnOffset;
-            if (ViewModel.CanOccupyTableRectangle(Item, targetRow, targetColumn, _activeChildItem.TableCellRowSpan, _activeChildItem.TableCellColumnSpan, _activeChildItem))
+            if (ViewModel.CanOccupyTableRectangle(ItemModel, targetRow, targetColumn, _activeChildItem.TableCellRowSpan, _activeChildItem.TableCellColumnSpan, _activeChildItem))
             {
                 _previewRow = targetRow;
                 _previewColumn = targetColumn;
@@ -1179,7 +1180,7 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
         {
             var rowSpan = Math.Max(1, slot.Row - _activeChildItem.TableCellRow + 1);
             var columnSpan = Math.Max(1, slot.Column - _activeChildItem.TableCellColumn + 1);
-            if (ViewModel.CanOccupyTableRectangle(Item, _activeChildItem.TableCellRow, _activeChildItem.TableCellColumn, rowSpan, columnSpan, _activeChildItem))
+            if (ViewModel.CanOccupyTableRectangle(ItemModel, _activeChildItem.TableCellRow, _activeChildItem.TableCellColumn, rowSpan, columnSpan, _activeChildItem))
             {
                 _previewRow = _activeChildItem.TableCellRow;
                 _previewColumn = _activeChildItem.TableCellColumn;
@@ -1195,11 +1196,11 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
 
     private void CommitChildInteraction(PointerReleasedEventArgs e)
     {
-        if (e.InitialPressMouseButton == MouseButton.Left && ViewModel is not null && Item is not null && _activeChildItem is not null && _hasPreview)
+        if (e.InitialPressMouseButton == MouseButton.Left && ViewModel is not null && ItemModel is not null && _activeChildItem is not null && _hasPreview)
         {
             var changed = _isMovingChild
-                ? ViewModel.TryMoveTableChild(Item, _activeChildItem, _previewRow, _previewColumn)
-                : ViewModel.TryResizeTableChild(Item, _activeChildItem, _previewRowSpan, _previewColumnSpan);
+                ? ViewModel.TryMoveTableChild(ItemModel, _activeChildItem, _previewRow, _previewColumn)
+                : ViewModel.TryResizeTableChild(ItemModel, _activeChildItem, _previewRowSpan, _previewColumnSpan);
 
             if (changed)
             {
@@ -1249,7 +1250,7 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
     private bool TryGetCircleSlotFromPoint(Point point, bool requireFree, out TableCellSlot slot)
     {
         slot = null!;
-        if (_contentHost is null || Item is null)
+        if (_contentHost is null || ItemModel is null)
         {
             return false;
         }
@@ -1262,9 +1263,9 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
 
         var normalizedX = Math.Clamp(point.X, 0, Math.Max(0, bounds.Width - 1));
         var normalizedY = Math.Clamp(point.Y, 0, Math.Max(0, bounds.Height - 1));
-        var column = Math.Min(Item.TableColumns, Math.Max(1, (int)(normalizedX / (bounds.Width / Math.Max(1, Item.TableColumns))) + 1));
-        var row = Math.Min(Item.TableRows, Math.Max(1, (int)(normalizedY / (bounds.Height / Math.Max(1, Item.TableRows))) + 1));
-        var resolved = Item.TableCellSlots.FirstOrDefault(c => c.Row == row && c.Column == column);
+        var column = Math.Min(ItemModel.TableColumns, Math.Max(1, (int)(normalizedX / (bounds.Width / Math.Max(1, ItemModel.TableColumns))) + 1));
+        var row = Math.Min(ItemModel.TableRows, Math.Max(1, (int)(normalizedY / (bounds.Height / Math.Max(1, ItemModel.TableRows))) + 1));
+        var resolved = ItemModel.TableCellSlots.FirstOrDefault(c => c.Row == row && c.Column == column);
         if (resolved is null || !resolved.IsVisibleInLayout)
         {
             return false;
@@ -1281,7 +1282,7 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
 
     private void HandleCtrlRangeClick(TableCellSlot slot)
     {
-        if (ViewModel is null || Item is null || !ViewModel.IsEditMode || !slot.IsVisibleInLayout)
+        if (ViewModel is null || ItemModel is null || !ViewModel.IsEditMode || !slot.IsVisibleInLayout)
         {
             return;
         }
@@ -1296,17 +1297,17 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
             _rangeAnchorRow = slot.Row;
             _rangeAnchorColumn = slot.Column;
             _hasRangeAnchor = true;
-            ViewModel.SelectTableRectangle(Item, slot.Row, slot.Column, slot.Row, slot.Column);
+            ViewModel.SelectTableRectangle(ItemModel, slot.Row, slot.Column, slot.Row, slot.Column);
             return;
         }
 
-        ViewModel.SelectTableRectangle(Item, _rangeAnchorRow, _rangeAnchorColumn, slot.Row, slot.Column);
+        ViewModel.SelectTableRectangle(ItemModel, _rangeAnchorRow, _rangeAnchorColumn, slot.Row, slot.Column);
         _hasRangeAnchor = false;
     }
 
     private void UpdateSelectionOverlay(int startRow, int startColumn, int endRow, int endColumn)
     {
-        if (_selectionOverlay is null || _contentHost is null || Item is null)
+        if (_selectionOverlay is null || _contentHost is null || ItemModel is null)
         {
             return;
         }
@@ -1321,8 +1322,8 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
             return;
         }
 
-        var cellWidth = rootBounds.Width / Math.Max(1, Item.TableColumns);
-        var cellHeight = rootBounds.Height / Math.Max(1, Item.TableRows);
+        var cellWidth = rootBounds.Width / Math.Max(1, ItemModel.TableColumns);
+        var cellHeight = rootBounds.Height / Math.Max(1, ItemModel.TableRows);
         var x = (minColumn - 1) * cellWidth;
         var y = (minRow - 1) * cellHeight;
         var width = Math.Max(cellWidth, (maxColumn - minColumn + 1) * cellWidth);
@@ -1336,18 +1337,18 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
 
     private void AddControlToTable(ControlKind kind)
     {
-        if (ViewModel is null || Item is null || !ViewModel.IsEditMode)
+        if (ViewModel is null || ItemModel is null || !ViewModel.IsEditMode)
         {
             return;
         }
 
-        ViewModel.AddControlToSelectedTableCells(Item, kind);
+        ViewModel.AddControlToSelectedTableCells(ItemModel, kind);
         RefreshItemOverlay();
     }
 
     private void OnAddItemMenuClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        AddControlToTable(ControlKind.Item);
+        AddControlToTable(ControlKind.ItemModel);
         e.Handled = true;
     }
 
@@ -1393,15 +1394,15 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
 
     private void OnChildDeleteClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        if (Item is null || sender is not Control { Tag: FolderItemModel child })
+        if (ItemModel is null || sender is not Control { Tag: FolderItemModel child })
         {
             return;
         }
 
-        if (Item.Items.Contains(child))
+        if (ItemModel.Items.Contains(child))
         {
-            Item.Items.Remove(child);
-            Item.UpdateTableCellContentFromChildren();
+            ItemModel.Items.Remove(child);
+            ItemModel.UpdateTableCellContentFromChildren();
             RefreshItemOverlay();
         }
 

@@ -14,9 +14,10 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using ItemModel = Amium.Items.Item;
 using Amium.Items;
-using Amium.ItemBroker;
-using Amium.ItemBroker.Mqtt;
+using Amium.Item.Server;
+using Amium.Item.Server.Mqtt;
 using HornetStudio.Editor.Controls;
 using HornetStudio.Editor.Helpers;
 using HornetStudio.Editor.Models;
@@ -30,14 +31,14 @@ namespace HornetStudio.Editor.Widgets;
 /// </summary>
 public partial class BrokerClientControl : EditorTemplateControl
 {
-    private const string MqttTransportSegment = "Mqtt";
+    private const string MqttTransportSegment = "mqtt";
     private const string SharedBrokerRootSegment = "shared";
     private static readonly string[] BrokerReconnectPropertyNames =
     [
         nameof(FolderItemModel.BrokerHost),
         nameof(FolderItemModel.BrokerPort),
         nameof(FolderItemModel.BrokerBaseTopic),
-        nameof(FolderItemModel.BrokerClientId),
+        nameof(FolderItemModel.ServerClientId),
         nameof(FolderItemModel.BrokerMode)
     ];
     private static readonly string[] BrokerRuntimeRefreshPropertyNames =
@@ -80,7 +81,7 @@ public partial class BrokerClientControl : EditorTemplateControl
     private string _lastPublishedItemRowsSignature = string.Empty;
     private IHostItemBrokerClient? _connectingClient;
     private OwnedBrokerRuntime? _connectingOwnedBrokerRuntime;
-    private OwnedBrokerRuntime? _ownedBrokerRuntime;
+    private OwnedBrokerRuntime? _ownedServerRuntime;
     private HostItemBrokerPublisher? _hostItemPublisher;
     private HostItemBrokerWriteBackClient? _hostItemWriteBackClient;
     private bool _isAttachedToVisualTree;
@@ -187,7 +188,7 @@ public partial class BrokerClientControl : EditorTemplateControl
         private set => SetAndRaise(HasNoPublishedItemsProperty, ref _hasNoPublishedItems, value);
     }
 
-    private FolderItemModel? Item => DataContext as FolderItemModel;
+    private FolderItemModel? ItemModel => DataContext as FolderItemModel;
 
     private Control CreateHeaderActionsContent()
     {
@@ -254,7 +255,7 @@ public partial class BrokerClientControl : EditorTemplateControl
         _isAttachedToVisualTree = true;
         HookObservedItem();
         RefreshPresentation();
-        if (Item?.BrokerAutoConnect == true)
+        if (ItemModel?.BrokerAutoConnect == true)
         {
             ConnectInternal();
         }
@@ -266,7 +267,7 @@ public partial class BrokerClientControl : EditorTemplateControl
         _runtimeUpdateTimer.Stop();
         UnhookObservedItem();
         _ = DisconnectInternalAsync();
-        RemovePublishedRuntimeItems(Item);
+        RemovePublishedRuntimeItems(ItemModel);
         RemovePublishedAttachOptionItems();
         _publishedRuntimeKeys.Clear();
     }
@@ -284,13 +285,13 @@ public partial class BrokerClientControl : EditorTemplateControl
 
     private void HookObservedItem()
     {
-        if (ReferenceEquals(_observedItem, Item))
+        if (ReferenceEquals(_observedItem, ItemModel))
         {
             return;
         }
 
         UnhookObservedItem();
-        _observedItem = Item;
+        _observedItem = ItemModel;
         if (_observedItem is not null)
         {
             _observedItem.PropertyChanged += OnObservedItemPropertyChanged;
@@ -346,7 +347,7 @@ public partial class BrokerClientControl : EditorTemplateControl
 
         if (e.PropertyName == nameof(FolderItemModel.BrokerAutoConnect))
         {
-            if (Item?.BrokerAutoConnect == true)
+            if (ItemModel?.BrokerAutoConnect == true)
             {
                 ConnectInternal();
             }
@@ -382,7 +383,7 @@ public partial class BrokerClientControl : EditorTemplateControl
 
     private async void ConnectInternal()
     {
-        var item = Item;
+        var item = ItemModel;
         if (item is null || _client is not null || _isConnecting || !CanUpdateUi())
         {
             return;
@@ -411,7 +412,7 @@ public partial class BrokerClientControl : EditorTemplateControl
                 item.BrokerHost,
                 item.BrokerPort,
                 item.BrokerBaseTopic,
-                item.BrokerClientId);
+                item.ServerClientId);
             client.ItemsChanged += OnClientItemsChanged;
             client.Diagnostic += OnClientDiagnostic;
             _connectingClient = client;
@@ -433,7 +434,7 @@ public partial class BrokerClientControl : EditorTemplateControl
             _connectingClient = null;
             _connectingOwnedBrokerRuntime = null;
             _client = client;
-            _ownedBrokerRuntime = ownedBrokerRuntime;
+            _ownedServerRuntime = ownedBrokerRuntime;
             ConnectionStateText = "Connected";
             ConnectionStatusBackground = Brushes.ForestGreen;
             PublishRuntimeItems();
@@ -486,7 +487,7 @@ public partial class BrokerClientControl : EditorTemplateControl
                 item.BrokerHost,
                 item.BrokerPort,
                 item.BrokerBaseTopic,
-                item.BrokerClientId);
+                item.ServerClientId);
         }
         finally
         {
@@ -509,7 +510,7 @@ public partial class BrokerClientControl : EditorTemplateControl
     private async Task DisconnectInternalAsync()
     {
         _runtimeUpdateTimer.Stop();
-        RemovePublishedRuntimeItems(Item);
+        RemovePublishedRuntimeItems(ItemModel);
         RemovePublishedAttachOptionItems();
         _publishedRuntimeKeys.Clear();
         var connectingClient = _connectingClient;
@@ -521,8 +522,8 @@ public partial class BrokerClientControl : EditorTemplateControl
         _client = null;
         StopHostItemPublisher();
         await StopHostItemWriteBackClientAsync().ConfigureAwait(true);
-        var ownedBrokerRuntime = _ownedBrokerRuntime;
-        _ownedBrokerRuntime = null;
+        var ownedBrokerRuntime = _ownedServerRuntime;
+        _ownedServerRuntime = null;
         if (connectingClient is not null)
         {
             connectingClient.ItemsChanged -= OnClientItemsChanged;
@@ -587,7 +588,7 @@ public partial class BrokerClientControl : EditorTemplateControl
 
     private void ReconnectIfAutoConnectEnabled()
     {
-        if (Item?.BrokerAutoConnect != true)
+        if (ItemModel?.BrokerAutoConnect != true)
         {
             _ = DisconnectInternalAsync();
             return;
@@ -599,7 +600,7 @@ public partial class BrokerClientControl : EditorTemplateControl
 
     private void RestartHostItemPublisher(bool publishInitialSnapshots = true)
     {
-        var item = Item;
+        var item = ItemModel;
         var client = _client;
         if (item is null || client is null)
         {
@@ -631,7 +632,7 @@ public partial class BrokerClientControl : EditorTemplateControl
 
     private async void RestartHostItemWriteBackClient()
     {
-        var item = Item;
+        var item = ItemModel;
         var client = _client;
         await StopHostItemWriteBackClientAsync().ConfigureAwait(true);
         if (item is null || client is null)
@@ -730,7 +731,7 @@ public partial class BrokerClientControl : EditorTemplateControl
             return;
         }
 
-        if (Item is null || _client is null)
+        if (ItemModel is null || _client is null)
         {
             RemoveStaleRuntimeItems(new HashSet<string>(StringComparer.OrdinalIgnoreCase));
             RemovePublishedAttachOptionItems();
@@ -738,14 +739,14 @@ public partial class BrokerClientControl : EditorTemplateControl
             return;
         }
 
-        var widgetName = NormalizeWidgetName(Item);
+        var widgetName = NormalizeWidgetName(ItemModel);
         var attachOptions = EnumerateAttachOptions(widgetName).ToArray();
         LogAttachDiagnostics(widgetName, attachOptions);
-        PublishAttachOptionItems(Item, attachOptions);
-        var attachedPaths = ParseAttachedFlatPaths(Item.BrokerAttachedItemPaths);
-        var exposureDefinitions = ItemExposureDefinitionCodec.ParseDefinitions(Item.ItemExposures);
+        PublishAttachOptionItems(ItemModel, attachOptions);
+        var attachedPaths = ParseAttachedFlatPaths(ItemModel.BrokerAttachedItemPaths);
+        var exposureDefinitions = ItemExposureDefinitionCodec.ParseDefinitions(ItemModel.ItemExposures);
         var currentKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        RemoveLegacyRuntimeItems(Item);
+        RemoveLegacyRuntimeItems(ItemModel);
         foreach (var entry in _client.GetItemSnapshots())
         {
             foreach (var remoteItem in EnumerateAttachableRemoteItems(entry.Value))
@@ -762,7 +763,7 @@ public partial class BrokerClientControl : EditorTemplateControl
                     continue;
                 }
 
-                var key = BuildReceivedMqttRuntimePath(Item, entry.Key, relativePath);
+                var key = BuildReceivedMqttRuntimePath(ItemModel, entry.Key, relativePath);
                 var snapshot = remoteItem.Clone().Repath(key);
                 var exposureDefinition = ItemExposurePublisher.FindByItemPath(exposureDefinitions, attachIdentity)
                                          ?? ItemExposurePublisher.FindByItemPath(exposureDefinitions, BuildLegacyBrokerAttachIdentity(widgetName, entry.Key, relativePath))
@@ -794,14 +795,14 @@ public partial class BrokerClientControl : EditorTemplateControl
             return;
         }
 
-        var item = Item;
+        var item = ItemModel;
         if (item is null)
         {
             return;
         }
 
         EndpointText = $"{item.BrokerHost}:{item.BrokerPort}";
-        ClientText = $"BaseTopic {item.BrokerBaseTopic} | MQTT Client {item.BrokerClientId}";
+        ClientText = $"BaseTopic {item.BrokerBaseTopic} | MQTT Client {item.ServerClientId}";
         var attachOptionCount = EnumerateAttachOptions(NormalizeWidgetName(item)).Count();
         ItemCountText = $"{attachOptionCount} items";
         RebuildAttachedItemRows();
@@ -844,7 +845,7 @@ public partial class BrokerClientControl : EditorTemplateControl
             return;
         }
 
-        var item = Item;
+        var item = ItemModel;
         if (item is null)
         {
             AttachedItems.Clear();
@@ -861,7 +862,7 @@ public partial class BrokerClientControl : EditorTemplateControl
             .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         var livePaths = EnumerateAttachOptions(widgetName)
-            .Select(static path => TargetPathHelper.ToFlatItemBrokerPath(path))
+            .Select(static path => TargetPathHelper.ToFlatItemServerPath(path))
             .Where(static path => !string.IsNullOrWhiteSpace(path))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var definitions = ItemExposureDefinitionCodec.ParseDefinitions(item.ItemExposures);
@@ -905,7 +906,7 @@ public partial class BrokerClientControl : EditorTemplateControl
             return;
         }
 
-        var item = Item;
+        var item = ItemModel;
         if (item is null)
         {
             PublishedItems.Clear();
@@ -1016,15 +1017,15 @@ public partial class BrokerClientControl : EditorTemplateControl
 
     private static ItemExposureDefinition? FindExposureDefinition(IReadOnlyList<ItemExposureDefinition> definitions, string attachedPath)
     {
-        var flatPath = TargetPathHelper.ToFlatItemBrokerPath(attachedPath);
+        var flatPath = TargetPathHelper.ToFlatItemServerPath(attachedPath);
         return ItemExposurePublisher.FindByItemPath(definitions, flatPath)
-               ?? ItemExposurePublisher.FindByItemPath(definitions, TargetPathHelper.ToRelativeItemBrokerPath(flatPath));
+               ?? ItemExposurePublisher.FindByItemPath(definitions, TargetPathHelper.ToRelativeItemServerPath(flatPath));
     }
 
     private static string NormalizeWidgetName(FolderItemModel item)
-        => string.IsNullOrWhiteSpace(item.Name) ? "BrokerWidget" : TargetPathHelper.NormalizeConfiguredTargetPath(item.Name).Replace('.', '_');
+        => TargetPathHelper.GetCanonicalBrokerWidgetName(item.Name);
 
-    private static IEnumerable<Item> EnumerateAttachableRemoteItems(Item root)
+    private static IEnumerable<ItemModel> EnumerateAttachableRemoteItems(ItemModel root)
     {
         foreach (var child in root.GetDictionary().Values.OrderBy(item => item.Path, StringComparer.OrdinalIgnoreCase))
         {
@@ -1040,9 +1041,9 @@ public partial class BrokerClientControl : EditorTemplateControl
         }
     }
 
-    private static bool HasAttachableValue(Item item)
+    private static bool HasAttachableValue(ItemModel item)
     {
-        if (!item.Params.GetDictionary().TryGetValue("Value", out var parameter))
+        if (!item.Properties.GetDictionary().TryGetValue("Value", out var parameter))
         {
             return false;
         }
@@ -1051,7 +1052,7 @@ public partial class BrokerClientControl : EditorTemplateControl
         return value is not null;
     }
 
-    private static string GetRelativeRemoteItemPath(Item clientRoot, Item remoteItem)
+    private static string GetRelativeRemoteItemPath(ItemModel clientRoot, ItemModel remoteItem)
     {
         var rootPath = clientRoot.Path?.Trim() ?? string.Empty;
         var itemPath = remoteItem.Path?.Trim() ?? string.Empty;
@@ -1072,9 +1073,10 @@ public partial class BrokerClientControl : EditorTemplateControl
     {
         var widgetName = NormalizeWidgetName(item);
         var remotePath = BuildVisibleRemoteMqttSuffix(widgetName, remoteRootKey, relativeRemoteItemPath);
+        var folderPath = TargetPathHelper.NormalizeConfiguredTargetPath(item.FolderName);
         return string.IsNullOrWhiteSpace(remotePath)
-            ? $"Studio.{item.FolderName}.{widgetName}.{MqttTransportSegment}"
-            : $"Studio.{item.FolderName}.{widgetName}.{MqttTransportSegment}.{remotePath}";
+            ? $"studio.{folderPath}.{widgetName}.{MqttTransportSegment}"
+            : $"studio.{folderPath}.{widgetName}.{MqttTransportSegment}.{remotePath}";
     }
 
     private static string BuildBrokerAttachIdentity(string widgetName, string remoteRootKey, string relativeRemoteItemPath)
@@ -1227,11 +1229,11 @@ public partial class BrokerClientControl : EditorTemplateControl
             .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)
             .Select(option =>
             {
-                var snapshot = new Item(option, path: attachOptionsBasePath);
-                snapshot.Params["Kind"].Value = "Status";
-                snapshot.Params["Text"].Value = "AttachOption";
-                snapshot.Params["Title"].Value = option;
-                snapshot.Params["Value"].Value = option;
+                var snapshot = new ItemModel(option, path: attachOptionsBasePath);
+                snapshot.Properties["kind"].Value = "Status";
+                snapshot.Properties["text"].Value = "AttachOption";
+                snapshot.Properties["title"].Value = option;
+                snapshot.Properties["read"].Value = option;
                 return snapshot;
             })
             .Where(static snapshot => !string.IsNullOrWhiteSpace(snapshot.Path))
@@ -1324,7 +1326,7 @@ public partial class BrokerClientControl : EditorTemplateControl
 
     private async void OnEditAttachedItemClicked(object? sender, RoutedEventArgs e)
     {
-        if (Item is null
+        if (ItemModel is null
             || sender is not Button { CommandParameter: BrokerAttachedItemRow row }
             || TopLevel.GetTopLevel(this) is not Window { DataContext: HornetStudio.Editor.ViewModels.MainWindowViewModel viewModel } owner)
         {
@@ -1334,14 +1336,14 @@ public partial class BrokerClientControl : EditorTemplateControl
         var result = await ItemExposureDialogWindow.ShowAsync(
             owner: owner,
             viewModel: viewModel,
-            rawDefinitions: Item.ItemExposures,
+            rawDefinitions: ItemModel.ItemExposures,
             itemPath: row.ItemPath);
         if (result is null)
         {
             return;
         }
 
-        Item.ItemExposures = result;
+        ItemModel.ItemExposures = result;
         PublishRuntimeItems();
         RebuildAttachedItemRows();
         e.Handled = true;
@@ -1365,7 +1367,7 @@ public partial class BrokerClientControl : EditorTemplateControl
 
     private async void OnDeleteAttachedItemClicked(object? sender, RoutedEventArgs e)
     {
-        if (Item is null
+        if (ItemModel is null
             || sender is not Button { CommandParameter: BrokerAttachedItemRow row }
             || TopLevel.GetTopLevel(this) is not Window owner)
         {
@@ -1383,11 +1385,11 @@ public partial class BrokerClientControl : EditorTemplateControl
             return;
         }
 
-        var remainingPaths = ParseAttachedFlatPaths(Item.BrokerAttachedItemPaths)
+        var remainingPaths = ParseAttachedFlatPaths(ItemModel.BrokerAttachedItemPaths)
             .Where(path => !string.Equals(path, row.ItemPath, StringComparison.OrdinalIgnoreCase))
             .ToArray();
-        Item.BrokerAttachedItemPaths = SerializeAttachedFlatPaths(remainingPaths);
-        Item.ItemExposures = RemoveExposureDefinition(Item.ItemExposures, row.ItemPath);
+        ItemModel.BrokerAttachedItemPaths = SerializeAttachedFlatPaths(remainingPaths);
+        ItemModel.ItemExposures = RemoveExposureDefinition(ItemModel.ItemExposures, row.ItemPath);
         PublishRuntimeItems();
         RebuildAttachedItemRows();
         e.Handled = true;
@@ -1395,7 +1397,7 @@ public partial class BrokerClientControl : EditorTemplateControl
 
     private async void OnEditPublishedItemClicked(object? sender, RoutedEventArgs e)
     {
-        if (Item is null
+        if (ItemModel is null
             || sender is not Button { CommandParameter: BrokerPublishedRootRow row }
             || TopLevel.GetTopLevel(this) is not Window { DataContext: HornetStudio.Editor.ViewModels.MainWindowViewModel viewModel } owner)
         {
@@ -1405,14 +1407,14 @@ public partial class BrokerClientControl : EditorTemplateControl
         var result = await PublishedItemDialogWindow.ShowAsync(
             owner: owner,
             viewModel: viewModel,
-            rawDefinitions: Item.BrokerPublishedItemPaths,
+            rawDefinitions: ItemModel.BrokerPublishedItemPaths,
             rootPath: row.LocalRootPath);
         if (result is null)
         {
             return;
         }
 
-        Item.BrokerPublishedItemPaths = result;
+        ItemModel.BrokerPublishedItemPaths = result;
         PublishRetainedSnapshotsForRoot(row.LocalRootPath);
         RebuildPublishedItemRows();
         e.Handled = true;
@@ -1436,7 +1438,7 @@ public partial class BrokerClientControl : EditorTemplateControl
 
     private async void OnDeletePublishedItemClicked(object? sender, RoutedEventArgs e)
     {
-        if (Item is null
+        if (ItemModel is null
             || sender is not Button { CommandParameter: BrokerPublishedRootRow row }
             || TopLevel.GetTopLevel(this) is not Window owner)
         {
@@ -1454,10 +1456,10 @@ public partial class BrokerClientControl : EditorTemplateControl
             return;
         }
 
-        var remainingDefinitions = BrokerPublishedItemDefinitionCodec.ParseDefinitions(Item.BrokerPublishedItemPaths)
+        var remainingDefinitions = BrokerPublishedItemDefinitionCodec.ParseDefinitions(ItemModel.BrokerPublishedItemPaths)
             .Where(definition => !string.Equals(definition.LocalRootPath, row.LocalRootPath, StringComparison.OrdinalIgnoreCase))
             .ToArray();
-        Item.BrokerPublishedItemPaths = BrokerPublishedItemDefinitionCodec.SerializeDefinitions(remainingDefinitions);
+        ItemModel.BrokerPublishedItemPaths = BrokerPublishedItemDefinitionCodec.SerializeDefinitions(remainingDefinitions);
         RebuildPublishedItemRows();
         e.Handled = true;
     }
@@ -1474,24 +1476,24 @@ public partial class BrokerClientControl : EditorTemplateControl
     }
 
     private static string GetAttachOptionsBasePath(FolderItemModel item)
-        => $"Studio.{item.FolderName}.{NormalizeWidgetName(item)}.Status.AttachOptions";
+        => TargetPathHelper.GetCanonicalBrokerAttachOptionsBasePath(item.FolderName, item.Name);
 
     private bool TryGetDialogContext(
         out FolderItemModel item,
         out HornetStudio.Editor.ViewModels.MainWindowViewModel viewModel,
         out Window owner)
     {
-        item = Item!;
+        item = ItemModel!;
         viewModel = null!;
         owner = null!;
 
-        if (Item is null
+        if (ItemModel is null
             || TopLevel.GetTopLevel(this) is not Window { DataContext: HornetStudio.Editor.ViewModels.MainWindowViewModel mainWindowViewModel } window)
         {
             return false;
         }
 
-        item = Item;
+        item = ItemModel;
         viewModel = mainWindowViewModel;
         owner = window;
         return true;
@@ -1539,15 +1541,7 @@ public partial class BrokerClientControl : EditorTemplateControl
 
     private static IEnumerable<string> GetBrokerAttachItemOptions(FolderItemModel item)
     {
-        var normalizedName = string.IsNullOrWhiteSpace(item.Name)
-            ? "BrokerWidget"
-            : TargetPathHelper.NormalizeConfiguredTargetPath(item.Name).Replace('.', '_');
-        var prefixes = new[]
-        {
-            $"Studio.{item.FolderName}.{normalizedName}.Status.AttachOptions",
-            $"Project.{item.FolderName}.{normalizedName}.Status.AttachOptions",
-            $"UdlProject.{item.FolderName}.{normalizedName}.Status.AttachOptions"
-        };
+        var prefixes = TargetPathHelper.GetBrokerAttachOptionPrefixes(item.FolderName, item.Name);
 
         return HostRegistries.Data.GetAllKeys()
             .SelectMany(key => prefixes.Select(prefix => TryGetBrokerAttachRuntimePath(key, prefix)))
@@ -1593,7 +1587,7 @@ public partial class BrokerClientControl : EditorTemplateControl
         }
 
         var normalizedPath = TargetPathHelper.NormalizeConfiguredTargetPath(path);
-        var markerIndex = normalizedPath.IndexOf("Runtime.ItemBroker.", StringComparison.OrdinalIgnoreCase);
+        var markerIndex = normalizedPath.IndexOf("runtime.item_broker.", StringComparison.OrdinalIgnoreCase);
         if (markerIndex < 0)
         {
             return null;
@@ -1617,13 +1611,13 @@ public partial class BrokerClientControl : EditorTemplateControl
             return;
         }
 
-        RemoveKeysBelowPrefix($"Runtime.ItemBroker.{NormalizeWidgetName(item)}");
-        RemoveKeysBelowPrefix($"Studio.{item.FolderName}.{NormalizeWidgetName(item)}.{MqttTransportSegment}");
+        RemoveKeysBelowPrefix($"runtime.item_broker.{NormalizeWidgetName(item)}");
+        RemoveKeysBelowPrefix($"studio.{TargetPathHelper.NormalizeConfiguredTargetPath(item.FolderName)}.{NormalizeWidgetName(item)}.{MqttTransportSegment}");
     }
 
     private static void RemoveLegacyRuntimeItems(FolderItemModel item)
     {
-        RemoveKeysBelowPrefix($"Runtime.ItemBroker.{NormalizeWidgetName(item)}");
+        RemoveKeysBelowPrefix($"runtime.item_broker.{NormalizeWidgetName(item)}");
     }
 
     private static void RemoveKeysBelowPrefix(string prefix)
@@ -1762,7 +1756,7 @@ public partial class BrokerClientControl : EditorTemplateControl
             }
         }
 
-        private static Item? ResolveLocalItem(string localPath)
+        private static ItemModel? ResolveLocalItem(string localPath)
         {
             foreach (var candidatePath in TargetPathHelper.EnumerateResolutionCandidates(localPath))
             {
@@ -1804,7 +1798,7 @@ public partial class BrokerClientControl : EditorTemplateControl
                         return;
                     }
 
-                    if (change.ChangeKind == DataChangeKind.ParameterUpdated && !string.IsNullOrWhiteSpace(change.ParameterName))
+                    if (change.ChangeKind == DataChangeKind.PropertyUpdated && !string.IsNullOrWhiteSpace(change.ParameterName))
                     {
                         _ = PublishParameterUpdateAsync(changedItem, change.ParameterName, changedBrokerPath);
                         return;
@@ -1835,7 +1829,7 @@ public partial class BrokerClientControl : EditorTemplateControl
             _ = PublishSnapshotAsync(snapshot, brokerPath);
         }
 
-        private async Task PublishSnapshotAsync(Item snapshot, string brokerPath)
+        private async Task PublishSnapshotAsync(ItemModel snapshot, string brokerPath)
         {
             try
             {
@@ -1853,7 +1847,7 @@ public partial class BrokerClientControl : EditorTemplateControl
             }
         }
 
-        private async Task PublishValueUpdateAsync(Item item, string brokerPath)
+        private async Task PublishValueUpdateAsync(ItemModel item, string brokerPath)
         {
             try
             {
@@ -1870,11 +1864,11 @@ public partial class BrokerClientControl : EditorTemplateControl
             }
         }
 
-        private async Task PublishParameterUpdateAsync(Item item, string parameterName, string brokerPath)
+        private async Task PublishParameterUpdateAsync(ItemModel item, string parameterName, string brokerPath)
         {
             try
             {
-                var value = item.Params.Has(parameterName) ? item.Params[parameterName].Value : null;
+                var value = item.Properties.Has(parameterName) ? item.Properties[parameterName].Value : null;
                 HostLogger.Log.Debug(
                     "[BrokerWidgetPublish] kind=parameter widget={WidgetName} brokerPath={BrokerPath} parameter={Parameter} value={Value}",
                     _item.Name,
@@ -1897,11 +1891,11 @@ public partial class BrokerClientControl : EditorTemplateControl
         private static bool TryCreateChangedBrokerItem(
             BrokerPublishedItemDefinition definition,
             DataChangedEventArgs change,
-            out Item changedItem)
+            out ItemModel changedItem)
         {
             changedItem = null!;
 
-            if (change.ChangeKind is not (DataChangeKind.ValueUpdated or DataChangeKind.ParameterUpdated))
+            if (change.ChangeKind is not (DataChangeKind.ValueUpdated or DataChangeKind.PropertyUpdated))
             {
                 return false;
             }
@@ -1918,7 +1912,7 @@ public partial class BrokerClientControl : EditorTemplateControl
 
             if (string.Equals(localPath, changedPath, StringComparison.OrdinalIgnoreCase))
             {
-                changedItem = change.Item.Clone().Repath(brokerPath);
+                changedItem = change.ItemModel.Clone().Repath(brokerPath);
                 return HasChangedParameter(changedItem, change);
             }
 
@@ -1927,13 +1921,13 @@ public partial class BrokerClientControl : EditorTemplateControl
                 return false;
             }
 
-            changedItem = change.Item.Clone().Repath($"{brokerPath}.{suffix}");
+            changedItem = change.ItemModel.Clone().Repath($"{brokerPath}.{suffix}");
             return HasChangedParameter(changedItem, change);
         }
 
-        private static bool HasChangedParameter(Item item, DataChangedEventArgs change)
+        private static bool HasChangedParameter(ItemModel item, DataChangedEventArgs change)
             => change.ChangeKind == DataChangeKind.ValueUpdated
-                || (!string.IsNullOrWhiteSpace(change.ParameterName) && item.Params.Has(change.ParameterName));
+                || (!string.IsNullOrWhiteSpace(change.ParameterName) && item.Properties.Has(change.ParameterName));
 
         private static bool TryGetPathSuffix(string path, string prefix, out string suffix)
         {
@@ -1952,7 +1946,7 @@ public partial class BrokerClientControl : EditorTemplateControl
             return !string.IsNullOrWhiteSpace(suffix);
         }
 
-        private static IEnumerable<string> EnumerateBrokerPaths(Item item)
+        private static IEnumerable<string> EnumerateBrokerPaths(ItemModel item)
         {
             var path = NormalizeBrokerPath(item.Path);
             if (!string.IsNullOrWhiteSpace(path))
@@ -1980,7 +1974,7 @@ public partial class BrokerClientControl : EditorTemplateControl
             }
         }
 
-        private void RegisterBrokerPaths(Item snapshot)
+        private void RegisterBrokerPaths(ItemModel snapshot)
         {
             lock (_registrationSync)
             {
@@ -2002,17 +1996,17 @@ public partial class BrokerClientControl : EditorTemplateControl
 
     private sealed class OwnedBrokerRuntime : IAsyncDisposable
     {
-        private readonly InMemoryItemBroker _broker = new();
-        private readonly MqttItemBrokerAdapter _adapter;
+        private readonly InMemoryItemServer _broker = new();
+        private readonly MqttItemServerAdapter _adapter;
 
         public OwnedBrokerRuntime(FolderItemModel item)
         {
-            _adapter = new MqttItemBrokerAdapter(new MqttItemBrokerOptions
+            _adapter = new MqttItemServerAdapter(new MqttItemServerOptions
             {
                 Host = item.BrokerHost,
                 Port = item.BrokerPort,
                 BaseTopic = item.BrokerBaseTopic,
-                ClientId = $"{item.BrokerClientId}-broker",
+                ClientId = $"{item.ServerClientId}-broker",
                 SubscriptionRootPath = "Runtime",
             });
         }
@@ -2052,7 +2046,7 @@ public static class BrokerPublishedItemChangeMatcher
     public static bool ShouldPublish(
         BrokerPublishedItemDefinition definition,
         DataChangedEventArgs change,
-        Func<string, Item?> resolveLocalItem)
+        Func<string, ItemModel?> resolveLocalItem)
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(change);
@@ -2108,7 +2102,7 @@ public sealed class BrokerAttachedItemRow
     public BrokerAttachedItemRow(FolderItemModel ownerItem, string itemPath, string displayName, string summaryText, string alertText, bool isLive)
     {
         _ownerItem = ownerItem ?? throw new ArgumentNullException(nameof(ownerItem));
-        ItemPath = TargetPathHelper.ToFlatItemBrokerPath(itemPath);
+        ItemPath = TargetPathHelper.ToFlatItemServerPath(itemPath);
         DisplayName = displayName;
         SummaryText = summaryText;
         AlertText = alertText;

@@ -145,7 +145,7 @@ public static class ProjectLoader
 
     private static ProjectManifest? ReadManifest(string rootDirectory)
     {
-        var manifestPath = Path.Combine(rootDirectory, "Project.json");
+        var manifestPath = Path.Combine(rootDirectory, "project.json");
         if (!File.Exists(manifestPath))
         {
             manifestPath = Path.Combine(rootDirectory, "Book.json");
@@ -283,7 +283,7 @@ public static class ProjectLoader
         sb.AppendLine("  </ItemGroup>");
 
         var contentFiles = project.UiFiles
-            .Append(Path.Combine(project.RootDirectory, "Project.json"))
+            .Append(Path.Combine(project.RootDirectory, "project.json"))
             .Append(Path.Combine(project.RootDirectory, "Book.json"))
             .Append(Path.Combine(project.RootDirectory, "pipes.json"))
             .Where(File.Exists)

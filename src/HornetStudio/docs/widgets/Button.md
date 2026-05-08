@@ -28,8 +28,8 @@ The button respects editor/runtime interaction mode and executes configured clic
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/Button/`
-- `src/HornetStudio.Editor/Widgets/Button/EditorButtonControl.axaml.cs`
+- `src/Hornetstudio.Editor/Widgets/Button/`
+- `src/Hornetstudio.Editor/Widgets/Button/EditorButtonControl.axaml.cs`
 
 ## Help
 

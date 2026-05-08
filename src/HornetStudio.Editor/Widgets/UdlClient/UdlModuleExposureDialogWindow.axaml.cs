@@ -115,11 +115,10 @@ public partial class UdlModuleExposureDialogWindow : Window
 
     private static IReadOnlyList<UdlRuntimeModuleChannelDescriptor> ResolveRuntimeChannels(FolderItemModel ownerItem)
     {
-        var prefix = $"Runtime.UdlClient.{NormalizeClientName(ownerItem)}";
-        var comparablePrefix = TargetPathHelper.NormalizeComparablePath(prefix);
+        var prefixes = UdlPathHelper.GetRuntimeBasePaths(NormalizeClientName(ownerItem));
 
         return HostRegistries.Data.GetAllKeys()
-            .Select(key => ResolveRuntimeChannelDescriptor(prefix, comparablePrefix, key))
+            .Select(key => ResolveRuntimeChannelDescriptor(prefixes, key))
             .Where(static descriptor => descriptor is not null)
             .Select(static descriptor => descriptor!)
             .GroupBy(static descriptor => UdlModuleExposureEditorRow.BuildKey(descriptor.ModuleName, descriptor.ChannelName), System.StringComparer.OrdinalIgnoreCase)
@@ -129,20 +128,31 @@ public partial class UdlModuleExposureDialogWindow : Window
             .ToArray();
     }
 
-    private static UdlRuntimeModuleChannelDescriptor? ResolveRuntimeChannelDescriptor(string prefix, string comparablePrefix, string key)
+    private static UdlRuntimeModuleChannelDescriptor? ResolveRuntimeChannelDescriptor(IReadOnlyList<string> prefixes, string key)
     {
         if (string.IsNullOrWhiteSpace(key))
         {
             return null;
         }
 
-        var suffix = TryGetPathSuffix(key, prefix);
-        if (string.IsNullOrWhiteSpace(suffix))
+        string? suffix = null;
+        string? resolvedFullPath = null;
+        foreach (var prefix in prefixes)
         {
-            suffix = TryGetPathSuffix(TargetPathHelper.NormalizeComparablePath(key), comparablePrefix);
+            suffix = TryGetPathSuffix(key, prefix);
+            if (string.IsNullOrWhiteSpace(suffix))
+            {
+                suffix = TryGetPathSuffix(TargetPathHelper.NormalizeComparablePath(key), TargetPathHelper.NormalizeComparablePath(prefix));
+            }
+
+            if (!string.IsNullOrWhiteSpace(suffix))
+            {
+                resolvedFullPath = TargetPathHelper.NormalizeConfiguredTargetPath(key);
+                break;
+            }
         }
 
-        if (string.IsNullOrWhiteSpace(suffix))
+        if (string.IsNullOrWhiteSpace(suffix) || string.IsNullOrWhiteSpace(resolvedFullPath))
         {
             return null;
         }
@@ -153,12 +163,11 @@ public partial class UdlModuleExposureDialogWindow : Window
             return null;
         }
 
-        var fullPath = $"{prefix}.{segments[0]}.{segments[1]}";
-        var format = HostRegistries.Data.TryResolve(fullPath, out var runtimeItem) && runtimeItem is not null && runtimeItem.Params.Has("Format")
-            ? runtimeItem.Params["Format"].Value?.ToString() ?? string.Empty
+        var format = HostRegistries.Data.TryResolve(resolvedFullPath, out var runtimeItem) && runtimeItem is not null && runtimeItem.Properties.Has("format")
+            ? runtimeItem.Properties["format"].Value?.ToString() ?? string.Empty
             : string.Empty;
-        var unit = HostRegistries.Data.TryResolve(fullPath, out runtimeItem) && runtimeItem is not null && runtimeItem.Params.Has("Unit")
-            ? runtimeItem.Params["Unit"].Value?.ToString() ?? string.Empty
+        var unit = HostRegistries.Data.TryResolve(resolvedFullPath, out runtimeItem) && runtimeItem is not null && runtimeItem.Properties.Has("unit")
+            ? runtimeItem.Properties["unit"].Value?.ToString() ?? string.Empty
             : string.Empty;
         var bitCount = GetBitCount(format);
 
@@ -681,8 +690,8 @@ public sealed class UdlModuleExposureEditorRow : NotifyBase
             if (SetProperty(ref _format, value?.Trim() ?? string.Empty))
             {
                 OnPropertyChanged(nameof(SelectedFormatKind));
-                OnPropertyChanged(nameof(FormatParameter));
-                OnPropertyChanged(nameof(FormatParameterToolTip));
+                OnPropertyChanged(nameof(FormatProperty));
+                OnPropertyChanged(nameof(FormatPropertyToolTip));
                 OnPropertyChanged(nameof(SupportsBitExposure));
                 OnPropertyChanged(nameof(BitCount));
                 OnPropertyChanged(nameof(EffectiveBitCount));
@@ -695,25 +704,25 @@ public sealed class UdlModuleExposureEditorRow : NotifyBase
 
     public string SelectedFormatKind
     {
-        get => SplitParameterFormat(Format).Kind;
+        get => SplitPropertyFormat(Format).Kind;
         set
         {
-            var current = SplitParameterFormat(Format);
-            Format = ComposeParameterFormat(value, current.Parameter);
+            var current = SplitPropertyFormat(Format);
+            Format = ComposePropertyFormat(value, current.Property);
         }
     }
 
-    public string FormatParameter
+    public string FormatProperty
     {
-        get => SplitParameterFormat(Format).Parameter;
+        get => SplitPropertyFormat(Format).Property;
         set
         {
-            var current = SplitParameterFormat(Format);
-            Format = ComposeParameterFormat(current.Kind, value);
+            var current = SplitPropertyFormat(Format);
+            Format = ComposePropertyFormat(current.Kind, value);
         }
     }
 
-    public string FormatParameterToolTip => GetFormatParameterToolTip(SelectedFormatKind);
+    public string FormatPropertyToolTip => GetFormatPropertyToolTip(SelectedFormatKind);
 
     public int BitCount
     {
@@ -830,7 +839,7 @@ public sealed class UdlModuleExposureEditorRow : NotifyBase
         return Math.Clamp(value, 1, 32);
     }
 
-    private static (string Kind, string Parameter) SplitParameterFormat(string? format)
+    private static (string Kind, string Property) SplitPropertyFormat(string? format)
     {
         if (string.IsNullOrWhiteSpace(format))
         {
@@ -860,8 +869,8 @@ public sealed class UdlModuleExposureEditorRow : NotifyBase
 
         if (trimmed.StartsWith("EpochToDatetime:", StringComparison.OrdinalIgnoreCase))
         {
-            var epochParameter = trimmed[16..].Trim();
-            return ("EpochToDatetime", string.IsNullOrWhiteSpace(epochParameter) ? "UtcDefault" : epochParameter);
+            var epochProperty = trimmed[16..].Trim();
+            return ("EpochToDatetime", string.IsNullOrWhiteSpace(epochProperty) ? "UtcDefault" : epochProperty);
         }
 
         if (string.Equals(trimmed, "EpochToDatetime", StringComparison.OrdinalIgnoreCase))
@@ -887,14 +896,14 @@ public sealed class UdlModuleExposureEditorRow : NotifyBase
 
         var parts = trimmed.Split(':', 2, StringSplitOptions.TrimEntries);
         var kind = string.IsNullOrWhiteSpace(parts[0]) ? "Text" : parts[0];
-        var parameter = parts.Length > 1 ? parts[1] : string.Empty;
-        return (kind, parameter);
+        var property = parts.Length > 1 ? parts[1] : string.Empty;
+        return (kind, property);
     }
 
-    private static string ComposeParameterFormat(string? kind, string? parameter)
+    private static string ComposePropertyFormat(string? kind, string? property)
     {
         var normalizedKind = string.IsNullOrWhiteSpace(kind) ? "Text" : kind.Trim();
-        var normalizedParameter = string.IsNullOrWhiteSpace(parameter) ? string.Empty : parameter.Trim();
+        var normalizedProperty = string.IsNullOrWhiteSpace(property) ? string.Empty : property.Trim();
 
         if (string.Equals(normalizedKind, "Text", StringComparison.OrdinalIgnoreCase))
         {
@@ -903,23 +912,23 @@ public sealed class UdlModuleExposureEditorRow : NotifyBase
 
         if (string.Equals(normalizedKind, "Numeric", StringComparison.OrdinalIgnoreCase))
         {
-            return string.IsNullOrWhiteSpace(normalizedParameter) ? "numeric" : $"numeric:{normalizedParameter}";
+            return string.IsNullOrWhiteSpace(normalizedProperty) ? "numeric" : $"numeric:{normalizedProperty}";
         }
 
         if (string.Equals(normalizedKind, "Hex", StringComparison.OrdinalIgnoreCase))
         {
-            return string.IsNullOrWhiteSpace(normalizedParameter) ? "hex" : $"hex:{normalizedParameter}";
+            return string.IsNullOrWhiteSpace(normalizedProperty) ? "hex" : $"hex:{normalizedProperty}";
         }
 
         if (string.Equals(normalizedKind, "EpochToDatetime", StringComparison.OrdinalIgnoreCase))
         {
-            return string.IsNullOrWhiteSpace(normalizedParameter) || string.Equals(normalizedParameter, "UtcDefault", StringComparison.OrdinalIgnoreCase)
+            return string.IsNullOrWhiteSpace(normalizedProperty) || string.Equals(normalizedProperty, "UtcDefault", StringComparison.OrdinalIgnoreCase)
                 ? "EpochToDatetime"
-                : $"EpochToDatetime:{normalizedParameter}";
+                : $"EpochToDatetime:{normalizedProperty}";
         }
 
-        return FormatUsesParameter(normalizedKind) && !string.IsNullOrWhiteSpace(normalizedParameter)
-            ? $"{normalizedKind}:{normalizedParameter}"
+        return FormatUsesParameter(normalizedKind) && !string.IsNullOrWhiteSpace(normalizedProperty)
+            ? $"{normalizedKind}:{normalizedProperty}"
             : normalizedKind;
     }
 
@@ -939,7 +948,7 @@ public sealed class UdlModuleExposureEditorRow : NotifyBase
             || string.Equals(kind, "b16", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string GetFormatParameterToolTip(string? kind)
+    private static string GetFormatPropertyToolTip(string? kind)
     {
         if (string.Equals(kind, "bool", StringComparison.OrdinalIgnoreCase))
         {
@@ -978,10 +987,10 @@ public sealed class UdlModuleExposureEditorRow : NotifyBase
 
         if (string.Equals(kind, "Text", StringComparison.OrdinalIgnoreCase))
         {
-            return "No extra parameter. The raw value is shown directly.";
+            return "No extra property. The raw value is shown directly.";
         }
 
-        return "Optional parameter for the selected format.";
+        return "Optional property for the selected format.";
     }
 }
 

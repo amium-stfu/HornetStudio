@@ -63,4 +63,4 @@ The widget manages lifecycle state transitions such as stopped, running, stoppin
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/PythonClient/PythonClientControl.axaml.cs`
+- `src/Hornetstudio.Editor/Widgets/PythonClient/PythonClientControl.axaml.cs`

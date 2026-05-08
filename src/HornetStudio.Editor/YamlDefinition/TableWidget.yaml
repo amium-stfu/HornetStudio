@@ -5,7 +5,7 @@
   
   Identity:
     Name: Table
-    Path: UdlBook.Page1.Table1
+    Path: udl_book.Page1.Table1
     Id: demo-table-1
 
   Bounds:
@@ -63,7 +63,7 @@
           Type: Signal
           Identity:
             Name: Item1
-            Path: UdlBook.Page1.udl1.m310
+            Path: udl_book.Page1.udl1.m310
             Id: item-1
 
           Bounds:
@@ -108,7 +108,7 @@
           InteractionRules:
             - Event: BodyLeftClick
               Action: SendInputTo
-              TargetPath: "UdlBook.Page1.udl1.m310.Set.Request"
+              TargetPath: "udl_book.Page1.udl1.m310.set.request"
               Argument: ""
 
           Properties:
@@ -124,7 +124,7 @@
           Type: Signal
           Identity:
             Name: Item2
-            Path: UdlBook.Page1.udl1.m320
+            Path: udl_book.Page1.udl1.m320
             Id: item-2
           Properties:
             ListItemHeight: 72
@@ -139,7 +139,7 @@
           Type: Signal
           Identity:
             Name: Item3
-            Path: UdlBook.Page1.udl1.m330
+            Path: udl_book.Page1.udl1.m330
             Id: item-3
           Properties:
             ListItemHeight: 72

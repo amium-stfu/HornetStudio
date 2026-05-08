@@ -43,7 +43,7 @@ Widget type for process/system logs:
 
 Widget for value input (value editor):
 
-- EditorValueInputControl.axaml(.cs) – overlay/dialog widget for editing parameter values (text, numeric, hex, bitmask) including on-screen keyboard
+- EditorValueInputControl.axaml(.cs) – overlay/dialog widget for editing property values (text, numeric, hex, bitmask) including on-screen keyboard
 
 ## FolderEditor
 
@@ -52,11 +52,11 @@ Widgets related to folder editing in the editor:
 - FolderEditorControl.axaml(.cs) – main drawing surface for placing, moving, and scaling widgets in a folder
 - CachedFolderHostControl.axaml(.cs) – host that caches one FolderEditorControl per folder and synchronizes visibility
 
-## Parameter
+## Property
 
-Visualization of parameter values in a widget:
+Visualization of item property values in a widget:
 
-- ParameterControl.axaml(.cs) – display and interaction widget for parameters (text, units, bit/bool choices, etc.)
+- PropertyControl.axaml(.cs) – display and interaction widget for item properties (text, units, bit/bool choices, etc.)
 
 ## RealtimeChart
 
@@ -89,4 +89,4 @@ This layout is chosen so that:
 
 - **Common** contains all reusable building blocks,
 - each concrete widget type has its own subfolder,
-- aliases like `*Widget` (e.g. EditorButtonWidget) live in the same namespace HornetStudio.Editor.Widgets and simply inherit from the corresponding `*Control` classes. Legacy `EditorItem*` aliases still point to the signal control.
+- aliases like `*Widget` (e.g. EditorButtonWidget) live in the same namespace Hornetstudio.Editor.Widgets and simply inherit from the corresponding `*Control` classes. Legacy `EditorItem*` aliases still point to the signal control.

@@ -330,7 +330,7 @@ public partial class TargetTreeSelectionDialogWindow : Window, INotifyPropertyCh
 
         foreach (var fullPath in paths)
         {
-            var normalizedFullPath = TargetPathHelper.ToFlatItemBrokerPath(NormalizePath(fullPath));
+            var normalizedFullPath = TargetPathHelper.ToFlatItemServerPath(NormalizePath(fullPath));
             if (string.IsNullOrWhiteSpace(normalizedFullPath))
             {
                 continue;
@@ -404,7 +404,7 @@ public partial class TargetTreeSelectionDialogWindow : Window, INotifyPropertyCh
 
         var candidatePaths = TargetPathHelper.EnumerateResolutionCandidates(fullPath, pageName)
             .Concat(TargetPathHelper.EnumerateItemBrokerRuntimeCandidates(fullPath))
-            .Select(TargetPathHelper.ToFlatItemBrokerPath)
+            .Select(TargetPathHelper.ToFlatItemServerPath)
             .Select(NormalizePath)
             .Where(static path => !string.IsNullOrWhiteSpace(path))
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -431,14 +431,14 @@ public partial class TargetTreeSelectionDialogWindow : Window, INotifyPropertyCh
     private static bool ContainsEquivalentPath(IEnumerable<string> options, string selectedValue, string pageName)
     {
         var normalizedOptions = options
-            .Select(TargetPathHelper.ToFlatItemBrokerPath)
+            .Select(TargetPathHelper.ToFlatItemServerPath)
             .Select(TargetPathHelper.NormalizeComparablePath)
             .Where(static path => !string.IsNullOrWhiteSpace(path))
             .ToArray();
 
         foreach (var candidate in TargetPathHelper.EnumerateResolutionCandidates(selectedValue, pageName)
             .Concat(TargetPathHelper.EnumerateItemBrokerRuntimeCandidates(selectedValue))
-            .Select(TargetPathHelper.ToFlatItemBrokerPath))
+            .Select(TargetPathHelper.ToFlatItemServerPath))
         {
             var normalizedCandidate = TargetPathHelper.NormalizeComparablePath(candidate);
             if (normalizedOptions.Contains(normalizedCandidate, StringComparer.OrdinalIgnoreCase))
@@ -460,7 +460,7 @@ public partial class TargetTreeSelectionDialogWindow : Window, INotifyPropertyCh
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
 
-            var preferredProjectPrefix = $"Studio.{pageName}.";
+            var preferredProjectPrefix = $"studio.{pageName}.";
             var hasProjectPrefix = availablePrefixes.Any(prefix => string.Equals(prefix, preferredProjectPrefix, StringComparison.OrdinalIgnoreCase));
 
             if (hasProjectPrefix)

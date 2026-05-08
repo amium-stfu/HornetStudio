@@ -11,6 +11,9 @@
 - Prefer existing libraries, frameworks, patterns, and project conventions.
 - Change only code and files that are directly related to the request.
 - Do not make changes outside the requested scope without asking.
+- Keep changes minimal, targeted, and aligned with the existing architecture and naming used in the repository.
+- Prefer extending existing components over introducing new helper layers, wrapper classes, or intermediary abstractions unless technically required.
+- Preserve existing project conventions, file structure, and framework patterns before proposing alternative patterns.
 
 ## Mode Aliases
 
@@ -21,6 +24,7 @@
 - `impl` -> `[MODE: IMPLEMENT]`
 - `debug` -> `[MODE: DEBUG]`
 - `clean` -> `[MODE: CLEAN]`
+- `build` -> `[MODE: BUILD]`
 - `publish` -> `[MODE: PUBLISH]`
 
 If a message starts with one of these aliases, interpret it as the corresponding `MODE`.
@@ -36,36 +40,45 @@ If a message starts with one of these aliases, interpret it as the corresponding
 ### STRUCTURE
 
 - Work out architecture, structure, responsibilities, and boundaries.
+- Critically evaluate the proposed idea before accepting it.
+- Explicitly assess whether the idea is useful, necessary, maintainable, performant, and aligned with the existing project architecture.
+- Point out risks, problematic assumptions, unnecessary complexity, performance costs, coupling, migration effort, and possible regressions.
+- Contradict the proposal clearly and constructively when it is technically weak, overengineered, risky, or not aligned with the project.
+- Prefer simpler alternatives when they solve the same problem with less complexity or lower risk.
 - Do not provide complete code.
 - Do not implement changes.
 - Do not create workitem folders automatically.
 
 ### PLAN
 
-- Create a clear, actionable step-by-step plan.
+- Create a concise implementation handoff instead of a separate plan document.
 - Do not provide code.
 - Do not implement changes.
-- Creating a plan is the trigger for a workitem folder.
+- Before creating a workitem or handoff, check whether the goal, scope, constraints, dependencies, and acceptance criteria are sufficiently defined for planning.
+- If plan-relevant information is missing, do not create a plan, do not create a workitem folder, and do not create a handoff.
+- Instead, list the open questions in a concise, structured way and stop after clarification is requested.
+- If the task is sufficiently defined, creating a plan is the trigger for a workitem folder.
 - Create or reuse a matching folder under `docs/workitems/<yyyy.MM.dd.HHmm>-<slug>/`.
-- Store plan files in `plans/`.
-- After completing the plan, always create a dedicated implementation handoff in `handoffs/`.
-- Never overwrite an existing plan or handoff file. Create a new timestamped file instead.
-- Keep plan and handoff files concise, self-contained, and optimized for a new chat with minimal context.
-- Write the plan for alignment and decision-making.
+- Always create a dedicated implementation handoff in `handoffs/`.
+- Never overwrite an existing handoff file. Create a new timestamped file instead.
+- Keep the handoff concise, self-contained, and optimized for a new chat with minimal context.
+- Do not create a separate `plan.md` file unless the user explicitly asks for one.
+- Do not write the full plan in chat.
+- In chat, only state whether the scope is sufficiently defined, whether blockers remain, and which handoff file was created.
 - Write the implementation handoff as an execution-ready package for another model or a new chat.
 - Assume the implementation model has less context and should not have to infer missing scope, task order, or target files.
 
-#### Required PLAN Files
+#### Required PLAN File
 
-- `docs/workitems/<yyyy.MM.dd.HHmm>-<slug>/plans/<yyyy.MM.dd.HHmm>-plan.md`
 - `docs/workitems/<yyyy.MM.dd.HHmm>-<slug>/handoffs/<yyyy.MM.dd.HHmm>-implementation-handoff.md`
 
 #### PLAN Requirements
 
-- Focus on problem framing, scope, architecture, sequencing, and major decisions.
-- Keep the plan readable for humans and suitable for review.
-- Do not rely on the plan alone for implementation handoff quality.
-- Move execution detail into the implementation handoff.
+- First validate that no major planning blockers remain.
+- If blockers exist, output only the open questions needed to proceed.
+- If the task is sufficiently defined, put the planning detail into the implementation handoff.
+- Keep the chat response short and avoid duplicating the handoff content.
+- Use a separate `plans/` folder or `plan.md` file only when explicitly requested.
 
 #### IMPLEMENTATION HANDOFF Requirements
 
@@ -180,11 +193,18 @@ Low / Medium / High
 
 ### DEBUG
 
+- Before debugging, verify that the matching workitem is known.
+- A workitem is known only when a path under `docs/workitems/<yyyy.MM.dd.HHmm>-<slug>/` is open or mentioned, a handoff from that workitem is open or mentioned, the user explicitly names the workitem, or exactly one existing workitem clearly matches the problem.
+- If no workitem is known, do not start debugging and do not create debug files.
+- Instead, ask the user to open or name the matching handoff file, or to switch to `PLAN` if a new workitem should be created.
+- If multiple workitems could match, ask the user to choose the correct workitem before continuing.
+- After identifying the workitem and before new analysis, read the existing files in that workitem's `debug/` folder.
+- Use previous debug reports to avoid repeating already disproven hypotheses, failed fixes, or analysis loops.
 - First analyze and explain the root cause.
 - Do not jump directly to code without explaining the issue.
 - Then propose a solution.
 - Provide code only when useful or explicitly requested.
-- If a matching workitem exists, create or update debug files inside its `debug/` folder.
+- Create or update debug files only inside the identified workitem's `debug/` folder.
 - Do not use a global `Debug.md` for new debugging work.
 
 #### Required DEBUG Structure
@@ -237,6 +257,15 @@ Only the necessary parts.
 - If cleanup reveals a behavioral bug, switch to `[MODE: DEBUG]` or ask before fixing it.
 - After cleanup, run relevant build or tests when feasible.
 
+### BUILD
+
+- Build the complete solution without starting any application.
+- Prefer `dotnet build HornetStudio.sln --no-restore` when restore has already completed.
+- Do not use `dotnet run`.
+- Do not start demo, UI, service, or worker projects.
+- Do not implement code changes while in `BUILD` mode unless the user explicitly switches to an implementation or debug mode.
+- Report build success, warnings, and errors concisely.
+
 ### PUBLISH
 
 - Create a release publish only.
@@ -255,6 +284,7 @@ Only the necessary parts.
 - If a chat becomes too complex, offer a concise implementation handoff for a new chat.
 - After changes, briefly check build, tests, formatting, and warnings.
 - At the end of every larger change, provide a short summary with changed files.
+- If a rule requires related documentation to be updated, perform that documentation update in the same change.
 
 ## Workitem Rules
 
@@ -269,7 +299,6 @@ Only the necessary parts.
 
 ```text
 docs/workitems/<yyyy.MM.dd.HHmm>-<slug>/
-  plans/
   debug/
   handoffs/
 ```
@@ -282,6 +311,7 @@ docs/workitems/<yyyy.MM.dd.HHmm>-<slug>/
 - Avoid magic numbers and duplication.
 - Follow the existing architecture, patterns, and naming conventions.
 - Avoid overengineering and unnecessary abstractions.
+- Do not introduce unnecessary comments, placeholder code, dead code, or speculative abstractions.
 
 ## Documentation
 
@@ -300,6 +330,10 @@ docs/workitems/<yyyy.MM.dd.HHmm>-<slug>/
 - Create a dedicated directory for each project inside `./src`.
 - Group related classes, derived types, functions, and resources meaningfully.
 - Avoid unnecessary fragmentation when fewer files make the structure easier to read.
+- All newly created path-relevant names must use `snake_case`.
+- Path-relevant names include folders, files, generated artifact names, slugs, and configuration values that are directly used as file system paths.
+- Existing path names are preserved unless the requested task explicitly requires renaming them.
+- C# identifiers, namespaces, project names, public APIs, and existing .NET naming conventions are not changed solely because of the `snake_case` path rule.
 
 ## Tests and Quality
 
@@ -311,6 +345,9 @@ docs/workitems/<yyyy.MM.dd.HHmm>-<slug>/
 - Use `async` and `await` correctly and avoid blocking calls such as `.Result` or `.Wait()`.
 - Use nullable reference types deliberately and avoid unnecessary null risks.
 - Follow existing `.editorconfig` and formatting rules.
+- A build check means building the complete solution without starting any application.
+- Prefer `dotnet build HornetStudio.sln --no-restore` for build verification when restore has already completed.
+- Do not use `dotnet run` or start demo, UI, or service projects as part of a build check.
 
 ## Git and Security
 

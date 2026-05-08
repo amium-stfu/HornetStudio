@@ -56,4 +56,4 @@ For request-oriented backends, prefer `Request` mode so the published signal sta
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/EnhancedSignals/EnhancedSignalsControl.axaml.cs`
+- `src/Hornetstudio.Editor/Widgets/EnhancedSignals/EnhancedSignalsControl.axaml.cs`

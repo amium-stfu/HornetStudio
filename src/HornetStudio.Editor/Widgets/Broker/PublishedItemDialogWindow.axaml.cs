@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using ItemModel = Amium.Items.Item;
 using Amium.Items;
 using Avalonia.Controls;
 using HornetStudio.Editor.Helpers;
@@ -213,7 +214,7 @@ public partial class PublishedItemDialogWindow : Window
             }
         }
 
-        private static IEnumerable<string> EnumerateItemPaths(Item item, string fallbackPath)
+        private static IEnumerable<string> EnumerateItemPaths(ItemModel item, string fallbackPath)
         {
             var path = TargetPathHelper.NormalizeConfiguredTargetPath(item.Path);
             if (string.IsNullOrWhiteSpace(path))

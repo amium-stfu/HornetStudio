@@ -736,7 +736,7 @@ public partial class EditorTableControl : EditorTemplateWidget
 
     private void OnAddItemMenuClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        AddControlToTable(ControlKind.Item);
+        AddControlToTable(ControlKind.ItemModel);
         e.Handled = true;
     }
 

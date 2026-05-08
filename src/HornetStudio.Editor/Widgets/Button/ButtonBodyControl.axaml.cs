@@ -80,7 +80,7 @@ public partial class ButtonBodyControl : UserControl
         }
 
         // Test: always use a strong orange background so we can
-        // clearly see whether ButtonBodyControl is active in UdlBook.
+        // clearly see whether ButtonBodyControl is active in udl_book.
         rootBorder.Background = Brush.Parse("#F59E0B");
         Cursor = Enabled ? new Cursor(StandardCursorType.Hand) : new Cursor(StandardCursorType.Arrow);
     }

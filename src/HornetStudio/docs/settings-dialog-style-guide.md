@@ -35,6 +35,6 @@ All new settings dialogs must follow the same style as the widget settings dialo
 
 ## Implementation Guidance
 
-- Prefer reusing the styles and layout patterns from `src/HornetStudio.Editor/Widgets/Common/EditorPropertyDialog.axaml`.
+- Prefer reusing the styles and layout patterns from `src/Hornetstudio.Editor/Widgets/Common/EditorPropertyDialog.axaml`.
 - If a dialog needs custom fields, extend the content inside the shared visual pattern rather than inventing a new shell.
 - When a new settings dialog is added, verify that it matches the widget settings dialog in tab style, section toggles, spacing, field styling, and footer actions.

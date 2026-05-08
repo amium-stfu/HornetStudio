@@ -5,7 +5,7 @@
   
   Identity:
     Name: log1
-    Path: UdlBook.Page1.udl1.log1
+    Path: udl_book.Page1.udl1.log1
     Id: demo-log-1
 
   Bounds:

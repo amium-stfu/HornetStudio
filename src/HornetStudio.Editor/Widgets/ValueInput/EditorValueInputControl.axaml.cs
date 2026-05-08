@@ -218,23 +218,23 @@ public partial class EditorValueInputControl : UserControl
     {
         ResetState();
         ApplyInputTheme();
-        var presentation = item.TargetParameterView;
+        var presentation = item.TargetPropertyView;
         var title = !string.IsNullOrWhiteSpace(item.Title) ? item.Title : item.ValueEditorTitle;
         this.FindControl<TextBlock>("TitleTextBlock")!.Text = title;
         this.FindControl<TextBlock>("FormatTextBlock")!.Text = BuildFormatText(presentation);
 
         switch (presentation.Definition.Kind)
         {
-            case ParameterVisualKind.Text:
+            case PropertyVisualKind.Text:
                 ConfigureText(presentation);
                 break;
-            case ParameterVisualKind.Numeric:
+            case PropertyVisualKind.Numeric:
                 ConfigureNumeric(presentation);
                 break;
-            case ParameterVisualKind.Hex:
+            case PropertyVisualKind.Hex:
                 ConfigureHex(presentation);
                 break;
-            case ParameterVisualKind.Bits:
+            case PropertyVisualKind.Bits:
                 ConfigureBits(presentation);
                 break;
             default:
@@ -245,15 +245,15 @@ public partial class EditorValueInputControl : UserControl
         FocusInputTextBox(selectAll: true);
     }
 
-    private void ConfigureNumeric(ParameterDisplayModel presentation)
+    private void ConfigureNumeric(PropertyDisplayModel presentation)
     {
         _mode = ValueInputMode.Numeric;
         _maxDecimalDigits = GetDecimalDigits(presentation.Definition.PatternOrOptionsText);
         var input = this.FindControl<TextBox>("InputTextBox")!;
         input.IsVisible = true;
         input.IsReadOnly = false;
-        input.Text = GetNumericInputText(presentation.Parameter?.Value);
-        var showSign = SupportsSign(presentation.Parameter?.Value?.GetType());
+        input.Text = GetNumericInputText(presentation.Property?.Value);
+        var showSign = SupportsSign(presentation.Property?.Value?.GetType());
 
         var labels = new List<string>
         {
@@ -277,7 +277,7 @@ public partial class EditorValueInputControl : UserControl
         BuildActionButtons(["DEL", "Clear", "Cancel", "OK"]);
     }
 
-    private void ConfigureHex(ParameterDisplayModel presentation)
+    private void ConfigureHex(PropertyDisplayModel presentation)
     {
         _mode = ValueInputMode.Hex;
         _maxHexDigits = GetHexDigits(presentation);
@@ -288,7 +288,7 @@ public partial class EditorValueInputControl : UserControl
         BuildHexButtons();
     }
 
-    private void ConfigureBits(ParameterDisplayModel presentation)
+    private void ConfigureBits(PropertyDisplayModel presentation)
     {
         _mode = ValueInputMode.Bits;
         var input = this.FindControl<TextBox>("InputTextBox")!;
@@ -300,13 +300,13 @@ public partial class EditorValueInputControl : UserControl
         BuildBitButtons(presentation);
         UpdateBitPreview();
     }
-    private void ConfigureText(ParameterDisplayModel presentation)
+    private void ConfigureText(PropertyDisplayModel presentation)
     {
         _mode = ValueInputMode.Text;
         var input = this.FindControl<TextBox>("InputTextBox")!;
         input.IsVisible = true;
         input.IsReadOnly = false;
-        input.Text = presentation.Parameter?.Value?.ToString() ?? string.Empty;
+        input.Text = presentation.Property?.Value?.ToString() ?? string.Empty;
 
         var textPad = this.FindControl<EditorTextInputPad>("TextInputPad")!;
         var textPadViewbox = this.FindControl<Viewbox>("TextInputPadViewbox")!;
@@ -521,12 +521,12 @@ public partial class EditorValueInputControl : UserControl
         Grid.SetColumn(button, 0);
         grid.Children.Add(button);
     }
-    private void BuildBitButtons(ParameterDisplayModel presentation)
+    private void BuildBitButtons(PropertyDisplayModel presentation)
     {
         var panel = this.FindControl<WrapPanel>("BitButtonPanel")!;
         panel.Children.Clear();
         _bitButtons.Clear();
-        var value = ToUInt64(presentation.Parameter?.Value);
+        var value = ToUInt64(presentation.Property?.Value);
 
         for (var bitIndex = presentation.Definition.BitCount - 1; bitIndex >= 0; bitIndex--)
         {
@@ -1057,13 +1057,13 @@ public partial class EditorValueInputControl : UserControl
         this.FindControl<Border>("RootBorder")!.Width = contentWidth + 32;
     }
 
-    private static string BuildFormatText(ParameterDisplayModel presentation)
+    private static string BuildFormatText(PropertyDisplayModel presentation)
         => presentation.Definition.Kind switch
         {
-            ParameterVisualKind.Text => "Text",
-            ParameterVisualKind.Numeric => $"Numeric {presentation.Definition.PatternOrOptionsText}",
-            ParameterVisualKind.Hex => $"Hex {presentation.Definition.PatternOrOptionsText}",
-            ParameterVisualKind.Bits => $"Bitmask {presentation.Definition.BitCount} Bit",
+            PropertyVisualKind.Text => "Text",
+            PropertyVisualKind.Numeric => $"Numeric {presentation.Definition.PatternOrOptionsText}",
+            PropertyVisualKind.Hex => $"Hex {presentation.Definition.PatternOrOptionsText}",
+            PropertyVisualKind.Bits => $"Bitmask {presentation.Definition.BitCount} Bit",
             _ => string.Empty
         };
 
@@ -1139,21 +1139,21 @@ public partial class EditorValueInputControl : UserControl
     private static bool IsHexChar(char ch)
         => ch is >= '0' and <= '9' or >= 'A' and <= 'F';
 
-    private static string GetHexInputText(ParameterDisplayModel presentation)
+    private static string GetHexInputText(PropertyDisplayModel presentation)
     {
-        var value = ToUInt64(presentation.Parameter?.Value);
+        var value = ToUInt64(presentation.Property?.Value);
         var digits = GetHexDigits(presentation);
         return value.ToString($"X{digits}", CultureInfo.InvariantCulture);
     }
 
-    private static int GetHexDigits(ParameterDisplayModel presentation)
+    private static int GetHexDigits(PropertyDisplayModel presentation)
     {
         if (int.TryParse(presentation.Definition.PatternOrOptionsText, out var digits) && digits > 0)
         {
             return digits;
         }
 
-        var type = Nullable.GetUnderlyingType(presentation.Parameter?.Value?.GetType() ?? typeof(ulong)) ?? presentation.Parameter?.Value?.GetType() ?? typeof(ulong);
+        var type = Nullable.GetUnderlyingType(presentation.Property?.Value?.GetType() ?? typeof(ulong)) ?? presentation.Property?.Value?.GetType() ?? typeof(ulong);
         return type == typeof(byte) || type == typeof(sbyte) ? 2
             : type == typeof(short) || type == typeof(ushort) ? 4
             : type == typeof(int) || type == typeof(uint) ? 8

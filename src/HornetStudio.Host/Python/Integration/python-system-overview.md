@@ -1,10 +1,10 @@
 # Python System Overview
 
-This document describes how the Python client and Python application system is structured in HornetStudio.
+This document describes how the Python client and Python application system is structured in Hornetstudio.
 It is the source of truth for the Python bridge/runtime overview used by generated script folders.
 
 Rule:
-Whenever the Python bridge, template workflow, interaction argument shape, or generated support files change, update this file and the copied runtime doc in `src/HornetStudio.Editor/Templates/PYTHON_SYSTEM.md` in the same change.
+Whenever the Python bridge, template workflow, interaction argument shape, or generated support files change, update this file and the copied runtime doc in `src/Hornetstudio.Editor/Templates/PYTHON_SYSTEM.md` in the same change.
 
 ## Purpose
 
@@ -15,12 +15,12 @@ Whenever the Python bridge, template workflow, interaction argument shape, or ge
 
 ## Main Areas
 
-- `src/HornetStudio.Host/Python/Client/`: host-side runtime bridge for Python clients.
-- `src/HornetStudio.Host/Python/Integration/`: source-of-truth docs for the Python bridge.
-- `src/HornetStudio.Editor/Templates/`: starter templates copied for widgets and Python applications.
-- `src/HornetStudio.Editor/Templates/hornet_studio_host/`: bundled host-value access package copied with generated scripts.
-- `src/HornetStudio.Editor/Templates/ui_python_client/`: bundled helper package copied with generated scripts.
-- `src/HornetStudio.Editor/Widgets/ApplicationExplorer/`: editor/runtime UI for Python applications, surfaced in the UI as `ApplicationExplorer`.
+- `src/Hornetstudio.Host/Python/Client/`: host-side runtime bridge for Python clients.
+- `src/Hornetstudio.Host/Python/Integration/`: source-of-truth docs for the Python bridge.
+- `src/Hornetstudio.Editor/Templates/`: starter templates copied for widgets and Python applications.
+- `src/Hornetstudio.Editor/Templates/hornet_studio_host/`: bundled host-value access package copied with generated scripts.
+- `src/Hornetstudio.Editor/Templates/ui_python_client/`: bundled helper package copied with generated scripts.
+- `src/Hornetstudio.Editor/Widgets/ApplicationExplorer/`: editor/runtime UI for Python applications, surfaced in the UI as `ApplicationExplorer`.
 
 ## Generated Folder Layout
 
@@ -58,7 +58,7 @@ Legacy folders under `<Folder.Directory>/Python/` may still exist and remain sup
 - Read values via `host.values.some_alias.value` or `host.values["Some.Registry.Path"].value`.
 - Write values back with `host.values.some_alias.value = 42`.
 - The host remains the source of truth and the only administrative authority.
-- Projected paths may also include runtime values such as `Studio.Dummy.Applications.Python.Raw.raw_b`.
+- Projected paths may also include runtime values such as `studio.Dummy.Applications.Python.Raw.raw_b`.
 
 Available projected metadata may include:
 
@@ -102,8 +102,8 @@ For simple templates, prefer reading `args.get("value")`.
 - Put reusable bridge/API behavior into `ui_python_client` or `hornet_studio_host`.
 - Keep template files focused on the specific demo/use case.
 - If the public helper API changes, also update:
-  - `src/HornetStudio.Host/Python/Integration/ui-python-client-commands.md`
-  - `src/HornetStudio.Editor/Templates/ui_python_client/COMMANDS.md`
+  - `src/Hornetstudio.Host/Python/Integration/ui-python-client-commands.md`
+  - `src/Hornetstudio.Editor/Templates/ui_python_client/COMMANDS.md`
 - If the system behavior or generated folder structure changes, also update:
-  - `src/HornetStudio.Host/Python/Integration/python-system-overview.md`
-  - `src/HornetStudio.Editor/Templates/PYTHON_SYSTEM.md`
+  - `src/Hornetstudio.Host/Python/Integration/python-system-overview.md`
+  - `src/Hornetstudio.Editor/Templates/PYTHON_SYSTEM.md`

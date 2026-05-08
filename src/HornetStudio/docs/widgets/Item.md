@@ -17,20 +17,20 @@ Displays and optionally edits a bound target value with caption, body, and foote
 ## Key Configuration
 
 - Target path
-- Target parameter path and format
+- Target property path and format
 - Unit and body caption
 - Header, body, and footer styling
 - Interaction rules
 
 ## Runtime Notes
 
-The item widget resolves a registry target, formats its parameter view, and can write values back when the target is writable.
+The item widget resolves a registry target, formats its property view, and can write values back when the target is writable.
 
 ## Source
 
-- `src/HornetStudio.Editor/Models/PageItemModel.cs`
-- `src/HornetStudio.Editor/Widgets/Parameter/`
-- `src/HornetStudio.Editor/Widgets/ValueInput/`
+- `src/Hornetstudio.Editor/Models/PageItemModel.cs`
+- `src/Hornetstudio.Editor/Widgets/Property/`
+- `src/Hornetstudio.Editor/Widgets/ValueInput/`
 
 ## Help
 

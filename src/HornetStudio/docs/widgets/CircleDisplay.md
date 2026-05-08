@@ -28,9 +28,9 @@ The widget publishes display runtime values for color and progress related sub-i
 
 ## Source
 
-- `src/HornetStudio.Editor/Models/PageItemModel.cs`
-- `src/HornetStudio.Editor/Widgets/FolderEditor/`
-- `src/HornetStudio.Editor/Widgets/Table/`
+- `src/Hornetstudio.Editor/Models/PageItemModel.cs`
+- `src/Hornetstudio.Editor/Widgets/FolderEditor/`
+- `src/Hornetstudio.Editor/Widgets/Table/`
 
 ## Help
 

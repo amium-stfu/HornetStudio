@@ -1,16 +1,136 @@
 using System;
 using System.Collections.Generic;
+using ItemModel = Amium.Items.Item;
+using Amium.Items;
 
 namespace HornetStudio.Editor.Helpers;
 
-internal static class TargetPathHelper
+public static class TargetPathHelper
 {
-    private const string StudioRootSegment = "Studio";
-    private const string RuntimeItemBrokerPrefix = "Runtime.ItemBroker";
-    private static readonly string[] ProjectRootSegments = [StudioRootSegment, "Project", "UdlProject", "UdlBook"];
-    private static readonly string[] LegacyProjectRootSegments = ["Project", "UdlProject", "UdlBook"];
-    private static readonly string[] NonProjectRootSegments = ["Runtime", "Logs", "Commands"];
+    private const string StudioRootSegment = "studio";
+    private const string RuntimeItemBrokerPrefix = "runtime.item_broker";
+    private static readonly string[] BrokerAttachOptionRoots = [StudioRootSegment, "project", "udl_project"];
+    private static readonly string[] ProjectRootSegments = [StudioRootSegment, "project", "udl_project", "udl_book"];
+    private static readonly string[] LegacyProjectRootSegments = ["project", "udl_project", "udl_book"];
+    private static readonly string[] NonProjectRootSegments = ["runtime", "logs", "commands"];
     private static readonly char[] HierarchySeparators = ['.', '/'];
+
+    /// <summary>
+    /// Normalizes path separators without applying canonical casing rules.
+    /// </summary>
+    /// <param name="path">The input path.</param>
+    /// <returns>A dot-separated path preserving the original segment casing.</returns>
+    public static string NormalizePathDelimiters(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return string.Empty;
+        }
+
+        var normalized = path.Trim().Replace('\\', '/').Trim('/', '.');
+        if (string.Equals(normalized, "this", StringComparison.OrdinalIgnoreCase))
+        {
+            return "this";
+        }
+
+        var segments = normalized
+            .Split(HierarchySeparators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        return segments.Length == 0
+            ? string.Empty
+            : string.Join('.', segments);
+    }
+
+    /// <summary>
+    /// Normalizes a single path-relevant segment to canonical snake_case.
+    /// </summary>
+    /// <param name="segment">The segment to normalize.</param>
+    /// <param name="fallbackSegment">The fallback segment to use when <paramref name="segment"/> is empty.</param>
+    /// <returns>The normalized segment.</returns>
+    public static string NormalizePathSegment(string? segment, string fallbackSegment)
+    {
+        var value = string.IsNullOrWhiteSpace(segment)
+            ? fallbackSegment
+            : segment.Trim();
+
+        return ItemPath.ToSnakeCaseSegment(value);
+    }
+
+    /// <summary>
+    /// Normalizes a technical identity name without applying casing transformations.
+    /// </summary>
+    /// <param name="name">The identity name.</param>
+    /// <returns>The trimmed identity name or an empty string.</returns>
+    public static string NormalizeIdentityName(string? name)
+        => string.IsNullOrWhiteSpace(name) ? string.Empty : name.Trim();
+
+    /// <summary>
+    /// Determines whether a technical identity already uses strict snake_case.
+    /// </summary>
+    /// <param name="name">The identity name to validate.</param>
+    /// <returns><c>true</c> when the identity name contains only lowercase letters, digits, and underscores.</returns>
+    public static bool IsValidPathIdentityName(string? name)
+    {
+        var normalized = NormalizeIdentityName(name);
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return false;
+        }
+
+        foreach (var character in normalized)
+        {
+            if (character == '_')
+            {
+                continue;
+            }
+
+            if ((character >= 'a' && character <= 'z') || (character >= '0' && character <= '9'))
+            {
+                continue;
+            }
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Generates the next available indexed snake_case identity name.
+    /// </summary>
+    /// <param name="baseName">The desired base name.</param>
+    /// <param name="existingNames">Existing identity names that must remain unique.</param>
+    /// <param name="fallbackBaseName">The fallback base name.</param>
+    /// <returns>The next available indexed identity name.</returns>
+    public static string GenerateIndexedPathIdentityName(string? baseName, IEnumerable<string>? existingNames, string fallbackBaseName)
+    {
+        var normalizedBaseName = NormalizePathSegment(baseName, fallbackBaseName);
+        var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (existingNames is not null)
+        {
+            foreach (var existingName in existingNames)
+            {
+                var normalizedExistingName = NormalizeIdentityName(existingName);
+                if (!string.IsNullOrWhiteSpace(normalizedExistingName))
+                {
+                    usedNames.Add(normalizedExistingName);
+                }
+            }
+        }
+
+        var index = 1;
+        while (true)
+        {
+            var candidate = $"{normalizedBaseName}_{index}";
+            if (!usedNames.Contains(candidate))
+            {
+                return candidate;
+            }
+
+            index++;
+        }
+    }
 
     public static string NormalizeConfiguredTargetPath(string? path)
     {
@@ -64,21 +184,21 @@ internal static class TargetPathHelper
     /// <summary>
     /// Determines whether the path uses the internal ItemBroker runtime prefix.
     /// </summary>
-    public static bool IsRuntimeItemBrokerPath(string? path)
+    public static bool IsRuntimeItemServerPath(string? path)
     {
         var segments = SplitPathSegments(path);
         return segments.Count >= 2
-            && string.Equals(segments[0], "Runtime", StringComparison.OrdinalIgnoreCase)
-            && string.Equals(segments[1], "ItemBroker", StringComparison.OrdinalIgnoreCase);
+            && string.Equals(segments[0], "runtime", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(segments[1], "item_broker", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
     /// Removes the internal ItemBroker runtime prefix from a path when present.
     /// </summary>
-    public static string ToFlatItemBrokerPath(string? path)
+    public static string ToFlatItemServerPath(string? path)
     {
         var segments = SplitPathSegments(path);
-        if (segments.Count <= 2 || !IsRuntimeItemBrokerPath(path))
+        if (segments.Count <= 2 || !IsRuntimeItemServerPath(path))
         {
             return NormalizeConfiguredTargetPath(path);
         }
@@ -89,10 +209,10 @@ internal static class TargetPathHelper
     /// <summary>
     /// Converts a flat broker path to its internal ItemBroker runtime path.
     /// </summary>
-    public static string ToRuntimeItemBrokerPath(string? path)
+    public static string ToRuntimeItemServerPath(string? path)
     {
         var normalized = NormalizeConfiguredTargetPath(path);
-        if (string.IsNullOrWhiteSpace(normalized) || IsRuntimeItemBrokerPath(normalized))
+        if (string.IsNullOrWhiteSpace(normalized) || IsRuntimeItemServerPath(normalized))
         {
             return normalized;
         }
@@ -103,9 +223,9 @@ internal static class TargetPathHelper
     /// <summary>
     /// Removes the broker widget and MQTT client segments from a flat ItemBroker path when present.
     /// </summary>
-    public static string ToRelativeItemBrokerPath(string? path)
+    public static string ToRelativeItemServerPath(string? path)
     {
-        var flatPath = ToFlatItemBrokerPath(path);
+        var flatPath = ToFlatItemServerPath(path);
         var segments = SplitPathSegments(flatPath);
         return segments.Count <= 2 ? flatPath : string.Join('.', segments.Skip(2));
     }
@@ -117,7 +237,7 @@ internal static class TargetPathHelper
     /// <returns>The normalized attach identity.</returns>
     public static string ToBrokerReceivedAttachIdentity(string? path)
     {
-        var flatPath = ToFlatItemBrokerPath(path);
+        var flatPath = ToFlatItemServerPath(path);
         var segments = SplitPathSegments(flatPath)
             .Where(static segment => !string.IsNullOrWhiteSpace(segment))
             .ToArray();
@@ -128,25 +248,73 @@ internal static class TargetPathHelper
 
         if (IsProjectRootSegment(segments[0])
             && segments.Length >= 5
-            && string.Equals(segments[3], "Mqtt", StringComparison.OrdinalIgnoreCase))
+            && string.Equals(segments[3], "mqtt", StringComparison.OrdinalIgnoreCase))
         {
             return string.Join('.', segments.Skip(2));
         }
 
         if (segments.Length >= 3 && string.Equals(segments[1], "shared", StringComparison.OrdinalIgnoreCase))
         {
-            return string.Join('.', new[] { segments[0], "Mqtt" }.Concat(segments.Skip(2)));
+            return string.Join('.', new[] { segments[0], "mqtt" }.Concat(segments.Skip(2)));
         }
 
         for (var index = 1; index < segments.Length - 1; index++)
         {
-            if (string.Equals(segments[index], "Mqtt", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(segments[index], "mqtt", StringComparison.OrdinalIgnoreCase))
             {
                 return string.Join('.', segments.Skip(index - 1));
             }
         }
 
         return flatPath;
+    }
+
+    /// <summary>
+    /// Gets the canonical broker widget segment used in runtime and studio paths.
+    /// </summary>
+    /// <param name="widgetName">The configured widget name.</param>
+    /// <returns>The canonical broker widget segment.</returns>
+    public static string GetCanonicalBrokerWidgetName(string? widgetName)
+        => NormalizePathSegment(widgetName, "broker_widget");
+
+    /// <summary>
+    /// Gets the canonical broker attach-options base path.
+    /// </summary>
+    /// <param name="folderName">The containing folder or page name.</param>
+    /// <param name="widgetName">The configured widget name.</param>
+    /// <returns>The canonical attach-options base path.</returns>
+    public static string GetCanonicalBrokerAttachOptionsBasePath(string? folderName, string? widgetName)
+    {
+        var normalizedFolderName = NormalizeConfiguredTargetPath(folderName);
+        return JoinPath(StudioRootSegment, JoinPath(normalizedFolderName, $"{GetCanonicalBrokerWidgetName(widgetName)}.status.attach_options"));
+    }
+
+    /// <summary>
+    /// Enumerates canonical and legacy broker attach-options prefixes for discovery.
+    /// </summary>
+    /// <param name="folderName">The containing folder or page name.</param>
+    /// <param name="widgetName">The configured widget name.</param>
+    /// <returns>The attach-options prefixes to probe.</returns>
+    public static IReadOnlyList<string> GetBrokerAttachOptionPrefixes(string? folderName, string? widgetName)
+    {
+        var prefixes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var canonicalFolder = NormalizeConfiguredTargetPath(folderName);
+        var canonicalWidget = GetCanonicalBrokerWidgetName(widgetName);
+        var legacyFolder = NormalizePathDelimiters(folderName);
+        var legacyWidget = string.IsNullOrWhiteSpace(widgetName) ? "BrokerWidget" : widgetName.Trim();
+
+        foreach (var root in BrokerAttachOptionRoots)
+        {
+            prefixes.Add(JoinPath(root, JoinPath(canonicalFolder, $"{canonicalWidget}.status.attach_options")));
+
+            var legacyPrefix = JoinRawPath(root, legacyFolder, legacyWidget, "Status", "AttachOptions");
+            if (!string.IsNullOrWhiteSpace(legacyPrefix))
+            {
+                prefixes.Add(legacyPrefix);
+            }
+        }
+
+        return prefixes.ToArray();
     }
 
     /// <summary>
@@ -160,9 +328,9 @@ internal static class TargetPathHelper
             yield break;
         }
 
-        yield return IsRuntimeItemBrokerPath(normalized)
+        yield return IsRuntimeItemServerPath(normalized)
             ? normalized
-            : ToRuntimeItemBrokerPath(normalized);
+            : ToRuntimeItemServerPath(normalized);
     }
 
     public static bool IsDescendantPath(string? path, string? prefix)
@@ -413,6 +581,18 @@ internal static class TargetPathHelper
         return $"{NormalizeConfiguredTargetPath(prefix)}.{NormalizeConfiguredTargetPath(path)}";
     }
 
+    private static string JoinRawPath(params string?[] segments)
+    {
+        var normalizedSegments = segments
+            .Select(NormalizePathDelimiters)
+            .Where(static segment => !string.IsNullOrWhiteSpace(segment))
+            .ToArray();
+
+        return normalizedSegments.Length == 0
+            ? string.Empty
+            : string.Join('.', normalizedSegments);
+    }
+
     private static IEnumerable<string> NormalizeStudioRoot(IReadOnlyList<string> segments)
     {
         if (segments.Count == 0)
@@ -425,7 +605,7 @@ internal static class TargetPathHelper
             yield return StudioRootSegment;
             foreach (var segment in segments.Skip(1))
             {
-                yield return segment;
+                yield return ItemPath.ToSnakeCaseSegment(segment);
             }
 
             yield break;
@@ -438,7 +618,7 @@ internal static class TargetPathHelper
             yield return StudioRootSegment;
             foreach (var segment in segments.Skip(2))
             {
-                yield return segment;
+                yield return ItemPath.ToSnakeCaseSegment(segment);
             }
 
             yield break;
@@ -446,7 +626,7 @@ internal static class TargetPathHelper
 
         foreach (var segment in segments)
         {
-            yield return segment;
+            yield return ItemPath.ToSnakeCaseSegment(segment);
         }
     }
 
@@ -461,6 +641,6 @@ internal static class TargetPathHelper
             return string.Empty;
         }
 
-        return string.Join('.', new[] { "Project" }.Concat(segments.Skip(1)));
+        return string.Join('.', new[] { "project" }.Concat(segments.Skip(1)));
     }
 }

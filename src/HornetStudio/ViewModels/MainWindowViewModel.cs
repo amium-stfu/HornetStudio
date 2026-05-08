@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Avalonia.Threading;
 using HornetStudio.Host;
 using HornetStudio.Logging;
+using HornetStudio.Editor.Helpers;
 using HornetStudio.Editor.Models;
 using HornetStudio.Editor.ViewModels;
 using VBFileSystem = Microsoft.VisualBasic.FileIO.FileSystem;
@@ -17,8 +18,8 @@ namespace HornetStudio.ViewModels;
 
 public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWindowViewModel
 {
-    private const string ProjectEntryFileName = "Project.aaep";
-    private const string LegacyProjectEntryFileName = "Project.udlb";
+    private const string ProjectEntryFileName = "project.aaep";
+    private const string LegacyProjectEntryFileName = "project.udlb";
     private const string OlderLegacyProjectEntryFileName = "Book.udlb";
     private const string FoldersDirectoryName = "Folders";
     private const string LegacyFoldersDirectoryName = "Pages";
@@ -30,8 +31,8 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
     private const string ScriptsDirectoryName = "Scripts";
     private const string AssetsDirectoryName = "Assets";
     private const string FolderTemplateRelativePath = "Templates\\Folder.yaml";
-    private const string FallbackFolderTemplate = "Folder: 'Folder1'\n"
-        + "Caption: 'Folder1'\n"
+    private const string FallbackFolderTemplate = "Folder: 'main'\n"
+        + "Caption: 'main'\n"
         + "Screens:\n"
         + "  1: 'HomeScreen'\n"
         + "  2: 'Screen2'\n"
@@ -84,7 +85,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
         + "      Applications: ''\n"
         + "      ApplicationAutoStart: false\n";
     private readonly string _configPath;
-    private readonly string _defaultLayoutPath;
+    private readonly string _default_layoutPath;
     private static readonly TimeSpan WatcherSaveSuppressionWindow = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan WatcherUpsertDebounceWindow = TimeSpan.FromMilliseconds(1200);
     private readonly Dictionary<string, WatchedPage> _watchedPages = new(StringComparer.OrdinalIgnoreCase);
@@ -103,7 +104,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
     private string _currentLogText;
     private string _headerTitle = "HornetStudio";
     private bool _hasLayout;
-    private bool _isDefaultLayout;
+    private bool _isdefault_layout;
     private bool _isBookOperationRunning;
     private bool _isDeleteFolderDropTargetActive;
     private bool _isStructuredBook;
@@ -115,9 +116,9 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
         _configPath = Path.Combine(AppContext.BaseDirectory, "HornetStudio.config.yaml");
         _config = HornetStudioAppConfig.Load(_configPath);
 
-        var defaultLayoutDirectory = Path.Combine(AppContext.BaseDirectory, "DefaultLayout");
-        _defaultLayoutPath = Path.Combine(defaultLayoutDirectory, FolderLayoutFileName);
-        EnsureDefaultLayout(defaultLayoutDirectory, _defaultLayoutPath);
+        var default_layoutDirectory = Path.Combine(AppContext.BaseDirectory, "default_layout");
+        _default_layoutPath = Path.Combine(default_layoutDirectory, FolderLayoutFileName);
+        Ensuredefault_layout(default_layoutDirectory, _default_layoutPath);
         // Always start in Dark theme on app startup.
         IsDarkTheme = true;
         _config.DefaultTheme = "Dark";
@@ -125,7 +126,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
 
         if (string.IsNullOrWhiteSpace(_config.StartLayout))
         {
-            _startupPagePath = _defaultLayoutPath;
+            _startupPagePath = _default_layoutPath;
         }
         else
         {
@@ -146,8 +147,8 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
             }
             else
             {
-                // Fallback: konfigurierter StartLayout-Pfad existiert nicht, DefaultLayout laden.
-                _startupPagePath = _defaultLayoutPath;
+                // Fallback: konfigurierter StartLayout-Pfad existiert nicht, default_layout laden.
+                _startupPagePath = _default_layoutPath;
             }
         }
         LoadProjectCommand = new HornetStudio.Editor.ViewModels.RelayCommand(LoadBook, CanRunBookAction);
@@ -258,12 +259,12 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
         }
     }
 
-    public bool IsDefaultLayout
+    public bool Isdefault_layout
     {
-        get => _isDefaultLayout;
+        get => _isdefault_layout;
         private set
         {
-            if (SetProperty(ref _isDefaultLayout, value))
+            if (SetProperty(ref _isdefault_layout, value))
             {
                 OnPropertyChanged(nameof(CanSaveLayout));
             }
@@ -272,7 +273,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
 
     public bool CanSaveLayout
     {
-        get => HasLayout && !IsDefaultLayout;
+        get => HasLayout && !Isdefault_layout;
     }
 
     public bool IsCurrentLayoutStartLayout
@@ -373,13 +374,19 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
 
     public bool IsDirectoryBook => _isStructuredBook || _watchedPages.Count > 0;
 
-    public bool CreateNewBook(string bookEntryPath, out string errorMessage)
+    public bool CreateNewBook(string bookEntryPath, string firstFolderName, out string errorMessage)
     {
         errorMessage = string.Empty;
 
         if (string.IsNullOrWhiteSpace(bookEntryPath))
         {
             errorMessage = "No target .aaep file selected.";
+            StatusText = errorMessage;
+            return false;
+        }
+
+        if (!TryValidateFolderIdentityName(firstFolderName, out var normalizedFirstFolderName, out errorMessage))
+        {
             StatusText = errorMessage;
             return false;
         }
@@ -399,12 +406,12 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
             Directory.CreateDirectory(GetPagesDirectoryPath(rootDirectory));
             EnsureBookEntryFile(normalizedEntryPath, rootDirectory);
 
-            var firstPageDirectory = Path.Combine(GetPagesDirectoryPath(rootDirectory), "Folder1");
+            var firstPageDirectory = Path.Combine(GetPagesDirectoryPath(rootDirectory), normalizedFirstFolderName);
             var firstPageLayoutPath = GetPageLayoutPath(firstPageDirectory);
             if (!File.Exists(firstPageLayoutPath))
             {
                 CreatePageDirectoryStructure(firstPageDirectory);
-                File.WriteAllText(firstPageLayoutPath, BuildNewPageYaml("Folder1", "Folder1"));
+                File.WriteAllText(firstPageLayoutPath, BuildNewPageYaml(normalizedFirstFolderName, normalizedFirstFolderName));
             }
 
             if (!File.Exists(normalizedEntryPath))
@@ -414,7 +421,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
 
             if (!File.Exists(firstPageLayoutPath))
             {
-                File.WriteAllText(firstPageLayoutPath, BuildNewPageYaml("Folder1", "Folder1"));
+                File.WriteAllText(firstPageLayoutPath, BuildNewPageYaml(normalizedFirstFolderName, normalizedFirstFolderName));
             }
 
             try
@@ -451,9 +458,15 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
             return false;
         }
 
-        if (Folders.Any(page => string.Equals(page.Name, trimmedName, StringComparison.OrdinalIgnoreCase)))
+        if (!TryValidateFolderIdentityName(trimmedName, out var normalizedFolderName, out errorMessage))
         {
-            errorMessage = $"A folder named '{trimmedName}' already exists.";
+            StatusText = errorMessage;
+            return false;
+        }
+
+        if (Folders.Any(page => string.Equals(page.Name, normalizedFolderName, StringComparison.OrdinalIgnoreCase)))
+        {
+            errorMessage = $"A folder named '{normalizedFolderName}' already exists.";
             StatusText = errorMessage;
             return false;
         }
@@ -476,7 +489,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
             return false;
         }
 
-        var safeDirectoryName = BuildSafePageDirectoryName(trimmedName);
+        var safeDirectoryName = BuildSafePageDirectoryName(normalizedFolderName);
         if (string.IsNullOrWhiteSpace(safeDirectoryName))
         {
             errorMessage = "Folder name contains no valid directory name characters.";
@@ -496,7 +509,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
             return false;
         }
 
-        var yamlContent = BuildNewPageYaml(trimmedName, safeDirectoryName);
+        var yamlContent = BuildNewPageYaml(normalizedFolderName, safeDirectoryName);
 
         try
         {
@@ -600,7 +613,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
 
             if (!TrySaveBookManifest(out _))
             {
-                throw new InvalidOperationException("Project.aaep could not be updated before deleting the folder.");
+                throw new InvalidOperationException("project.aaep could not be updated before deleting the folder.");
             }
 
             VBFileSystem.DeleteDirectory(
@@ -829,7 +842,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
             ? project.Folders.Select((page, index) => new FolderModel
             {
                 Index = index + 1,
-                Name = string.IsNullOrWhiteSpace(page.Name) ? $"Folder{index + 1}" : page.Name
+                Name = string.IsNullOrWhiteSpace(page.Name) ? GetDefaultFolderIdentityName(index + 1) : page.Name
             }).ToList()
             : Folders.Select(page => new FolderModel
             {
@@ -884,7 +897,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
         MessagesSummary = "Keine Meldungen";
     }
 
-    private static void EnsureDefaultLayout(string directory, string pagePath)
+    private static void Ensuredefault_layout(string directory, string pagePath)
     {
         try
         {
@@ -895,7 +908,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
                 return;
             }
 
-            File.WriteAllText(pagePath, BuildNewPageYaml("Default Layout", "DefaultLayout"));
+            File.WriteAllText(pagePath, BuildNewPageYaml("Default Layout", "default_layout"));
         }
         catch
         {
@@ -941,6 +954,9 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
 
         return sanitized.Trim('.');
     }
+
+    private static string GetDefaultFolderIdentityName(int index)
+        => $"folder_{Math.Max(1, index)}";
 
     private static string BuildNewPageYaml(string caption, string folderName)
     {
@@ -1246,6 +1262,26 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
         }
     }
 
+    private static bool TryValidateFolderIdentityName(string? rawFolderName, out string normalizedFolderName, out string errorMessage)
+    {
+        normalizedFolderName = TargetPathHelper.NormalizeIdentityName(rawFolderName);
+        errorMessage = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(normalizedFolderName))
+        {
+            errorMessage = "Folder name must not be empty.";
+            return false;
+        }
+
+        if (!TargetPathHelper.IsValidPathIdentityName(normalizedFolderName))
+        {
+            errorMessage = "Folder name must use snake_case: lowercase letters, numbers and '_' only.";
+            return false;
+        }
+
+        return true;
+    }
+
     private static IReadOnlyList<string> ReadMetadataScriptReferences(string metadataPath)
     {
         var scriptPaths = new List<string>();
@@ -1335,7 +1371,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
             AddMessage("UI", "Warning", "Startup-Folder.yaml nicht gefunden.", _startupPagePath);
             StatusText = $"No startup folder found: {_startupPagePath}";
             HasLayout = false;
-            IsDefaultLayout = false;
+            Isdefault_layout = false;
             HeaderTitle = "HornetStudio";
             return;
         }
@@ -1359,7 +1395,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
             _currentBookEntryPath = string.Empty;
             _isStructuredBook = false;
             HasLayout = true;
-            IsDefaultLayout = string.Equals(_startupPagePath, _defaultLayoutPath, StringComparison.OrdinalIgnoreCase);
+            Isdefault_layout = string.Equals(_startupPagePath, _default_layoutPath, StringComparison.OrdinalIgnoreCase);
             HeaderTitle = Path.GetFileNameWithoutExtension(_startupPagePath) ?? "HornetStudio";
             LoadedProjectSummary = $"Default layout | {Path.GetFileName(_startupPagePath)}";
             StatusText = $"Default layout loaded: {_startupPagePath}";
@@ -1372,7 +1408,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
             AddMessage("UI", "Error", ex.Message, _startupPagePath);
             StatusText = $"Default layout could not be loaded: {ex.Message}";
             HasLayout = false;
-            IsDefaultLayout = false;
+            Isdefault_layout = false;
             HeaderTitle = "HornetStudio";
         }
     }
@@ -1394,7 +1430,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
             AddMessage("UI", "Warning", "YAML layout file not found.", yamlFilePath);
             StatusText = $"No YAML layout file found: {yamlFilePath}";
             HasLayout = false;
-            IsDefaultLayout = false;
+            Isdefault_layout = false;
             HeaderTitle = "HornetStudio";
             return;
         }
@@ -1414,7 +1450,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
             _currentBookEntryPath = string.Empty;
             _isStructuredBook = false;
             HasLayout = true;
-            IsDefaultLayout = false;
+            Isdefault_layout = false;
             HeaderTitle = Path.GetFileNameWithoutExtension(yamlFilePath) ?? "HornetStudio";
             LoadedProjectSummary = $"YAML layout | {Path.GetFileName(yamlFilePath)}";
             StatusText = $"YAML layout loaded: {yamlFilePath}";
@@ -1427,7 +1463,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
             AddMessage("UI", "Error", ex.Message, yamlFilePath);
             StatusText = $"YAML layout could not be loaded: {ex.Message}";
             HasLayout = false;
-            IsDefaultLayout = false;
+            Isdefault_layout = false;
             HeaderTitle = "HornetStudio";
         }
     }
@@ -1456,7 +1492,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
                 AddMessage("Load", "Warning", "YAML project directory not found.", fullDirectory);
                 StatusText = $"No YAML project directory found: {fullDirectory}";
                 HasLayout = false;
-                IsDefaultLayout = false;
+                Isdefault_layout = false;
                 HeaderTitle = "HornetStudio";
                 return;
             }
@@ -1501,7 +1537,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
             AddMessage("Load", "Error", ex.Message, directoryPath);
             StatusText = $"YAML load failed: {ex.Message}";
             HasLayout = false;
-            IsDefaultLayout = false;
+            Isdefault_layout = false;
             HeaderTitle = "HornetStudio";
         }
     }
@@ -1515,7 +1551,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
             AddMessage("Load", "Warning", "Project entry file not found.", fullEntryPath);
             StatusText = $"No .aaep file found: {fullEntryPath}";
             HasLayout = false;
-            IsDefaultLayout = false;
+            Isdefault_layout = false;
             HeaderTitle = "HornetStudio";
             return;
         }
@@ -1534,7 +1570,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
                 AddMessage("Load", "Warning", "HornetStudio project root directory not found.", fullDirectory);
                 StatusText = $"No HornetStudio project directory found: {fullDirectory}";
                 HasLayout = false;
-                IsDefaultLayout = false;
+                Isdefault_layout = false;
                 HeaderTitle = "HornetStudio";
                 return;
             }
@@ -1552,13 +1588,13 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
 
             if (!File.Exists(fullEntryPath))
             {
-                AddMessage("Load", "Warning", "Project.aaep is missing.", fullDirectory);
+                AddMessage("Load", "Warning", "project.aaep is missing.", fullDirectory);
             }
 
             if (!Directory.Exists(pagesDirectory))
             {
                 HasLayout = false;
-                IsDefaultLayout = false;
+                Isdefault_layout = false;
                 HeaderTitle = Path.GetFileName(fullDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) ?? "HornetStudio";
                 SetFolders(Array.Empty<FolderModel>());
                 LoadedProjectSummary = "Folders directory missing";
@@ -1619,7 +1655,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
             AddMessage("Load", "Error", ex.Message, bookRootPath);
             StatusText = $"HornetStudio load failed: {ex.Message}";
             HasLayout = false;
-            IsDefaultLayout = false;
+            Isdefault_layout = false;
             HeaderTitle = "HornetStudio";
         }
     }
@@ -1792,7 +1828,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
             pages.Add(new FolderModel
             {
                 Index = 1,
-                Name = project.ProjectName
+                Name = TargetPathHelper.NormalizePathSegment(project.ProjectName, GetDefaultFolderIdentityName(1))
             });
         }
 
@@ -1865,7 +1901,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
 
     private FolderModel CreateFolderFromProject(ProjectFolderDefinition page, int index)
     {
-        var pageName = string.IsNullOrWhiteSpace(page.Name) ? $"Folder{index}" : page.Name;
+        var pageName = string.IsNullOrWhiteSpace(page.Name) ? GetDefaultFolderIdentityName(index) : page.Name;
         var pageDisplayText = GetFolderDisplayText(page) ?? pageName;
         var yamlPath = NormalizeYamlPath(page.UiFile);
 
@@ -2550,7 +2586,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
             ProjectPath = directory;
             _currentLayoutFilePath = string.Empty;
             HasLayout = false;
-            IsDefaultLayout = false;
+            Isdefault_layout = false;
             HeaderTitle = Path.GetFileName(directory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) ?? "HornetStudio";
             SetFolders(Array.Empty<FolderModel>());
             LoadedProjectSummary = "No folders found";
@@ -2573,7 +2609,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
         ProjectPath = directory;
         _currentLayoutFilePath = orderedPages[0].UiFilePath ?? watchedPages[0].FilePath;
         HasLayout = true;
-        IsDefaultLayout = false;
+        Isdefault_layout = false;
         HeaderTitle = Path.GetFileName(directory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) ?? "HornetStudio";
         LoadedProjectSummary = _isStructuredBook
             ? $"HornetStudio | Folders: {orderedPages.Count}"
