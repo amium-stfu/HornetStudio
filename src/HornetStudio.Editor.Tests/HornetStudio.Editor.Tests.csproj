@@ -9,6 +9,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Amium.Item" Version="2026.5.11.2132" />
+    <PackageReference Include="Amium.Item.Client" Version="2026.5.11.2132" />
+    <PackageReference Include="Amium.Item.Server" Version="2026.5.11.2132" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\HornetStudio.Editor\HornetStudio.Editor.csproj" />
     <ProjectReference Include="..\HornetStudio\HornetStudio.csproj" />
   </ItemGroup>

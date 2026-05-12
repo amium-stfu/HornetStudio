@@ -5,15 +5,15 @@ namespace HornetStudio.Host;
 
 public sealed class ExtendedSignalModule : ItemModel
 {
-    private const string RequestItemName = "Request";
-    private const string RawItemName = "Raw";
-    private const string ReadItemName = "Read";
-    private const string SetItemName = "Set";
-    private const string OutItemName = "Out";
-    private const string StateItemName = "State";
-    private const string AlertItemName = "Alert";
-    private const string CommandItemName = "Command";
-    private const string ConfigItemName = "Config";
+    private const string RequestItemName = "request";
+    private const string RawItemName = "raw";
+    private const string ReadItemName = "read";
+    private const string SetItemName = "set";
+    private const string OutItemName = "out";
+    private const string StateItemName = "state";
+    private const string AlertItemName = "alert";
+    private const string CommandItemName = "command";
+    private const string ConfigItemName = "config";
 
     public ExtendedSignalModule(string name, string? path = null)
         : base(name, path: path)

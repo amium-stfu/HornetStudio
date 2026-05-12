@@ -9,9 +9,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\HornetStudio.Host\HornetStudio.Host.csproj" />
-    <ProjectReference Include="..\Amium.Item.Server\Amium.Item.Server.csproj" />
-    <ProjectReference Include="..\Amium.Item.Server\Amium.Item.Server.csproj" />
-    <ProjectReference Include="..\..\tools\item_server_monitor\Item.Server.Monitor.csproj" />
+    <PackageReference Include="Amium.Item" Version="2026.5.11.2132" />
+    <PackageReference Include="Amium.Item.Client" Version="2026.5.11.2132" />
+    <PackageReference Include="Amium.Item.Server" Version="2026.5.11.2132" />
+    <PackageReference Include="MQTTnet.Server" Version="5.1.0.1559" />
   </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HornetStudio.Host\HornetStudio.Host.csproj" />
+  </ItemGroup>
+
 </Project>

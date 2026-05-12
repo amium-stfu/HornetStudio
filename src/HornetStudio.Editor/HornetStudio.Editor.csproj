@@ -12,6 +12,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Amium.Item" Version="2026.5.11.2132" />
+    <PackageReference Include="Amium.Item.Client" Version="2026.5.11.2132" />
+    <PackageReference Include="Amium.Item.Server" Version="2026.5.11.2132" />
     <PackageReference Include="Avalonia" Version="11.2.6" />
     <PackageReference Include="Avalonia.Svg.Skia" Version="11.2.6" />
     <PackageReference Include="ScottPlot.Avalonia" Version="5.0.56" />
@@ -21,9 +24,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\HornetStudio.Host\HornetStudio.Host.csproj" />
-    <ProjectReference Include="..\Amium.Item\Amium.Item.csproj" />
-    <ProjectReference Include="..\Amium.Item.Server\Amium.Item.Server.csproj" />
-    <ProjectReference Include="..\Amium.Item.Server\Amium.Item.Server.csproj" />
     <ProjectReference Include="..\Amium.UdlClient\Amium.UdlClient.csproj" />
   </ItemGroup>
 

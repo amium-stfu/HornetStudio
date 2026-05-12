@@ -34,7 +34,7 @@ Dieses Dokument beschreibt den Datenfluss im Host, wie Messwerte aktualisiert we
    - `UpdateValue(key, value, timestamp)` für ein konkretes Item.
 2. `DataRegistry` schreibt den Wert in das passende `Item`:
    - `Item.Value` bzw. `Item.Properties["Value"].Value` wird gesetzt.
-   - `LastUpdate` wird aktualisiert.
+  - Das normale Item-Property `epoch` wird aktualisiert.
 3. `DataRegistry` feuert `ItemChanged` mit `DataChangeKind.ValueUpdated`.
 4. Alle Abonnenten (z.B. `SignalRegistry`) können darauf reagieren.
 

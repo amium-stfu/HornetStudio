@@ -66,7 +66,7 @@ public sealed class HostUdlClient : IHostUdlClient
         Host = host ?? throw new ArgumentNullException(nameof(host));
         Port = port;
 
-        _itemsPath = $"runtime.UdlClient.{Name}";
+        _itemsPath = $"runtime.udl_client.{HostPathSegmentNormalizer.Normalize(Name)}";
         Items = new ItemDictionary(_itemsPath);
 
         _remoteEndpoint = ResolveRemoteEndpoint(Host, Port);

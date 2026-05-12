@@ -12,6 +12,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\HornetStudio.Contracts\HornetStudio.Contracts.csproj" />
-    <ProjectReference Include="..\Amium.Item\Amium.Item.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Amium.Item" Version="2026.5.11.2132" />
   </ItemGroup>
 </Project>

@@ -1,9 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>Amium.Item</AssemblyName>
-    <RootNamespace>Amium.Item</RootNamespace>
-  </PropertyGroup>
-</Project>

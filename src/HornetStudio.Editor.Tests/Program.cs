@@ -1,6 +1,6 @@
 using ItemModel = Amium.Items.Item;
 using Amium.Items;
-using Amium.Item.Server;
+using Amium.Item.Client;
 using HornetStudio.Editor.Models;
 using HornetStudio.Editor.Persistence;
 using HornetStudio.Editor.ViewModels;
@@ -280,12 +280,12 @@ static void ItemExposureCodecRoundtrip()
 
 static void TargetPropertyOptionsHideProtectedProperties()
 {
-    var item = new ItemModel("Device").Repath("runtime.PolicyPicker.Device");
+    var item = ItemExtension.CreateWithPath("runtime.policy_picker.device");
     item.Properties["read"].Value = 1;
     item.Properties["unit"].Value = "V";
     item.Properties["writable"].Value = true;
-    item.Properties["write_path"].Value = "runtime.PolicyPicker.Device.Request";
-    HostRegistries.Data.UpsertSnapshot("runtime.PolicyPicker.Device", item);
+    item.Properties["write_path"].Value = "runtime.policy_picker.device.request";
+    HostRegistries.Data.UpsertSnapshot("runtime.policy_picker.device", item);
 
     var method = typeof(MainWindowViewModel).GetMethod("GetTargetPropertyOptions", BindingFlags.NonPublic | BindingFlags.Static);
     if (method is null)
@@ -293,7 +293,7 @@ static void TargetPropertyOptionsHideProtectedProperties()
         throw new InvalidOperationException("GetTargetPropertyOptions was not found.");
     }
 
-    var options = ((IEnumerable<string>)method.Invoke(null, ["runtime.PolicyPicker.Device", string.Empty])!)
+    var options = ((IEnumerable<string>)method.Invoke(null, ["runtime.policy_picker.device", string.Empty])!)
         .ToArray();
 
     AssertTrue(options.Contains("read", StringComparer.OrdinalIgnoreCase));
@@ -318,26 +318,26 @@ static void TargetPropertyFieldHiddenForNormalWidgets()
 
 static void TargetPropertyDefaultsToValue()
 {
-    var target = new ItemModel("Device").Repath("runtime.PolicyPicker.DefaultDevice");
+    var target = ItemExtension.CreateWithPath("runtime.policy_picker.default_device");
     target.Properties["read"].Value = 42;
     target.Properties["unit"].Value = "V";
-    HostRegistries.Data.UpsertSnapshot("runtime.PolicyPicker.DefaultDevice", target);
+    HostRegistries.Data.UpsertSnapshot("runtime.policy_picker.default_device", target);
 
     var item = new FolderItemModel { Kind = ControlKind.Signal };
-    item.TargetPath = "runtime.PolicyPicker.DefaultDevice";
+    item.TargetPath = "runtime.policy_picker.default_device";
 
     AssertEqual("read", item.TargetPropertyPath);
 }
 
 static void TargetPropertyProtectedFallbackUsesValue()
 {
-    var target = new ItemModel("Device").Repath("runtime.PolicyPicker.ProtectedDevice");
+    var target = ItemExtension.CreateWithPath("runtime.policy_picker.protected_device");
     target.Properties["read"].Value = 7;
-    target.Properties["write_path"].Value = "runtime.PolicyPicker.ProtectedDevice.Request";
-    HostRegistries.Data.UpsertSnapshot("runtime.PolicyPicker.ProtectedDevice", target);
+    target.Properties["write_path"].Value = "runtime.policy_picker.protected_device.request";
+    HostRegistries.Data.UpsertSnapshot("runtime.policy_picker.protected_device", target);
 
     var item = new FolderItemModel { Kind = ControlKind.Signal };
-    item.TargetPath = "runtime.PolicyPicker.ProtectedDevice";
+    item.TargetPath = "runtime.policy_picker.protected_device";
     item.TargetPropertyPath = "WritePath";
 
     AssertEqual("read", item.TargetPropertyPath);
@@ -396,10 +396,10 @@ static void BrokerWidgetPublishOptionsUseMetadata()
 
     try
     {
-        HostRegistries.Data.UpsertSnapshot(publicPath, new ItemModel("PublicSignal").Repath(publicPath), DataRegistryItemMetadata.PublicData());
-        HostRegistries.Data.UpsertSnapshot(customSignalPath, new ItemModel("Signal1").Repath(customSignalPath), DataRegistryItemMetadata.PublicData());
-        HostRegistries.Data.UpsertSnapshot(enhancedSignalPath, new ItemModel("Signal1").Repath(enhancedSignalPath), DataRegistryItemMetadata.PublicData());
-        HostRegistries.Data.UpsertSnapshot(internalPath, new ItemModel("AttachOptions").Repath(internalPath), DataRegistryItemMetadata.WidgetInternal());
+        HostRegistries.Data.UpsertSnapshot(publicPath, ItemExtension.CreateWithPath(publicPath), DataRegistryItemMetadata.PublicData());
+        HostRegistries.Data.UpsertSnapshot(customSignalPath, ItemExtension.CreateWithPath(customSignalPath), DataRegistryItemMetadata.PublicData());
+        HostRegistries.Data.UpsertSnapshot(enhancedSignalPath, ItemExtension.CreateWithPath(enhancedSignalPath), DataRegistryItemMetadata.PublicData());
+        HostRegistries.Data.UpsertSnapshot(internalPath, ItemExtension.CreateWithPath(internalPath), DataRegistryItemMetadata.WidgetInternal());
 
         var method = typeof(MainWindowViewModel).GetMethod("GetBrokerPublishItemOptions", BindingFlags.NonPublic | BindingFlags.Static);
         if (method is null)
@@ -432,8 +432,8 @@ static void BrokerWidgetPublishOptionsExcludeBrokerReceivedItems()
 
     try
     {
-        HostRegistries.Data.UpsertSnapshot(localPath, new ItemModel("LocalSignal").Repath(localPath), DataRegistryItemMetadata.PublicData());
-        HostRegistries.Data.UpsertSnapshot(receivedPath, new ItemModel("Temperature").Repath(receivedPath), DataRegistryItemMetadata.BrokerReceivedData());
+        HostRegistries.Data.UpsertSnapshot(localPath, ItemExtension.CreateWithPath(localPath), DataRegistryItemMetadata.PublicData());
+        HostRegistries.Data.UpsertSnapshot(receivedPath, ItemExtension.CreateWithPath(receivedPath), DataRegistryItemMetadata.BrokerReceivedData());
 
         AssertTrue(HostRegistries.Data.TryGetMetadata(receivedPath, out var metadata));
         AssertFalse(metadata.Capabilities.HasFlag(DataRegistryItemCapabilities.BrokerPublish));
@@ -461,15 +461,15 @@ static void BrokerWidgetPublishOptionsExcludeBrokerReceivedItems()
 
 static void BrokerWidgetPublishOptionsDeduplicateLegacyRoots()
 {
-    var legacyPath = "project.MetadataPublish.DeduplicatedSignal";
+    var legacyPath = "project.metadata_publish.deduplicated_signal";
     var canonicalPath = "studio.metadata_publish.deduplicated_signal";
     HostRegistries.Data.Remove(legacyPath);
     HostRegistries.Data.Remove(canonicalPath);
 
     try
     {
-        HostRegistries.Data.UpsertSnapshot(legacyPath, new ItemModel("DeduplicatedSignal").Repath(legacyPath), DataRegistryItemMetadata.PublicData());
-        HostRegistries.Data.UpsertSnapshot(canonicalPath, new ItemModel("DeduplicatedSignal").Repath(canonicalPath), DataRegistryItemMetadata.PublicData());
+        HostRegistries.Data.UpsertSnapshot(legacyPath, ItemExtension.CreateWithPath(legacyPath), DataRegistryItemMetadata.PublicData());
+        HostRegistries.Data.UpsertSnapshot(canonicalPath, ItemExtension.CreateWithPath(canonicalPath), DataRegistryItemMetadata.PublicData());
 
         var method = typeof(MainWindowViewModel).GetMethod("GetBrokerPublishItemOptions", BindingFlags.NonPublic | BindingFlags.Static);
         if (method is null)
@@ -500,8 +500,8 @@ static void ItemTreeVisibilityUsesDisplayMetadata()
 
     try
     {
-        HostRegistries.Data.UpsertSnapshot(internalPath, new ItemModel("Temperature").Repath(internalPath), DataRegistryItemMetadata.WidgetInternal());
-        HostRegistries.Data.UpsertSnapshot(receivedPath, new ItemModel("Temperature", 21.5).Repath(receivedPath), DataRegistryItemMetadata.BrokerReceivedData());
+        HostRegistries.Data.UpsertSnapshot(internalPath, ItemExtension.CreateWithPath(internalPath), DataRegistryItemMetadata.WidgetInternal());
+        HostRegistries.Data.UpsertSnapshot(receivedPath, ItemExtension.CreateWithPath(receivedPath, 21.5), DataRegistryItemMetadata.BrokerReceivedData());
 
         using var viewModel = new HornetStudio.ViewModels.ItemTreeWindowViewModel();
         var refreshMethod = typeof(HornetStudio.ViewModels.ItemTreeWindowViewModel).GetMethod("RefreshTree", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -529,7 +529,7 @@ static void BrokerAttachOptionsUseInternalDiscovery()
 
     try
     {
-        HostRegistries.Data.UpsertSnapshot(attachOptionPath, new ItemModel("broker_widget1.mqtt.edm1.temperature").Repath(attachOptionPath), DataRegistryItemMetadata.WidgetInternal());
+        HostRegistries.Data.UpsertSnapshot(attachOptionPath, ItemExtension.CreateWithPath(attachOptionPath), DataRegistryItemMetadata.WidgetInternal());
 
         var method = typeof(MainWindowViewModel).GetMethod("GetBrokerAttachItemOptions", BindingFlags.NonPublic | BindingFlags.Static);
         if (method is null)
@@ -841,31 +841,31 @@ static void BrokerPublishedItemChangeMatcherScopesChanges()
 {
     var rootDefinition = new BrokerPublishedItemDefinition
     {
-        LocalPath = "studio.default_layout.Edm1",
-        BrokerPath = "studio.default_layout.Edm1",
+        LocalPath = "studio.default_layout.edm1",
+        BrokerPath = "studio.default_layout.edm1",
         Active = true,
         PublishMode = BrokerPublishedItemPublishModes.OnChanged
     };
     var childDefinition = new BrokerPublishedItemDefinition
     {
-        LocalPath = "studio.default_layout.Edm1.Pressure",
-        BrokerPath = "studio.default_layout.Edm1.Pressure",
+        LocalPath = "studio.default_layout.edm1.pressure",
+        BrokerPath = "studio.default_layout.edm1.pressure",
         Active = true,
         PublishMode = BrokerPublishedItemPublishModes.OnChanged
     };
-    var rootItem = new ItemModel("Edm1").Repath("studio.default_layout.Edm1");
-    rootItem["Pressure"].Value = 12.5;
+    var rootItem = ItemExtension.CreateWithPath("studio.default_layout.edm1");
+    rootItem["pressure"].Value = 12.5;
 
     ItemModel? Resolve(string path)
     {
-        if (string.Equals(path, "studio.default_layout.Edm1", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(path, "studio.default_layout.edm1", StringComparison.OrdinalIgnoreCase))
         {
             return rootItem;
         }
 
-        if (string.Equals(path, "studio.default_layout.Edm1.Pressure", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(path, "studio.default_layout.edm1.pressure", StringComparison.OrdinalIgnoreCase))
         {
-            return rootItem["Pressure"];
+            return rootItem["pressure"];
         }
 
         return null;
@@ -873,31 +873,31 @@ static void BrokerPublishedItemChangeMatcherScopesChanges()
 
     AssertTrue(BrokerPublishedItemChangeMatcher.ShouldPublish(
         childDefinition,
-        new DataChangedEventArgs("studio.default_layout.Edm1.Pressure", rootItem["Pressure"], DataChangeKind.ValueUpdated),
+        new DataChangedEventArgs("studio.default_layout.edm1.pressure", rootItem["pressure"], DataChangeKind.ValueUpdated),
         Resolve));
     AssertTrue(BrokerPublishedItemChangeMatcher.ShouldPublish(
         rootDefinition,
-        new DataChangedEventArgs("studio.default_layout.Edm1.Pressure", rootItem["Pressure"], DataChangeKind.ValueUpdated),
+        new DataChangedEventArgs("studio.default_layout.edm1.pressure", rootItem["pressure"], DataChangeKind.ValueUpdated),
         Resolve));
     AssertTrue(BrokerPublishedItemChangeMatcher.ShouldPublish(
         childDefinition,
-        new DataChangedEventArgs("studio.default_layout.Edm1", rootItem, DataChangeKind.SnapshotUpserted),
+        new DataChangedEventArgs("studio.default_layout.edm1", rootItem, DataChangeKind.SnapshotUpserted),
         Resolve));
     AssertFalse(BrokerPublishedItemChangeMatcher.ShouldPublish(
         childDefinition,
-        new DataChangedEventArgs("studio.default_layout.Edm1", rootItem, DataChangeKind.ValueUpdated),
+        new DataChangedEventArgs("studio.default_layout.edm1", rootItem, DataChangeKind.ValueUpdated),
         Resolve));
     AssertFalse(BrokerPublishedItemChangeMatcher.ShouldPublish(
         childDefinition,
-        new DataChangedEventArgs("studio.default_layout.Edm2.Pressure", rootItem["Pressure"], DataChangeKind.ValueUpdated),
+        new DataChangedEventArgs("studio.default_layout.edm2.pressure", rootItem["pressure"], DataChangeKind.ValueUpdated),
         Resolve));
 }
 
 static void BrokerPublisherSendsValueUpdateForUnregisteredValueChange()
 {
-    var localPath = "runtime.BrokerPublisher.set.request";
+    var localPath = "runtime.broker_publisher.set.request";
     var brokerPath = "studio.folder1.udl_client1.m300.set.request";
-    HostRegistries.Data.UpsertSnapshot(localPath, new ItemModel("Request", 1).Repath(localPath));
+    HostRegistries.Data.UpsertSnapshot(localPath, ItemExtension.CreateWithPath(localPath, 1));
 
     var widget = new FolderItemModel
     {
@@ -932,7 +932,7 @@ static void BrokerPublisherSendsValueUpdateForUnregisteredValueChange()
 static void SignalWriteEmitsRegistryValueUpdate()
 {
     var targetPath = "studio.editor_tests.signal_write.demo1";
-    var target = new ItemModel("Demo1", 80d).Repath(targetPath);
+    var target = ItemExtension.CreateWithPath(targetPath, 80d);
     target.Properties["writable"].Value = true;
     HostRegistries.Data.UpsertSnapshot(targetPath, target);
 
@@ -973,8 +973,8 @@ static void BrokerWriteBackIgnoresNonWritableEntries()
     var client = new FakeHostItemBrokerClient();
     using var writeBack = CreateWriteBackClient(
         client,
-        "runtime.BrokerWriteBack.NonWritable",
-        "studio.runtime.BrokerWriteBack.NonWritable",
+        "runtime.broker_write_back.non_writable",
+        "studio.runtime.broker_write_back.non_writable",
         active: true,
         writable: false);
 
@@ -988,8 +988,8 @@ static void BrokerWriteBackIgnoresInactiveEntries()
     var client = new FakeHostItemBrokerClient();
     using var writeBack = CreateWriteBackClient(
         client,
-        "runtime.BrokerWriteBack.Inactive",
-        "studio.runtime.BrokerWriteBack.Inactive",
+        "runtime.broker_write_back.inactive",
+        "studio.runtime.broker_write_back.inactive",
         active: false,
         writable: true);
 
@@ -1000,9 +1000,9 @@ static void BrokerWriteBackIgnoresInactiveEntries()
 
 static void BrokerWriteBackUpdatesWritableValue()
 {
-    var localPath = "runtime.BrokerWriteBack.Value";
+    var localPath = "runtime.broker_write_back.value";
     var brokerPath = "studio.runtime.broker_write_back.value";
-    HostRegistries.Data.UpsertSnapshot(localPath, new ItemModel("read", 1).Repath(localPath));
+    HostRegistries.Data.UpsertSnapshot(localPath, ItemExtension.CreateWithPath(localPath, 1));
 
     var client = new FakeHostItemBrokerClient();
     using var writeBack = CreateWriteBackClient(client, localPath, brokerPath, active: true, writable: true);
@@ -1016,11 +1016,11 @@ static void BrokerWriteBackUpdatesWritableValue()
 
 static void BrokerWriteBackUsesRequestWriteTarget()
 {
-    var localPath = "runtime.BrokerWriteBack.RequestValue";
+    var localPath = "runtime.broker_write_back.request_value";
     var brokerPath = "studio.runtime.broker_write_back.request_value";
-    var item = new ItemModel("RequestValue", 1).Repath(localPath);
-    item.AddItem("Request");
-    item["Request"].Value = 1;
+    var item = ItemExtension.CreateWithPath(localPath, 1);
+    item.AddItem("request");
+    item["request"].Value = 1;
     item.Properties["writable"].Value = true;
     item.Properties["write_path"].Value = localPath;
     item.Properties["write_mode"].Value = SignalWriteMode.Request.ToString();
@@ -1034,15 +1034,15 @@ static void BrokerWriteBackUsesRequestWriteTarget()
 
     AssertTrue(HostRegistries.Data.TryResolve(localPath, out var resolved));
     AssertEqual(1, resolved?.Value);
-    AssertTrue(HostRegistries.Data.TryResolve($"{localPath}.Request", out var request));
+    AssertTrue(HostRegistries.Data.TryResolve($"{localPath}.request", out var request));
     AssertEqual(42, request?.Value);
 }
 
 static void BrokerWriteBackConvertsNumericValueToLocalType()
 {
-    var localPath = "runtime.BrokerWriteBack.DoubleValue";
+    var localPath = "runtime.broker_write_back.double_value";
     var brokerPath = "studio.runtime.broker_write_back.double_value";
-    HostRegistries.Data.UpsertSnapshot(localPath, new ItemModel("DoubleValue", 1.5).Repath(localPath));
+    HostRegistries.Data.UpsertSnapshot(localPath, ItemExtension.CreateWithPath(localPath, 1.5));
 
     var client = new FakeHostItemBrokerClient();
     using var writeBack = CreateWriteBackClient(client, localPath, brokerPath, active: true, writable: true);
@@ -1056,9 +1056,9 @@ static void BrokerWriteBackConvertsNumericValueToLocalType()
 
 static void BrokerWriteBackBlocksProtectedProperties()
 {
-    var localPath = "runtime.BrokerWriteBack.ProtectedParameter";
-    var brokerPath = "studio.runtime.BrokerWriteBack.ProtectedParameter";
-    var item = new ItemModel("ProtectedParameter", 1).Repath(localPath);
+    var localPath = "runtime.broker_write_back.protected_parameter";
+    var brokerPath = "studio.runtime.broker_write_back.protected_parameter";
+    var item = ItemExtension.CreateWithPath(localPath, 1);
     item.Properties["writable"].Value = true;
     HostRegistries.Data.UpsertSnapshot(localPath, item);
 
@@ -1074,9 +1074,9 @@ static void BrokerWriteBackBlocksProtectedProperties()
 
 static void BrokerWriteBackIgnoresSameValueSelfEchoes()
 {
-    var localPath = "runtime.BrokerWriteBack.SameValue";
-    var brokerPath = "studio.runtime.BrokerWriteBack.SameValue";
-    HostRegistries.Data.UpsertSnapshot(localPath, new ItemModel("OwnSource", 1).Repath(localPath));
+    var localPath = "runtime.broker_write_back.same_value";
+    var brokerPath = "studio.runtime.broker_write_back.same_value";
+    HostRegistries.Data.UpsertSnapshot(localPath, ItemExtension.CreateWithPath(localPath, 1));
 
     var client = new FakeHostItemBrokerClient { ClientIdValue = "own-client" };
     using var writeBack = CreateWriteBackClient(client, localPath, brokerPath, active: true, writable: true);
@@ -1093,8 +1093,8 @@ static void BrokerWriteBackCleanupDisposesSubscriptions()
     var client = new FakeHostItemBrokerClient();
     using var writeBack = CreateWriteBackClient(
         client,
-        "runtime.BrokerWriteBack.Cleanup",
-        "studio.runtime.BrokerWriteBack.Cleanup",
+        "runtime.broker_write_back.cleanup",
+        "studio.runtime.broker_write_back.cleanup",
         active: true,
         writable: true);
 
@@ -1162,14 +1162,14 @@ static void ItemExposurePublisherAppliesBitHelpers()
 
     AssertEqual("b4", item.Properties["format"].Value);
     AssertEqual("flags", item.Properties["unit"].Value);
-    AssertTrue(item.Has("Bits"));
-    AssertTrue(item["Bits"].Has("Bit0"));
-    AssertTrue(item["Bits"].Has("Bit2"));
-    AssertEqual(true, item["Bits"]["Bit0"].Value);
-    AssertEqual(false, item["Bits"]["Bit1"].Value);
-    AssertEqual(true, item["Bits"]["Bit2"].Value);
-    AssertEqual("Ready", item["Bits"]["Bit0"].Properties["title"].Value);
-    AssertEqual("Fault", item["Bits"]["Bit2"].Properties["title"].Value);
+    AssertTrue(item.Has("bits"));
+    AssertTrue(item["bits"].Has("bit0"));
+    AssertTrue(item["bits"].Has("bit2"));
+    AssertEqual(true, item["bits"]["bit0"].Value);
+    AssertEqual(false, item["bits"]["bit1"].Value);
+    AssertEqual(true, item["bits"]["bit2"].Value);
+    AssertEqual("Ready", item["bits"]["bit0"].Properties["title"].Value);
+    AssertEqual("Fault", item["bits"]["bit2"].Properties["title"].Value);
 }
 
 static void ItemExposureCodecUpsertAndRemove()
@@ -1327,16 +1327,24 @@ sealed class FakeHostItemBrokerClient : IHostItemBrokerClient
         return Task.CompletedTask;
     }
 
-    public Task<ItemServerAckMessage> UpdateValueAsync(ItemModel item, CancellationToken cancellationToken = default)
+    public Task PublishReadAsync(
+        ItemModel item,
+        bool publishEpoch = true,
+        bool retained = false,
+        CancellationToken cancellationToken = default)
     {
         ValueUpdates.Add(item.Clone());
-        return Task.FromResult(CreateAcknowledgement(item));
+        return Task.CompletedTask;
     }
 
-    public Task<ItemServerAckMessage> UpdateParameterAsync(ItemModel item, string parameterName, CancellationToken cancellationToken = default)
+    public Task PublishPropertyAsync(
+        ItemModel item,
+        string parameterName,
+        bool retained = false,
+        CancellationToken cancellationToken = default)
     {
         ParameterUpdates.Add((item.Clone(), parameterName));
-        return Task.FromResult(CreateAcknowledgement(item));
+        return Task.CompletedTask;
     }
 
     public Task<IItemSubscription> SubscribeAsync(
@@ -1363,15 +1371,6 @@ sealed class FakeHostItemBrokerClient : IHostItemBrokerClient
             subscription.HandleAsync(message).GetAwaiter().GetResult();
         }
     }
-
-    private ItemServerAckMessage CreateAcknowledgement(ItemModel item)
-        => new(
-            Path: item.Path ?? string.Empty,
-            Accepted: true,
-            Reason: null,
-            SourceClientId: ClientId,
-            CorrelationId: null,
-            Timestamp: DateTimeOffset.UtcNow);
 }
 
 sealed class FakeItemSubscription : IItemSubscription
@@ -1387,8 +1386,6 @@ sealed class FakeItemSubscription : IItemSubscription
 
     public string SubscriptionId { get; } = Guid.NewGuid().ToString("N");
 
-    public IItemServerClient Client { get; } = new FakeItemBrokerClient();
-
     public string Path { get; }
 
     public bool Recursive { get; }
@@ -1403,11 +1400,4 @@ sealed class FakeItemSubscription : IItemSubscription
         Disposed = true;
         return ValueTask.CompletedTask;
     }
-}
-
-sealed class FakeItemBrokerClient : IItemServerClient
-{
-    public string ClientId => "fake";
-
-    public Task ReceiveAsync(ItemServerMessage message, CancellationToken cancellationToken = default) => Task.CompletedTask;
 }

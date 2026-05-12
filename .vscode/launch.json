@@ -5,7 +5,7 @@
       "name": ".NET Launch (HornetStudio)",
       "type": "coreclr",
       "request": "launch",
-      "preLaunchTask": "build-automationexplorer-debug",
+      "preLaunchTask": "build-hornetstudio-debug",
       "program": "${workspaceFolder}/src/HornetStudio/bin/Debug/net9.0-windows/HornetStudio.dll",
       "args": [],
       "cwd": "${workspaceFolder}/src/HornetStudio/bin/Debug/net9.0-windows",

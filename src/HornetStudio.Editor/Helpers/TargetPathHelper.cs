@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using ItemModel = Amium.Items.Item;
 using Amium.Items;
 
@@ -53,7 +54,7 @@ public static class TargetPathHelper
             ? fallbackSegment
             : segment.Trim();
 
-        return ItemPath.ToSnakeCaseSegment(value);
+        return ConvertToSnakeCaseSegment(value);
     }
 
     /// <summary>
@@ -605,7 +606,7 @@ public static class TargetPathHelper
             yield return StudioRootSegment;
             foreach (var segment in segments.Skip(1))
             {
-                yield return ItemPath.ToSnakeCaseSegment(segment);
+                    yield return ConvertToSnakeCaseSegment(segment);
             }
 
             yield break;
@@ -618,7 +619,7 @@ public static class TargetPathHelper
             yield return StudioRootSegment;
             foreach (var segment in segments.Skip(2))
             {
-                yield return ItemPath.ToSnakeCaseSegment(segment);
+                yield return ConvertToSnakeCaseSegment(segment);
             }
 
             yield break;
@@ -626,8 +627,70 @@ public static class TargetPathHelper
 
         foreach (var segment in segments)
         {
-            yield return ItemPath.ToSnakeCaseSegment(segment);
+            yield return ConvertToSnakeCaseSegment(segment);
         }
+    }
+
+    private static string ConvertToSnakeCaseSegment(string segment)
+    {
+        if (string.IsNullOrWhiteSpace(segment))
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder(segment.Length + 8);
+        var previousWasSeparator = true;
+
+        for (var index = 0; index < segment.Length; index++)
+        {
+            var character = segment[index];
+            if (!char.IsLetterOrDigit(character))
+            {
+                AppendSeparator(builder, ref previousWasSeparator);
+                continue;
+            }
+
+            if (char.IsUpper(character) && ShouldInsertSeparator(segment, index))
+            {
+                AppendSeparator(builder, ref previousWasSeparator);
+            }
+
+            builder.Append(char.ToLowerInvariant(character));
+            previousWasSeparator = false;
+        }
+
+        return builder.ToString().Trim('_');
+    }
+
+    private static bool ShouldInsertSeparator(string value, int index)
+    {
+        if (index == 0)
+        {
+            return false;
+        }
+
+        var previous = value[index - 1];
+        if (!char.IsLetterOrDigit(previous))
+        {
+            return false;
+        }
+
+        if (char.IsLower(previous) || char.IsDigit(previous))
+        {
+            return true;
+        }
+
+        return index + 1 < value.Length && char.IsLower(value[index + 1]);
+    }
+
+    private static void AppendSeparator(StringBuilder builder, ref bool previousWasSeparator)
+    {
+        if (!previousWasSeparator && builder.Length > 0)
+        {
+            builder.Append('_');
+        }
+
+        previousWasSeparator = true;
     }
 
     private static bool IsProjectRootSegment(string segment)

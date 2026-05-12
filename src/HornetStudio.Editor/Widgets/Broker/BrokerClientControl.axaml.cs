@@ -16,7 +16,6 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using ItemModel = Amium.Items.Item;
 using Amium.Items;
-using Amium.Item.Server;
 using Amium.Item.Server.Mqtt;
 using HornetStudio.Editor.Controls;
 using HornetStudio.Editor.Helpers;
@@ -764,7 +763,7 @@ public partial class BrokerClientControl : EditorTemplateControl
                 }
 
                 var key = BuildReceivedMqttRuntimePath(ItemModel, entry.Key, relativePath);
-                var snapshot = remoteItem.Clone().Repath(key);
+                var snapshot = ItemExtension.CloneWithPath(remoteItem, key);
                 var exposureDefinition = ItemExposurePublisher.FindByItemPath(exposureDefinitions, attachIdentity)
                                          ?? ItemExposurePublisher.FindByItemPath(exposureDefinitions, BuildLegacyBrokerAttachIdentity(widgetName, entry.Key, relativePath))
                                          ?? ItemExposurePublisher.FindByItemPath(exposureDefinitions, relativePath);
@@ -1785,7 +1784,7 @@ public partial class BrokerClientControl : EditorTemplateControl
                 return;
             }
 
-            var snapshot = localItem.Clone().Repath(definition.BrokerPath);
+            var snapshot = ItemExtension.CloneWithPath(localItem, definition.BrokerPath);
             var brokerPath = NormalizeBrokerPath(definition.BrokerPath);
             if (intent == PublishIntent.ChangeUpdate && change is not null && TryCreateChangedBrokerItem(definition, change, out var changedItem))
             {
@@ -1856,7 +1855,7 @@ public partial class BrokerClientControl : EditorTemplateControl
                     _item.Name,
                     brokerPath,
                     item.Value);
-                await _client.UpdateValueAsync(item).ConfigureAwait(false);
+                await _client.PublishReadAsync(item).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -1875,7 +1874,7 @@ public partial class BrokerClientControl : EditorTemplateControl
                     brokerPath,
                     parameterName,
                     value);
-                await _client.UpdateParameterAsync(item, parameterName).ConfigureAwait(false);
+                await _client.PublishPropertyAsync(item, parameterName).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -1912,7 +1911,7 @@ public partial class BrokerClientControl : EditorTemplateControl
 
             if (string.Equals(localPath, changedPath, StringComparison.OrdinalIgnoreCase))
             {
-                changedItem = change.ItemModel.Clone().Repath(brokerPath);
+                changedItem = ItemExtension.CloneWithPath(change.ItemModel, brokerPath);
                 return HasChangedParameter(changedItem, change);
             }
 
@@ -1921,7 +1920,7 @@ public partial class BrokerClientControl : EditorTemplateControl
                 return false;
             }
 
-            changedItem = change.ItemModel.Clone().Repath($"{brokerPath}.{suffix}");
+            changedItem = ItemExtension.CloneWithPath(change.ItemModel, $"{brokerPath}.{suffix}");
             return HasChangedParameter(changedItem, change);
         }
 
@@ -1996,12 +1995,11 @@ public partial class BrokerClientControl : EditorTemplateControl
 
     private sealed class OwnedBrokerRuntime : IAsyncDisposable
     {
-        private readonly InMemoryItemServer _broker = new();
-        private readonly MqttItemServerAdapter _adapter;
+        private readonly MqttItemServerHost _host;
 
         public OwnedBrokerRuntime(FolderItemModel item)
         {
-            _adapter = new MqttItemServerAdapter(new MqttItemServerOptions
+            _host = new MqttItemServerHost(new MqttItemServerOptions
             {
                 Host = item.BrokerHost,
                 Port = item.BrokerPort,
@@ -2012,11 +2010,11 @@ public partial class BrokerClientControl : EditorTemplateControl
         }
 
         public Task StartAsync()
-            => _adapter.StartAsync(_broker);
+            => _host.StartAsync();
 
         public async ValueTask DisposeAsync()
         {
-            await _adapter.DisposeAsync().ConfigureAwait(false);
+            await _host.DisposeAsync().ConfigureAwait(false);
         }
     }
 

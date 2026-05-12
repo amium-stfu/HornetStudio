@@ -5,11 +5,11 @@ namespace Amium.UdlClient;
 
 public sealed class Module : ItemModel
 {
-    private const string ReadItemName = "Read";
-    private const string SetItemName = "Set";
-    private const string OutItemName = "Out";
-    private const string StateItemName = "State";
-    private const string AlertItemName = "Alert";
+    private const string ReadItemName = "read";
+    private const string SetItemName = "set";
+    private const string OutItemName = "out";
+    private const string StateItemName = "state";
+    private const string AlertItemName = "alert";
 
     public Module(string name, string? path = null)
         : base(name, path: path)
@@ -22,7 +22,7 @@ public sealed class Module : ItemModel
         AddChannel(SetItemName, hasWriteChannel: true);
         AddChannel(OutItemName, hasWriteChannel: true);
         AddChannel(StateItemName, hasWriteChannel: true);
-        AddChannel(AlertItemName, hasReadChannel: false);
+        AddChannel(AlertItemName);
     }
 
     public ItemModel Read => this[ReadItemName];
@@ -37,17 +37,16 @@ public sealed class Module : ItemModel
         EnsureWriteChannel(Set);
         EnsureWriteChannel(Out);
         EnsureWriteChannel(State);
-        EnsureNoReadChannel(Alert);
+        EnsureNoWriteChannel(Alert);
         RemoveLegacyCommand();
     }
 
-    private void AddChannel(string name, bool hasWriteChannel = false, bool hasReadChannel = true)
+    private void AddChannel(string name, bool hasWriteChannel = false)
     {
         this[name] = new ItemModel(
             name,
             path: Path,
-            hasWriteChannel: hasWriteChannel,
-            hasReadChannel: hasReadChannel);
+            hasWriteChannel: hasWriteChannel);
     }
 
     private static void EnsureWriteChannel(ItemModel channel)
@@ -60,19 +59,8 @@ public sealed class Module : ItemModel
         }
     }
 
-    private static void EnsureNoReadChannel(ItemModel channel)
+    private static void EnsureNoWriteChannel(ItemModel channel)
     {
-        if (!channel.Properties.Has("read"))
-        {
-            return;
-        }
-
-        if (channel.Properties["read"].Value is not null && !channel.Properties.Has("value"))
-        {
-            channel.Properties["value"].Value = channel.Properties["read"].Value;
-        }
-
-        channel.Properties.Remove("read");
         channel.Properties.Remove("write");
     }
 

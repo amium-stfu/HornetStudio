@@ -40,7 +40,7 @@ public sealed class UiFolderContext : IDisposable
             }
         }
 
-        var attached = source.Clone().Repath(targetPath);
+        var attached = ItemExtension.CloneWithPath(source, targetPath);
         _links.Add(new AttachedItemLink(source, attached, targetPath));
         return attached;
     }
@@ -105,7 +105,7 @@ public sealed class UiFolderContext : IDisposable
                 return;
             }
 
-            if (IsStructuralParameter(e.ParameterName))
+            if (IsStructuralParameter(e.PropertyName))
             {
                 return;
             }
@@ -128,10 +128,10 @@ public sealed class UiFolderContext : IDisposable
                     return;
                 }
 
-                var parameterName = e.ParameterName;
+                var parameterName = e.PropertyName;
                 if (string.Equals(parameterName, "value", StringComparison.Ordinal))
                 {
-                    var valueTimestamp = _source.Properties.Has("value") ? _source.Properties["value"].LastUpdate : (ulong?)null;
+                    var valueTimestamp = GetItemEpoch(_source);
                     HostRegistries.Data.UpdateValue(_targetPath, _source.Value, valueTimestamp);
                     return;
                 }
@@ -139,11 +139,11 @@ public sealed class UiFolderContext : IDisposable
                 if (_source.Properties.Has(parameterName) && target.Properties.Has(parameterName))
                 {
                     var sourceParameter = _source.Properties[parameterName];
-                    HostRegistries.Data.UpdateParameter(_targetPath, parameterName, sourceParameter.Value, sourceParameter.LastUpdate);
+                    HostRegistries.Data.UpdateProperty(_targetPath, parameterName, sourceParameter.Value, GetItemEpoch(_source));
                     return;
                 }
 
-                var snapshot = _source.Clone().Repath(_targetPath);
+                var snapshot = ItemExtension.CloneWithPath(_source, _targetPath);
                 HostRegistries.Data.UpsertSnapshot(_targetPath, snapshot, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
             }
             finally
@@ -155,13 +155,13 @@ public sealed class UiFolderContext : IDisposable
         private void SyncSourceChildChangeToTarget(string relativePath, ItemChangedEventArgs e)
         {
             var targetChildPath = $"{_targetPath}.{relativePath}";
-            var parameterName = e.ParameterName;
+            var parameterName = e.PropertyName;
             if (string.Equals(parameterName, "value", StringComparison.Ordinal))
             {
-                var valueTimestamp = e.Item.Properties.Has("value") ? e.Item.Properties["value"].LastUpdate : (ulong?)null;
+                var valueTimestamp = GetItemEpoch(e.Item);
                 if (!HostRegistries.Data.UpdateValue(targetChildPath, e.Item.Value, valueTimestamp))
                 {
-                    var treeSnapshot = _source.Clone().Repath(_targetPath);
+                    var treeSnapshot = ItemExtension.CloneWithPath(_source, _targetPath);
                     HostRegistries.Data.UpsertSnapshot(_targetPath, treeSnapshot, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
                 }
 
@@ -173,9 +173,9 @@ public sealed class UiFolderContext : IDisposable
                 && e.Item.Properties.Has(parameterName))
             {
                 var sourceParameter = e.Item.Properties[parameterName];
-                if (!HostRegistries.Data.UpdateParameter(targetChildPath, parameterName, sourceParameter.Value, sourceParameter.LastUpdate))
+                if (!HostRegistries.Data.UpdateProperty(targetChildPath, parameterName, sourceParameter.Value, GetItemEpoch(e.Item)))
                 {
-                    var treeSnapshot = _source.Clone().Repath(_targetPath);
+                    var treeSnapshot = ItemExtension.CloneWithPath(_source, _targetPath);
                     HostRegistries.Data.UpsertSnapshot(_targetPath, treeSnapshot, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
                 }
             }
@@ -303,7 +303,7 @@ public sealed class UiFolderContext : IDisposable
             item.Value = value!;
         }
 
-        private static void SetParameterValueIfChanged(Parameter parameter, object? value)
+        private static void SetParameterValueIfChanged(ItemProperty parameter, object? value)
         {
             if (ValuesEqual(parameter.Value, value))
             {
@@ -338,6 +338,21 @@ public sealed class UiFolderContext : IDisposable
             return Equals(left, right);
         }
 
+        private static ulong? GetItemEpoch(ItemModel item)
+        {
+            if (!item.Properties.Has("epoch"))
+            {
+                return null;
+            }
+
+            return item.Properties["epoch"].Value switch
+            {
+                ulong timestamp => timestamp,
+                _ when ulong.TryParse(Convert.ToString(item.Properties["epoch"].Value, System.Globalization.CultureInfo.InvariantCulture), out ulong parsedTimestamp) => parsedTimestamp,
+                _ => null,
+            };
+        }
+
         private void SubscribeSourceTree(ItemModel item)
         {
             _subscribedSourceItems.Add(item);
@@ -365,12 +380,10 @@ public sealed class UiFolderContext : IDisposable
 
     private static string NormalizePath(string value)
     {
-        var normalized = value.Replace('\\', '.').Replace('/', '.').Trim('.');
-        while (normalized.Contains("..", StringComparison.Ordinal))
-        {
-            normalized = normalized.Replace("..", ".", StringComparison.Ordinal);
-        }
-
-        return normalized;
+        var segments = value
+            .Split(['.', '/', '\\'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(HostPathSegmentNormalizer.Normalize)
+            .Where(static segment => !string.IsNullOrWhiteSpace(segment));
+        return string.Join('.', segments);
     }
 }

@@ -8,18 +8,18 @@
     ".NETCoreApp,Version=v9.0": {
       "Amium.UdlClient/2026.04.28.0110": {
         "dependencies": {
-          "Amium.Item": "2026.4.28.110",
+          "Amium.Item": "2026.5.11.2132",
           "HornetStudio.Contracts": "2026.4.28.110"
         },
         "runtime": {
           "Amium.UdlClient.dll": {}
         }
       },
-      "Amium.Item/2026.4.28.110": {
+      "Amium.Item/2026.5.11.2132": {
         "runtime": {
-          "Amium.Item.dll": {
-            "assemblyVersion": "2026.4.28.110",
-            "fileVersion": "2026.4.28.110"
+          "lib/net9.0/Amium.Item.dll": {
+            "assemblyVersion": "2026.5.11.2132",
+            "fileVersion": "2026.5.11.2132"
           }
         }
       },
@@ -39,10 +39,12 @@
       "serviceable": false,
       "sha512": ""
     },
-    "Amium.Item/2026.4.28.110": {
-      "type": "project",
-      "serviceable": false,
-      "sha512": ""
+    "Amium.Item/2026.5.11.2132": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-kPaEdryU1HB7IlXV86RxY7fCtac761ysBGogoY9CyB5m+RvfBWiqhe8Rdrkx6Wp8Ak0MCuRIDHUmpzkOVkws/w==",
+      "path": "amium.item/2026.5.11.2132",
+      "hashPath": "amium.item.2026.5.11.2132.nupkg.sha512"
     },
     "HornetStudio.Contracts/2026.4.28.110": {
       "type": "project",

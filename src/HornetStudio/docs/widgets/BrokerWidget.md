@@ -2,7 +2,7 @@
 
 `BrokerWidget` connects to an MQTT ItemBroker bus and exposes attached remote MQTT items under `studio.<FolderName>.{WidgetName}.Mqtt.{ItemPath}`. The internal MQTT shared root marker is not shown in the visible path, so a shared broker item such as `Edm1.Pressure` appears as `BrokerWidget1.Mqtt.Edm1.Pressure`.
 
-`BrokerMode` controls where the bus comes from. `External` connects to the configured `BrokerHost` and `BrokerPort` without starting anything locally. `Own` starts an in-process `InMemoryItemServer` with the MQTT adapter on the configured endpoint, then connects the widget client to that local endpoint.
+`BrokerMode` controls where the bus comes from. `External` connects to the configured `BrokerHost` and `BrokerPort` without starting anything locally. `Own` starts a local embedded MQTT item host on the configured endpoint, then connects the widget client to that local endpoint.
 
 Widgets use a generated local MQTT client id such as `hornet-studio-1a2b3c4d`. The id is stored in the persisted `ServerClientId` property and displayed as readonly `LocalMqttClientId` in the property dialog so it cannot accidentally be replaced with a remote client id.
 

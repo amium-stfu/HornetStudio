@@ -203,7 +203,7 @@ internal static class EnhancedSignalPathHelper
             yield return StudioRootSegment;
             foreach (var segment in segments.Skip(1))
             {
-                yield return ItemPath.ToSnakeCaseSegment(segment);
+                yield return HostPathSegmentNormalizer.Normalize(segment);
             }
 
             yield break;
@@ -216,7 +216,7 @@ internal static class EnhancedSignalPathHelper
             yield return StudioRootSegment;
             foreach (var segment in segments.Skip(2))
             {
-                yield return ItemPath.ToSnakeCaseSegment(segment);
+                yield return HostPathSegmentNormalizer.Normalize(segment);
             }
 
             yield break;
@@ -224,7 +224,7 @@ internal static class EnhancedSignalPathHelper
 
         foreach (var segment in segments)
         {
-            yield return ItemPath.ToSnakeCaseSegment(segment);
+            yield return HostPathSegmentNormalizer.Normalize(segment);
         }
     }
 

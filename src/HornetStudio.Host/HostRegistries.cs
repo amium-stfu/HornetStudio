@@ -6,6 +6,7 @@ using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.Loader;
+using System.Text;
 using HornetStudio.Logging;
 using ItemModel = Amium.Items.Item;
 using Amium.Items;
@@ -13,6 +14,71 @@ using HornetStudio.Host.Helpers;
 using AForge.Video.DirectShow;
 
 namespace HornetStudio.Host;
+
+internal static class HostPathSegmentNormalizer
+{
+    public static string Normalize(string? segment)
+    {
+        if (string.IsNullOrWhiteSpace(segment))
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder(segment.Length + 8);
+        var previousWasSeparator = true;
+
+        for (var index = 0; index < segment.Length; index++)
+        {
+            var character = segment[index];
+            if (!char.IsLetterOrDigit(character))
+            {
+                AppendSeparator(builder, ref previousWasSeparator);
+                continue;
+            }
+
+            if (char.IsUpper(character) && ShouldInsertSeparator(segment, index))
+            {
+                AppendSeparator(builder, ref previousWasSeparator);
+            }
+
+            builder.Append(char.ToLowerInvariant(character));
+            previousWasSeparator = false;
+        }
+
+        return builder.ToString().Trim('_');
+    }
+
+    private static bool ShouldInsertSeparator(string value, int index)
+    {
+        if (index == 0)
+        {
+            return false;
+        }
+
+        var previous = value[index - 1];
+        if (!char.IsLetterOrDigit(previous))
+        {
+            return false;
+        }
+
+        if (char.IsLower(previous) || char.IsDigit(previous))
+        {
+            return true;
+        }
+
+        return index + 1 < value.Length && char.IsLower(value[index + 1]);
+    }
+
+    private static void AppendSeparator(StringBuilder builder, ref bool previousWasSeparator)
+    {
+        if (!previousWasSeparator && builder.Length > 0)
+        {
+            builder.Append('_');
+        }
+
+        previousWasSeparator = true;
+    }
+}
 
 public enum DataChangeKind
 {
@@ -137,6 +203,7 @@ public static class HostRegistryPropertyPolicy
     {
         "writable",
         "is_writable",
+        "writepath",
         "write_path",
         "broker_path",
         "local_path",
@@ -151,7 +218,7 @@ public static class HostRegistryPropertyPolicy
     /// <param name="parameterName">The parameter name to evaluate.</param>
     /// <returns><see langword="true"/> when the parameter is protected; otherwise, <see langword="false"/>.</returns>
     public static bool IsProtectedProperty(string? parameterName)
-        => !string.IsNullOrWhiteSpace(parameterName) && ProtectedParameters.Contains(ItemPath.ToSnakeCaseSegment(parameterName));
+        => !string.IsNullOrWhiteSpace(parameterName) && ProtectedParameters.Contains(HostPathSegmentNormalizer.Normalize(parameterName));
 
     /// <summary>
     /// Determines whether the parameter may be shown in user-facing pickers.
@@ -411,18 +478,18 @@ public sealed class DataRegistry : IDataRegistry
 
         if (Equals(oldValue, convertedValue))
         {
-            if (timestamp.HasValue && item.Properties.Has("value"))
+            if (timestamp.HasValue)
             {
-                item.Properties["value"].LastUpdate = timestamp.Value;
+                SetItemEpoch(item, timestamp.Value);
             }
 
             return true;
         }
 
         item.Value = convertedValue!;
-        if (timestamp.HasValue && item.Properties.Has("value"))
+        if (timestamp.HasValue)
         {
-            item.Properties["value"].LastUpdate = timestamp.Value;
+            SetItemEpoch(item, timestamp.Value);
         }
 
         RaiseItemChanged(GetEventKey(key, item), item, DataChangeKind.ValueUpdated, timestamp: timestamp);
@@ -431,7 +498,7 @@ public sealed class DataRegistry : IDataRegistry
 
     public bool UpdateProperty(string key, string parameterName, object? value, ulong? timestamp = null)
     {
-        var normalizedParameterName = ItemPath.ToSnakeCaseSegment(parameterName);
+        var normalizedParameterName = HostPathSegmentNormalizer.Normalize(parameterName);
         if (!TryResolve(key, out var item) || item is null || !item.Properties.Has(normalizedParameterName))
         {
             return false;
@@ -453,7 +520,7 @@ public sealed class DataRegistry : IDataRegistry
         {
             if (timestamp.HasValue)
             {
-                parameter.LastUpdate = timestamp.Value;
+                SetItemEpoch(item, timestamp.Value);
             }
 
             return true;
@@ -462,7 +529,7 @@ public sealed class DataRegistry : IDataRegistry
         parameter.Value = convertedValue!;
         if (timestamp.HasValue)
         {
-            parameter.LastUpdate = timestamp.Value;
+            SetItemEpoch(item, timestamp.Value);
         }
 
         RaiseItemChanged(GetEventKey(key, item), item, DataChangeKind.PropertyUpdated, normalizedParameterName, timestamp);
@@ -717,7 +784,11 @@ public sealed class DataRegistry : IDataRegistry
             return [];
         }
 
-        return ItemPath.Normalize(path).Split(['.'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return path
+            .Split(['.', '/', '\\'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(HostPathSegmentNormalizer.Normalize)
+            .Where(static segment => !string.IsNullOrWhiteSpace(segment))
+            .ToArray();
     }
 
     private static IEnumerable<string> NormalizeStudioRoot(IReadOnlyList<string> segments)
@@ -732,7 +803,7 @@ public sealed class DataRegistry : IDataRegistry
                 yield return StudioRootSegment;
                 foreach (var segment in segments.Skip(1))
                 {
-                    yield return ItemPath.ToSnakeCaseSegment(segment);
+                    yield return HostPathSegmentNormalizer.Normalize(segment);
                 }
 
             yield break;
@@ -745,7 +816,7 @@ public sealed class DataRegistry : IDataRegistry
             yield return StudioRootSegment;
             foreach (var segment in segments.Skip(2))
             {
-                yield return ItemPath.ToSnakeCaseSegment(segment);
+                yield return HostPathSegmentNormalizer.Normalize(segment);
             }
 
             yield break;
@@ -753,8 +824,13 @@ public sealed class DataRegistry : IDataRegistry
 
         foreach (var segment in segments)
         {
-            yield return ItemPath.ToSnakeCaseSegment(segment);
+            yield return HostPathSegmentNormalizer.Normalize(segment);
         }
+    }
+
+    private static void SetItemEpoch(ItemModel item, ulong timestamp)
+    {
+        item.Properties["epoch"].Value = timestamp;
     }
 
     private sealed record IndexedItem(string Path, string RootKey, ItemModel ItemModel);
@@ -771,7 +847,6 @@ public sealed class DataRegistry : IDataRegistry
         {
             var targetParameter = target.Properties[parameterEntry.Key];
             targetParameter.Value = parameterEntry.Value.Value;
-            targetParameter.LastUpdate = parameterEntry.Value.LastUpdate;
             targetParameter.Path = parameterEntry.Value.Path;
         }
 
@@ -915,8 +990,8 @@ public static class HostRegistries
         Commands = new CommandRegistry();
         Cameras = new CameraRegistry();
         ProcessLogs = new ProcessLogRegistry();
-        TryInitializeDefaultCamera();
-        UiPublisher.Publish("logs.host", HostLogger.ProcessLog, "Host");
+        TryInitializeDefaultCameraSafely();
+        PublishHostLogSafely();
 
         var assembly = typeof(HostRegistries).Assembly;
         var loadContext = AssemblyLoadContext.GetLoadContext(assembly);
@@ -934,6 +1009,30 @@ public static class HostRegistries
     public static ICameraRegistry Cameras { get; }
     public static IProcessLogRegistry ProcessLogs { get; }
     public static int DataRegistryId => RuntimeHelpers.GetHashCode(Data);
+
+    private static void PublishHostLogSafely()
+    {
+        try
+        {
+            UiPublisher.Publish("logs.host", HostLogger.ProcessLog, "Host");
+        }
+        catch (Exception ex)
+        {
+            HostLogger.Log.Warning(ex, "[HostRegistries] Failed to publish the host process log.");
+        }
+    }
+
+    private static void TryInitializeDefaultCameraSafely()
+    {
+        try
+        {
+            TryInitializeDefaultCamera();
+        }
+        catch (Exception ex)
+        {
+            HostLogger.Log.Warning(ex, "[Cameras] Default camera initialization failed before enumeration started.");
+        }
+    }
 
     private static void TryInitializeDefaultCamera()
     {

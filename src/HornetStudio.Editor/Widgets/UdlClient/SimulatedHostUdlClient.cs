@@ -408,19 +408,18 @@ public sealed class SimulatedHostUdlClient : IHostUdlClient
         AddChannel(module, "Set", hasWriteChannel: true);
         AddChannel(module, "Out", hasWriteChannel: true);
         AddChannel(module, "State", hasWriteChannel: true);
-        AddChannel(module, "Alert", hasReadChannel: false);
+        AddChannel(module, "Alert");
         return module;
     }
 
     private static ItemModel GetChannel(ItemModel module, string name) => module[name];
 
-    private static void AddChannel(ItemModel module, string name, bool hasWriteChannel = false, bool hasReadChannel = true)
+    private static void AddChannel(ItemModel module, string name, bool hasWriteChannel = false)
     {
         module[name] = new ItemModel(
             name,
             path: module.Path,
-            hasWriteChannel: hasWriteChannel,
-            hasReadChannel: hasReadChannel);
+            hasWriteChannel: hasWriteChannel);
     }
 
     private static void AddItem(ItemModel parent, string name)

@@ -55,7 +55,7 @@ internal sealed class DataRegistrySignal : ISignal
 /// </summary>
 public sealed class SignalRegistry : ISignalRegistry
 {
-    private const string StudioRootSegment = "Studio";
+    private const string StudioRootSegment = "studio";
     private static readonly string[] LegacyProjectRootSegments = ["Project", "UdlProject", "UdlBook"];
     private readonly IDataRegistry _dataRegistry;
     private readonly ConcurrentDictionary<string, DataRegistrySignal> _signalsBySourcePath = new(StringComparer.OrdinalIgnoreCase);
@@ -149,7 +149,7 @@ public sealed class SignalRegistry : ISignalRegistry
         var unit = item.Properties.Has("unit") ? item.Properties["unit"].Value?.ToString() : null;
         var format = item.Properties.Has("format") ? item.Properties["format"].Value?.ToString() : null;
 
-        var value = item.Properties.Has("value") ? item.Properties["value"].Value : null;
+        var value = item.Value;
         var dataType = InferDataType(value);
 
         var isWritable = InferIsWritable(item);
@@ -267,7 +267,7 @@ public sealed class SignalRegistry : ISignalRegistry
             return;
         }
 
-        var currentValue = e.ItemModel.Properties.Has("value") ? e.ItemModel.Properties["value"].Value : e.ItemModel.Value;
+        var currentValue = e.ItemModel.Value;
         signal.OnSourceValueUpdated(currentValue);
 
         var args = new SignalValueChangedEventArgs(signal.Descriptor, null, currentValue, DateTimeOffset.FromUnixTimeMilliseconds((long)e.Timestamp));
@@ -297,7 +297,10 @@ public sealed class SignalRegistry : ISignalRegistry
             .Replace('\\', '.')
             .Replace('/', '.')
             .Trim('.')
-            .Split(['.'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)));
+            .Split(['.'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(HostPathSegmentNormalizer.Normalize)
+            .Where(static segment => !string.IsNullOrWhiteSpace(segment))
+            .ToArray()));
 
     private static IEnumerable<string> NormalizeStudioRoot(IReadOnlyList<string> segments)
     {
@@ -311,7 +314,7 @@ public sealed class SignalRegistry : ISignalRegistry
             yield return StudioRootSegment;
             foreach (var segment in segments.Skip(1))
             {
-                yield return segment;
+                yield return HostPathSegmentNormalizer.Normalize(segment);
             }
 
             yield break;
@@ -324,7 +327,7 @@ public sealed class SignalRegistry : ISignalRegistry
             yield return StudioRootSegment;
             foreach (var segment in segments.Skip(2))
             {
-                yield return segment;
+                yield return HostPathSegmentNormalizer.Normalize(segment);
             }
 
             yield break;
@@ -332,7 +335,7 @@ public sealed class SignalRegistry : ISignalRegistry
 
         foreach (var segment in segments)
         {
-            yield return segment;
+            yield return HostPathSegmentNormalizer.Normalize(segment);
         }
     }
 }

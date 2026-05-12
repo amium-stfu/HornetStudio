@@ -4,7 +4,7 @@
 
 Connects to an MQTT ItemBroker bus with `BrokerHost`, `BrokerPort`, `BrokerBaseTopic`, and the generated local MQTT client id stored in `ServerClientId`.
 
-`BrokerMode` is either `External` or `Own`. `External` keeps the previous behavior and connects to an already running broker endpoint. `Own` starts a local in-process ItemBroker with MQTT adapter on the configured endpoint and stops it again when the widget disconnects.
+`BrokerMode` is either `External` or `Own`. `External` keeps the previous behavior and connects to an already running broker endpoint. `Own` starts a local embedded MQTT item host on the configured endpoint and stops it again when the widget disconnects.
 
 The local client id is generated for widgets, persisted with the layout, and shown as readonly `LocalMqttClientId` in the property dialog. Saved values that do not use the `hornet-studio-{shortGuid}` format are replaced with a generated local id when loaded.
 

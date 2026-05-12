@@ -2,47 +2,30 @@
 
 These instructions are repository-wide rules for GitHub Copilot in Visual Studio Code and Visual Studio. Apply them for all code generation, edits, refactorings, documentation updates, and file creation in this workspace.
 
-**Note**: The primary workspace-wide agent behavior, workflow, and mode rules are defined in `AGENTS.md` at the repository root. This file provides Copilot-specific execution context and project-specific domain rules that extend or refine the general rules from `AGENTS.md`.
+The primary workspace-wide agent behavior, workflow, mode rules, and project-specific rules are defined in the repository root `AGENTS.md` and the modules under `agents/`.
+
+Use this file only as Copilot-specific routing and execution context. Do not treat it as a separate source of truth.
 
 ## Copilot Behavior
 
 - Interpret these instructions as persistent workspace rules, even if a task only references a single file.
+- Follow root `AGENTS.md` first.
+- For mode behavior, follow `agents/modes.md` and the mode-specific modules referenced there.
+- For HornetStudio-specific rules, follow `agents/solution.md`.
 - Prefer precise edits in existing files over broad rewrites.
 - If multiple rules apply, follow the most specific rule for the affected area.
-- For larger implementation work, use a new chat to reduce context drift and hallucinations, ensuring token-efficient interactions.
+- If a referenced path or project convention appears stale, search the repository before changing code.
+- For larger implementation work, use a new chat or a dedicated handoff when the task would otherwise accumulate too much context.
 
-## Project-Specific Domain Rules
+## Scope Rules
 
-### Python Integration
+- Keep changes minimal and directly related to the user request.
+- Do not introduce broad refactorings, new abstractions, or structural changes unless explicitly requested or required by the active mode rules.
+- Prefer existing project patterns, libraries, and local conventions.
+- Do not duplicate solution-specific rules here. Maintain them in `agents/solution.md`.
 
-- When changing or extending the bundled Python helper API under `Host/Python/**` or `UiEditor/Templates/ui_python_client/**`, update the command documentation in `Host/Python/Integration/ui-python-client-commands.md` and `UiEditor/Templates/ui_python_client/COMMANDS.md` in the same change.
-- Treat `Host/Python/Integration/ui-python-client-commands.md` as the source-of-truth documentation for predefined Python client commands.
-- When changing Python bridge behavior, generated Python folder contents, template workflow, or Python interaction argument handling, update `Host/Python/Integration/python-system-overview.md` and `UiEditor/Templates/PYTHON_SYSTEM.md` in the same change.
-- When working on Python templates, Python environments, or generated Python scripts, consult `Host/Python/Integration/python-system-overview.md` and `Host/Python/Integration/ui-python-client-commands.md` first.
+## Validation Rules
 
-### Widget System
-
-- When changing widget code under `UiEditor/Widgets/**`, update the matching widget Markdown documentation under `HornetStudio/docs/widgets/` in the same change. Use one Markdown file per widget type and keep the file name aligned with the persisted widget `Type` value so the documentation can be loaded later inside the application.
-- For widget selection, use shorter separate description files instead of full .md help files, as the complete Markdown help can appear overloaded.
-- When changing widget code under `UiEditor/Widgets/**`, update the matching short selection description file under `HornetStudio/docs/widgets/descriptions/` in the same change. Use one Markdown file per widget type and keep the file name aligned with the persisted widget `Type` value so the picker can load the concise description later.
-- When changing widget code under `UiEditor/Widgets/**`, update the matching detailed help file under `HornetStudio/docs/widgets/help/` in the same change. Use one help Markdown file per widget type and keep the file name aligned with the persisted widget `Type` using the pattern `<Type>.help.md` so the help content can later be loaded inside a help window.
-- Remove mixed target/property patterns in widgets: controls should register all required control items, including colors, for external access, and redundant methods should be removed.
-
-### UI and Theme
-
-- Align new UI elements with the theme guidelines and ensure that new UI areas are designed to match the existing windows/dialogs of the project. Ensure that new icons are always colored according to the theme and do not use fixed colors.
-- For computed formulas, ensure that variable and function buttons are user-friendly and easily accessible.
-
-### Architecture
-
-- Prefer a minimally fragmented architecture: encapsulate and provide functions within their respective components rather than requiring additional separate helper components or intermediary signals. Prioritize clear, consistent architectural rules over mixed patterns for easier documentation later.
-
-## Component-Specific Rules
-
-### Logging
-
-- For the planned logger file splitting, ensure that a new file is rotated at the configured time, even if the current file is nearly empty.
-
-### Signals
-
-- Remove all instances of `FilteredSignals`, as it is deprecated legacy code. Use `EnhancedSignal` as the replacement.
+- Use the validation and build guidance from `agents/testing.md` and `agents/solution.md`.
+- Do not use `dotnet run` as a build check unless explicitly requested.
+- For debugging, follow `agents/debugging.md`, including reproducible validation and stop conditions for repeated attempts without measurable progress.

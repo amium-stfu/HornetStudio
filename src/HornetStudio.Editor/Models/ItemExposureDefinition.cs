@@ -239,7 +239,7 @@ public static class ItemExposurePublisher
         var bitCount = ResolveBitCount(definition, runtimeItem);
         if (!definition.ExposeBits || bitCount <= 0)
         {
-            runtimeItem.Remove("Bits");
+            runtimeItem.Remove("bits");
             return;
         }
 
@@ -260,12 +260,12 @@ public static class ItemExposurePublisher
 
     private static void UpsertBits(ItemModel runtimeItem, ItemExposureDefinition definition, int bitCount)
     {
-        if (!runtimeItem.Has("Bits"))
+        if (!runtimeItem.Has("bits"))
         {
-            runtimeItem["Bits"] = new ItemModel("Bits", path: runtimeItem.Path);
+            runtimeItem["bits"] = new ItemModel("bits", path: runtimeItem.Path);
         }
 
-        var bitsRoot = runtimeItem["Bits"];
+        var bitsRoot = runtimeItem["bits"];
         bitsRoot.Properties["kind"].Value = "Group";
         bitsRoot.Properties["title"].Value = $"{runtimeItem.Name} Bits";
 
@@ -276,7 +276,7 @@ public static class ItemExposurePublisher
 
         for (var bitIndex = 0; bitIndex < bitCount; bitIndex++)
         {
-            var bitName = $"Bit{bitIndex}";
+            var bitName = $"bit{bitIndex}";
             desiredBitNames.Add(bitName);
             if (!bitsRoot.Has(bitName))
             {

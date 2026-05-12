@@ -1,8 +1,8 @@
 using ItemModel = Amium.Items.Item;
 using Amium.Items;
-using Amium.Item.Server;
-using Amium.Item.Client.Mqtt;
+using Amium.Item.Client;
 using HornetStudio.Logging;
+using System.Text;
 
 namespace HornetStudio.Host;
 
@@ -61,21 +61,32 @@ public interface IHostItemBrokerClient : IAsyncDisposable
     Task PublishSnapshotAsync(ItemModel item, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Publishes a value update for a previously registered broker item.
+    /// Publishes a read value for a previously registered broker item.
     /// </summary>
-    /// <param name="item">The item containing the broker path and value.</param>
+    /// <param name="item">The item containing the broker path and read value.</param>
+    /// <param name="publishEpoch">A value indicating whether the item epoch should be published together with the read value.</param>
+    /// <param name="retained">A value indicating whether the published values should be retained.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The broker acknowledgement.</returns>
-    Task<ItemServerAckMessage> UpdateValueAsync(ItemModel item, CancellationToken cancellationToken = default);
+    /// <returns>A task representing the asynchronous operation.</returns>
+    Task PublishReadAsync(
+        ItemModel item,
+        bool publishEpoch = true,
+        bool retained = false,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Publishes a parameter update for a previously registered broker item.
     /// </summary>
     /// <param name="item">The item containing the broker path and parameter value.</param>
     /// <param name="parameterName">The parameter name.</param>
+    /// <param name="retained">A value indicating whether the published property should be retained.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The broker acknowledgement.</returns>
-    Task<ItemServerAckMessage> UpdateParameterAsync(ItemModel item, string parameterName, CancellationToken cancellationToken = default);
+    /// <returns>A task representing the asynchronous operation.</returns>
+    Task PublishPropertyAsync(
+        ItemModel item,
+        string parameterName,
+        bool retained = false,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Subscribes to broker updates for one item path.
@@ -122,7 +133,8 @@ public interface IHostItemBrokerClient : IAsyncDisposable
 public sealed class HostItemBrokerClient : IHostItemBrokerClient
 {
     private readonly object _sync = new();
-    private readonly MqttRemoteItemClient _remoteClient;
+    private readonly MqttItemClient _remoteClient;
+    private readonly string _runtimeName;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HostItemBrokerClient"/> class.
@@ -140,12 +152,13 @@ public sealed class HostItemBrokerClient : IHostItemBrokerClient
         ArgumentException.ThrowIfNullOrWhiteSpace(clientId);
 
         Name = name.Trim();
+        _runtimeName = NormalizePathSegment(Name, "broker_widget");
         Host = host.Trim();
         Port = port <= 0 ? 1883 : port;
         BaseTopic = baseTopic.Trim();
         ClientId = clientId.Trim();
-        Items = new ItemDictionary($"runtime.item_broker.{Name}");
-        _remoteClient = new MqttRemoteItemClient(new MqttItemClientOptions
+        Items = new ItemDictionary($"runtime.item_broker.{_runtimeName}");
+        _remoteClient = new MqttItemClient(new MqttItemClientOptions
         {
             Host = Host,
             Port = Port,
@@ -201,31 +214,42 @@ public sealed class HostItemBrokerClient : IHostItemBrokerClient
             ClientId,
             item.Path ?? string.Empty,
             item.Value);
-        return _remoteClient.PublishSnapshotAsync(item, cancellationToken);
+        return _remoteClient.PublishSnapshotAsync(item, cancellationToken: cancellationToken);
     }
 
     /// <inheritdoc />
-    public Task<ItemServerAckMessage> UpdateValueAsync(ItemModel item, CancellationToken cancellationToken = default)
+    public Task PublishReadAsync(
+        ItemModel item,
+        bool publishEpoch = true,
+        bool retained = false,
+        CancellationToken cancellationToken = default)
     {
         HostLogger.Log.Debug(
-            "[HostItemBrokerClientPublish] kind=value client={ClientId} path={Path} value={Value}",
+            "[HostItemBrokerClientPublish] kind=read client={ClientId} path={Path} value={Value} retained={Retained} publishEpoch={PublishEpoch}",
             ClientId,
             item.Path ?? string.Empty,
-            item.Value);
-        return _remoteClient.UpdateValueAsync(item, cancellationToken);
+            item.Value,
+            retained,
+            publishEpoch);
+        return _remoteClient.PublishReadAsync(item, publishEpoch, retained, cancellationToken);
     }
 
     /// <inheritdoc />
-    public Task<ItemServerAckMessage> UpdateParameterAsync(ItemModel item, string parameterName, CancellationToken cancellationToken = default)
+    public Task PublishPropertyAsync(
+        ItemModel item,
+        string parameterName,
+        bool retained = false,
+        CancellationToken cancellationToken = default)
     {
         var value = item.Properties.Has(parameterName) ? item.Properties[parameterName].Value : null;
         HostLogger.Log.Debug(
-            "[HostItemBrokerClientPublish] kind=parameter client={ClientId} path={Path} parameter={Parameter} value={Value}",
+            "[HostItemBrokerClientPublish] kind=property client={ClientId} path={Path} parameter={Parameter} value={Value} retained={Retained}",
             ClientId,
             item.Path ?? string.Empty,
             parameterName,
-            value);
-        return _remoteClient.UpdatePropertyAsync(item, parameterName, cancellationToken);
+            value,
+            retained);
+        return _remoteClient.PublishPropertyAsync(item, parameterName, retained, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -297,10 +321,78 @@ public sealed class HostItemBrokerClient : IHostItemBrokerClient
     private void RebuildItems()
     {
         Items.Clear();
+        var sharedPath = $"runtime.item_broker.{_runtimeName}.shared";
+        var sharedRoot = new ItemModel("shared", path: $"runtime.item_broker.{_runtimeName}");
+        var hasSharedItems = false;
+
         foreach (var root in _remoteClient.GetRemoteItemSnapshots())
         {
-            Items[root.Key] = root.Value.Clone();
+            sharedRoot[root.Key] = root.Value.CloneWithPath($"{sharedPath}.{root.Key}");
+            hasSharedItems = true;
         }
+
+        if (hasSharedItems)
+        {
+            Items[sharedRoot.Name] = sharedRoot;
+        }
+    }
+
+    private static string NormalizePathSegment(string? segment, string fallbackSegment)
+    {
+        var value = string.IsNullOrWhiteSpace(segment)
+            ? fallbackSegment
+            : segment.Trim();
+
+        var builder = new StringBuilder(value.Length + 8);
+        var previousWasSeparator = true;
+
+        for (var index = 0; index < value.Length; index++)
+        {
+            var character = value[index];
+            if (!char.IsLetterOrDigit(character))
+            {
+                if (!previousWasSeparator && builder.Length > 0)
+                {
+                    builder.Append('_');
+                    previousWasSeparator = true;
+                }
+
+                continue;
+            }
+
+            if (char.IsUpper(character) && ShouldInsertSeparator(value, index) && !previousWasSeparator && builder.Length > 0)
+            {
+                builder.Append('_');
+                previousWasSeparator = true;
+            }
+
+            builder.Append(char.ToLowerInvariant(character));
+            previousWasSeparator = false;
+        }
+
+        var normalized = builder.ToString().Trim('_');
+        return string.IsNullOrWhiteSpace(normalized) ? fallbackSegment : normalized;
+    }
+
+    private static bool ShouldInsertSeparator(string value, int index)
+    {
+        if (index == 0)
+        {
+            return false;
+        }
+
+        var previous = value[index - 1];
+        if (!char.IsLetterOrDigit(previous))
+        {
+            return false;
+        }
+
+        if (char.IsLower(previous) || char.IsDigit(previous))
+        {
+            return true;
+        }
+
+        return index + 1 < value.Length && char.IsLower(value[index + 1]);
     }
 
     private void OnRemoteDiagnostic(string message)

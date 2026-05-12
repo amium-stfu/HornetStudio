@@ -2,10 +2,9 @@ using ItemModel = Amium.Items.Item;
 using Amium.Items;
 using Amium.Item.Server;
 using Amium.Item.Server.Mqtt;
-using Amium.Item.Client.Mqtt;
+using Amium.Item.Client;
 using HornetStudio.Contracts;
 using HornetStudio.Host;
-using Item.Server.Monitor.Monitoring;
 using MQTTnet.Server;
 using System.Reflection;
 using System.Net;
@@ -21,6 +20,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Longest root wins", () => RunSync(LongestRootWins)),
     ("Missing child returns false", () => RunSync(MissingChildReturnsFalse)),
     ("UpdateValue updates descendant item", () => RunSync(UpdateValueUpdatesDescendantItem)),
+    ("UpdateValue applies explicit epoch", () => RunSync(UpdateValueAppliesExplicitEpoch)),
     ("UpdateValue ignores unchanged descendant item", () => RunSync(UpdateValueIgnoresUnchangedDescendantItem)),
     ("UpdateValue converts numeric payloads to existing type", () => RunSync(UpdateValueConvertsNumericPayloadsToExistingType)),
     ("UpdateParameter updates descendant parameter", () => RunSync(UpdateParameterUpdatesDescendantParameter)),
@@ -42,12 +42,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Host item broker client hides self-published items", HostItemBrokerClientHidesSelfPublishedItems),
     ("Host item broker client snapshots are detached", HostItemBrokerClientSnapshotsAreDetached),
     ("Host item broker client publishes local snapshots", HostItemBrokerClientPublishesLocalSnapshots),
-    ("Owned item broker adapter starts and disposes endpoint", OwnedItemBrokerAdapterStartsAndDisposesEndpoint),
-    ("Owned item broker adapter fails on occupied endpoint", OwnedItemBrokerAdapterFailsOnOccupiedEndpoint),
-    ("Monitor snapshot store replaces removed paths", () => RunSync(MonitorSnapshotStoreReplacesRemovedPaths)),
-    ("Monitor tree store keeps ancestor context for filter", () => RunSync(MonitorTreeStoreKeepsAncestorContextForFilter)),
-    ("Monitor tree store expands all rows", () => RunSync(MonitorTreeStoreExpandAllShowsDescendants)),
-    ("Monitor tree store matches value text filters", () => RunSync(MonitorTreeStoreMatchesValueTextFilter)),
+    ("Owned item broker host starts and disposes endpoint", OwnedItemBrokerHostStartsAndDisposesEndpoint),
+    ("Owned item broker host fails on occupied endpoint", OwnedItemBrokerHostFailsOnOccupiedEndpoint),
 };
 
 var failures = new List<string>();
@@ -87,34 +83,34 @@ static void ExactRootResolve()
 {
     var registry = new DataRegistry();
     var root = CreateDeviceSnapshot(1);
-    registry.UpsertSnapshot("runtime.Device", root);
+    registry.UpsertSnapshot("runtime.device", root);
 
-    AssertTrue(registry.TryResolve("runtime.Device", out var resolved));
+    AssertTrue(registry.TryResolve("runtime.device", out var resolved));
     AssertSame(root, resolved);
 }
 
 static void DescendantResolve()
 {
     var registry = new DataRegistry();
-    registry.UpsertSnapshot("runtime.Device", CreateDeviceSnapshot(1));
+    registry.UpsertSnapshot("runtime.device", CreateDeviceSnapshot(1));
 
-    AssertTrue(registry.TryResolve("runtime.Device.Read", out var resolved));
+    AssertTrue(registry.TryResolve("runtime.device.read", out var resolved));
     AssertEqual(1, resolved?.Value);
 }
 
 static void MixedSeparatorsResolve()
 {
     var registry = new DataRegistry();
-    registry.UpsertSnapshot("runtime.Device", CreateDeviceSnapshot(2));
+    registry.UpsertSnapshot("runtime.device", CreateDeviceSnapshot(2));
 
-    AssertTrue(registry.TryResolve(@"runtime/device\Read", out var resolved));
+    AssertTrue(registry.TryResolve(@"runtime/device\read", out var resolved));
     AssertEqual(2, resolved?.Value);
 }
 
 static void CaseInsensitiveResolve()
 {
     var registry = new DataRegistry();
-    registry.UpsertSnapshot("runtime.Device", CreateDeviceSnapshot(3));
+    registry.UpsertSnapshot("runtime.device", CreateDeviceSnapshot(3));
 
     AssertTrue(registry.TryResolve("runtime.device.read", out var resolved));
     AssertEqual(3, resolved?.Value);
@@ -123,45 +119,55 @@ static void CaseInsensitiveResolve()
 static void LegacyProjectPathResolvesToStudioItem()
 {
     var registry = new DataRegistry();
-    var item = new ItemModel("Signal", 7).Repath("studio.default_layout.Signal");
-    registry.UpsertSnapshot("studio.default_layout.Signal", item);
+    var item = ItemExtension.CreateWithPath("studio.default_layout.signal", 7);
+    registry.UpsertSnapshot("studio.default_layout.signal", item);
 
-    AssertTrue(registry.TryResolve("project.default_layout.Signal", out var resolved));
+    AssertTrue(registry.TryResolve("project.default_layout.signal", out var resolved));
     AssertSame(item, resolved);
 }
 
 static void LongestRootWins()
 {
     var registry = new DataRegistry();
-    registry.UpsertSnapshot("runtime.Device", CreateDeviceSnapshot(1));
-    registry.UpsertSnapshot("runtime.Device.Read", new ItemModel("Read", 2).Repath("runtime.Device.Read"));
+    registry.UpsertSnapshot("runtime.device", CreateDeviceSnapshot(1));
+    registry.UpsertSnapshot("runtime.device.read", ItemExtension.CreateWithPath("runtime.device.read", 2));
 
-    AssertTrue(registry.TryResolve("runtime.Device.Read", out var resolved));
+    AssertTrue(registry.TryResolve("runtime.device.read", out var resolved));
     AssertEqual(2, resolved?.Value);
 }
 
 static void MissingChildReturnsFalse()
 {
     var registry = new DataRegistry();
-    registry.UpsertSnapshot("runtime.Device", CreateDeviceSnapshot(1));
+    registry.UpsertSnapshot("runtime.device", CreateDeviceSnapshot(1));
 
-    AssertFalse(registry.TryResolve("runtime.Device.Missing", out _));
+    AssertFalse(registry.TryResolve("runtime.device.missing", out _));
 }
 
 static void UpdateValueUpdatesDescendantItem()
 {
     var registry = new DataRegistry();
-    registry.UpsertSnapshot("runtime.Device", CreateDeviceSnapshot(1));
+    registry.UpsertSnapshot("runtime.device", CreateDeviceSnapshot(1));
 
-    AssertTrue(registry.UpdateValue("runtime.Device.Read", 4));
-    AssertTrue(registry.TryResolve("runtime.Device.Read", out var resolved));
+    AssertTrue(registry.UpdateValue("runtime.device.read", 4));
+    AssertTrue(registry.TryResolve("runtime.device.read", out var resolved));
     AssertEqual(4, resolved?.Value);
+}
+
+static void UpdateValueAppliesExplicitEpoch()
+{
+    var registry = new DataRegistry();
+    registry.UpsertSnapshot("runtime.device", CreateDeviceSnapshot(1));
+
+    AssertTrue(registry.UpdateValue("runtime.device.read", 4, 123UL));
+    AssertTrue(registry.TryResolve("runtime.device.read", out var resolved));
+    AssertEqual(123UL, resolved?.Properties["epoch"].Value);
 }
 
 static void UpdateValueIgnoresUnchangedDescendantItem()
 {
     var registry = new DataRegistry();
-    registry.UpsertSnapshot("runtime.Device", CreateDeviceSnapshot(1));
+    registry.UpsertSnapshot("runtime.device", CreateDeviceSnapshot(1));
     var changeCount = 0;
     registry.ItemChanged += (_, e) =>
     {
@@ -171,8 +177,8 @@ static void UpdateValueIgnoresUnchangedDescendantItem()
         }
     };
 
-    AssertTrue(registry.UpdateValue("runtime.Device.Read", 1));
-    AssertTrue(registry.TryResolve("runtime.Device.Read", out var resolved));
+    AssertTrue(registry.UpdateValue("runtime.device.read", 1));
+    AssertTrue(registry.TryResolve("runtime.device.read", out var resolved));
     AssertEqual(1, resolved?.Value);
     AssertEqual(0, changeCount);
 }
@@ -180,28 +186,28 @@ static void UpdateValueIgnoresUnchangedDescendantItem()
 static void UpdateValueConvertsNumericPayloadsToExistingType()
 {
     var registry = new DataRegistry();
-    registry.UpsertSnapshot("runtime.Device", new ItemModel("Device").Repath("runtime.Device"));
-    registry.UpdateValue("runtime.Device", 1.5);
+    registry.UpsertSnapshot("runtime.device", ItemExtension.CreateWithPath("runtime.device"));
+    registry.UpdateValue("runtime.device", 1.5);
 
-    AssertTrue(registry.UpdateValue("runtime.Device", 2L));
-    AssertTrue(registry.TryResolve("runtime.Device", out var resolved));
+    AssertTrue(registry.UpdateValue("runtime.device", 2L));
+    AssertTrue(registry.TryResolve("runtime.device", out var resolved));
     AssertEqual(2.0, resolved?.Value);
 }
 
 static void UpdateParameterUpdatesDescendantParameter()
 {
     var registry = new DataRegistry();
-    registry.UpsertSnapshot("runtime.Device", CreateDeviceSnapshot(1));
+    registry.UpsertSnapshot("runtime.device", CreateDeviceSnapshot(1));
 
-    AssertTrue(registry.UpdateProperty("runtime.Device.Read", "Unit", "bar"));
-    AssertTrue(registry.TryResolve("runtime.Device.Read", out var resolved));
+    AssertTrue(registry.UpdateProperty("runtime.device.read", "Unit", "bar"));
+    AssertTrue(registry.TryResolve("runtime.device.read", out var resolved));
     AssertEqual("bar", resolved?.Properties["unit"].Value);
 }
 
 static void UpdateParameterIgnoresUnchangedDescendantParameter()
 {
     var registry = new DataRegistry();
-    registry.UpsertSnapshot("runtime.Device", CreateDeviceSnapshot(1));
+    registry.UpsertSnapshot("runtime.device", CreateDeviceSnapshot(1));
     var changeCount = 0;
     registry.ItemChanged += (_, e) =>
     {
@@ -211,8 +217,8 @@ static void UpdateParameterIgnoresUnchangedDescendantParameter()
         }
     };
 
-    AssertTrue(registry.UpdateProperty("runtime.Device.Read", "Unit", "V"));
-    AssertTrue(registry.TryResolve("runtime.Device.Read", out var resolved));
+    AssertTrue(registry.UpdateProperty("runtime.device.read", "Unit", "V"));
+    AssertTrue(registry.TryResolve("runtime.device.read", out var resolved));
     AssertEqual("V", resolved?.Properties["unit"].Value);
     AssertEqual(0, changeCount);
 }
@@ -220,12 +226,12 @@ static void UpdateParameterIgnoresUnchangedDescendantParameter()
 static void UpdateParameterConvertsNumericPayloadsToExistingType()
 {
     var registry = new DataRegistry();
-    var item = new ItemModel("Device").Repath("runtime.Device");
+    var item = ItemExtension.CreateWithPath("runtime.device");
     item.Properties["Scale"].Value = 1.5;
-    registry.UpsertSnapshot("runtime.Device", item);
+    registry.UpsertSnapshot("runtime.device", item);
 
-    AssertTrue(registry.UpdateProperty("runtime.Device", "Scale", 2L));
-    AssertTrue(registry.TryResolve("runtime.Device", out var resolved));
+    AssertTrue(registry.UpdateProperty("runtime.device", "Scale", 2L));
+    AssertTrue(registry.TryResolve("runtime.device", out var resolved));
     AssertEqual(2.0, resolved?.Properties["Scale"].Value);
 }
 
@@ -240,29 +246,29 @@ static void ProtectedParameterPolicyDetectsProtectedNames()
 static void GuardedUserParameterWriteRejectsProtectedNames()
 {
     var registry = new DataRegistry();
-    registry.UpsertSnapshot("runtime.Device", CreateDeviceSnapshot(1));
+    registry.UpsertSnapshot("runtime.device", CreateDeviceSnapshot(1));
 
-    AssertFalse(registry.TryUpdateUserProperty("runtime.Device.Read", "Writable", false));
-    AssertTrue(registry.TryResolve("runtime.Device.Read", out var resolved));
+    AssertFalse(registry.TryUpdateUserProperty("runtime.device.read", "Writable", false));
+    AssertTrue(registry.TryResolve("runtime.device.read", out var resolved));
     AssertEqual(true, resolved?.Properties["writable"].Value);
 }
 
 static void InternalParameterUpdateAllowsProtectedNames()
 {
     var registry = new DataRegistry();
-    registry.UpsertSnapshot("runtime.Device", CreateDeviceSnapshot(1));
+    registry.UpsertSnapshot("runtime.device", CreateDeviceSnapshot(1));
 
-    AssertTrue(registry.UpdateProperty("runtime.Device.Read", "Writable", false));
-    AssertTrue(registry.TryResolve("runtime.Device.Read", out var resolved));
+    AssertTrue(registry.UpdateProperty("runtime.device.read", "Writable", false));
+    AssertTrue(registry.TryResolve("runtime.device.read", out var resolved));
     AssertEqual(false, resolved?.Properties["writable"].Value);
 }
 
 static void MetadataDefaultsExcludeBrokerPublish()
 {
     var registry = new DataRegistry();
-    registry.UpsertSnapshot("runtime.Metadata.Default", new ItemModel("Default").Repath("runtime.Metadata.Default"));
+    registry.UpsertSnapshot("runtime.metadata.default", ItemExtension.CreateWithPath("runtime.metadata.default"));
 
-    AssertTrue(registry.TryGetMetadata("runtime.Metadata.Default", out var metadata));
+    AssertTrue(registry.TryGetMetadata("runtime.metadata.default", out var metadata));
     AssertFalse(metadata.Capabilities.HasFlag(DataRegistryItemCapabilities.BrokerPublish));
     AssertEqual(0, registry.GetKeysByCapability(DataRegistryItemCapabilities.BrokerPublish).Count);
 }
@@ -280,61 +286,61 @@ static void BrokerReceivedMetadataExcludesBrokerPublish()
     AssertFalse(metadata.Capabilities.HasFlag(DataRegistryItemCapabilities.BrokerPublish));
 
     var registry = new DataRegistry();
-    registry.UpsertSnapshot("runtime.item_broker.Broker1.Client1.Device", new ItemModel("Device").Repath("runtime.item_broker.Broker1.Client1.Device"), metadata);
+    registry.UpsertSnapshot("runtime.item_broker.broker1.client1.device", ItemExtension.CreateWithPath("runtime.item_broker.broker1.client1.device"), metadata);
 
-    AssertTrue(registry.TryGetMetadata("runtime.item_broker.Broker1.Client1.Device", out var storedMetadata));
+    AssertTrue(registry.TryGetMetadata("runtime.item_broker.broker1.client1.device", out var storedMetadata));
     AssertEqual(metadata, storedMetadata);
-    AssertFalse(registry.GetKeysByCapability(DataRegistryItemCapabilities.BrokerPublish).Contains("runtime.item_broker.Broker1.Client1.Device", StringComparer.OrdinalIgnoreCase));
-    AssertTrue(registry.GetKeysByCapability(DataRegistryItemCapabilities.BrokerAttach).Contains("runtime.item_broker.Broker1.Client1.Device", StringComparer.OrdinalIgnoreCase));
-    AssertTrue(registry.GetKeysByCapability(DataRegistryItemCapabilities.DebugInspect).Contains("runtime.item_broker.Broker1.Client1.Device", StringComparer.OrdinalIgnoreCase));
+    AssertFalse(registry.GetKeysByCapability(DataRegistryItemCapabilities.BrokerPublish).Contains("runtime.item_broker.broker1.client1.device", StringComparer.OrdinalIgnoreCase));
+    AssertTrue(registry.GetKeysByCapability(DataRegistryItemCapabilities.BrokerAttach).Contains("runtime.item_broker.broker1.client1.device", StringComparer.OrdinalIgnoreCase));
+    AssertTrue(registry.GetKeysByCapability(DataRegistryItemCapabilities.DebugInspect).Contains("runtime.item_broker.broker1.client1.device", StringComparer.OrdinalIgnoreCase));
 }
 
 static void MetadataCapabilityQueryReturnsPublishableKeys()
 {
     var registry = new DataRegistry();
-    registry.UpsertSnapshot("runtime.Metadata.Public", new ItemModel("Public").Repath("runtime.Metadata.Public"), DataRegistryItemMetadata.PublicData());
-    registry.UpsertSnapshot("runtime.Metadata.Internal", new ItemModel("Internal").Repath("runtime.Metadata.Internal"), DataRegistryItemMetadata.WidgetInternal());
+    registry.UpsertSnapshot("runtime.metadata.public", ItemExtension.CreateWithPath("runtime.metadata.public"), DataRegistryItemMetadata.PublicData());
+    registry.UpsertSnapshot("runtime.metadata.internal", ItemExtension.CreateWithPath("runtime.metadata.internal"), DataRegistryItemMetadata.WidgetInternal());
 
     var keys = registry.GetKeysByCapability(DataRegistryItemCapabilities.BrokerPublish);
 
-    AssertTrue(keys.Contains("runtime.Metadata.Public", StringComparer.OrdinalIgnoreCase));
-    AssertFalse(keys.Contains("runtime.Metadata.Internal", StringComparer.OrdinalIgnoreCase));
+    AssertTrue(keys.Contains("runtime.metadata.public", StringComparer.OrdinalIgnoreCase));
+    AssertFalse(keys.Contains("runtime.metadata.internal", StringComparer.OrdinalIgnoreCase));
 }
 
 static void RemoveClearsIndexedDescendants()
 {
     var registry = new DataRegistry();
-    registry.UpsertSnapshot("runtime.Device", CreateDeviceSnapshot(1));
+    registry.UpsertSnapshot("runtime.device", CreateDeviceSnapshot(1));
 
-    AssertTrue(registry.Remove("runtime.Device"));
-    AssertFalse(registry.TryResolve("runtime.Device.Read", out _));
+    AssertTrue(registry.Remove("runtime.device"));
+    AssertFalse(registry.TryResolve("runtime.device.read", out _));
 }
 
 static void PruneClearsStaleDescendants()
 {
     var registry = new DataRegistry();
-    registry.UpsertSnapshot("runtime.Device", CreateDeviceSnapshot(1));
-    registry.UpsertSnapshot("runtime.Device", new ItemModel("Device").Repath("runtime.Device"), pruneMissingMembers: true);
+    registry.UpsertSnapshot("runtime.device", CreateDeviceSnapshot(1));
+    registry.UpsertSnapshot("runtime.device", ItemExtension.CreateWithPath("runtime.device"), pruneMissingMembers: true);
 
-    AssertFalse(registry.TryResolve("runtime.Device.Read", out _));
+    AssertFalse(registry.TryResolve("runtime.device.read", out _));
 }
 
 static void SignalLookupWorksForDescendants()
 {
     var registry = new DataRegistry();
     var signals = new SignalRegistry(registry);
-    registry.UpsertSnapshot("runtime.Device", CreateDeviceSnapshot(1));
+    registry.UpsertSnapshot("runtime.device", CreateDeviceSnapshot(1));
 
     AssertTrue(signals.TryGetBySourcePath(@"runtime/device\read", out var signal));
-    AssertEqual("runtime.Device.Read", signal?.Descriptor.SourcePath);
+    AssertEqual("runtime.device.read", signal?.Descriptor.SourcePath);
 }
 
 static void SignalUpdateFiresForDescendantUpdates()
 {
     var registry = new DataRegistry();
     var signals = new SignalRegistry(registry);
-    registry.UpsertSnapshot("runtime.Device", CreateDeviceSnapshot(1));
-    AssertTrue(signals.TryGetBySourcePath("runtime.Device.Read", out var signal));
+    registry.UpsertSnapshot("runtime.device", CreateDeviceSnapshot(1));
+    AssertTrue(signals.TryGetBySourcePath("runtime.device.read", out var signal));
 
     object? changedValue = null;
     signal!.ValueChanged += (_, e) => changedValue = e.NewValue;
@@ -345,19 +351,19 @@ static void SignalUpdateFiresForDescendantUpdates()
 
 static void UiFolderChildSourceUpdatePreservesRequestChild()
 {
-    var source = new ItemModel("m300", 0).Repath("runtime.UiFolderMirror.m300");
-    source["Read"].Value = 0;
-    source["Set"]["Request"].Value = 0;
+    var source = ItemExtension.CreateWithPath("runtime.ui_folder_mirror.m300", 0);
+    source["read"].Value = 0;
+    source["set"]["request"].Value = 0;
     using var context = new UiFolderContext("MirrorTest");
     var attached = context.Attach(source, "m300");
     HostRegistries.Data.UpsertSnapshot(attached.Path!, attached);
 
-    AssertTrue(HostRegistries.Data.UpdateValue("studio.MirrorTest.m300.set.request", 42));
-    source["Read"].Value = 1;
+    AssertTrue(HostRegistries.Data.UpdateValue("studio.mirror_test.m300.set.request", 42));
+    source["read"].Value = 1;
 
-    AssertTrue(HostRegistries.Data.TryResolve("studio.MirrorTest.m300.Read", out var read));
+    AssertTrue(HostRegistries.Data.TryResolve("studio.mirror_test.m300.read", out var read));
     AssertEqual(1, read?.Value);
-    AssertTrue(HostRegistries.Data.TryResolve("studio.MirrorTest.m300.set.request", out var request));
+    AssertTrue(HostRegistries.Data.TryResolve("studio.mirror_test.m300.set.request", out var request));
     AssertEqual(42, request?.Value);
 }
 
@@ -371,18 +377,18 @@ static void HostUdlClientCreatesFlatChannels()
     AssertTrue(module is not null);
     AssertFalse(module!.Has("Command"));
 
-    AssertTrue(module.Has("Read"));
-    AssertTrue(module["Read"].Properties.Has("read"));
-    AssertTrue(module["Read"].Properties.Has("write"));
-    AssertFalse(module["Read"].Has("Request"));
+    AssertTrue(module.Has("read"));
+    AssertTrue(module["read"].Properties.Has("read"));
+    AssertTrue(module["read"].Properties.Has("write"));
+    AssertFalse(module["read"].Has("request"));
 
-    AssertTrue(module.Has("State"));
-    AssertTrue(module["State"].Properties.Has("read"));
-    AssertTrue(module["State"].Properties.Has("write"));
+    AssertTrue(module.Has("state"));
+    AssertTrue(module["state"].Properties.Has("read"));
+    AssertTrue(module["state"].Properties.Has("write"));
 
-    AssertTrue(module.Has("Alert"));
-    AssertFalse(module["Alert"].Properties.Has("read"));
-    AssertFalse(module["Alert"].Properties.Has("write"));
+    AssertTrue(module.Has("alert"));
+    AssertTrue(module["alert"].Properties.Has("read"));
+    AssertFalse(module["alert"].Properties.Has("write"));
 }
 
 static async Task HostItemBrokerClientReceivesLiveItems()
@@ -409,13 +415,13 @@ static async Task HostItemBrokerClientReceivesLiveItems()
             ReconnectDelay = TimeSpan.FromMilliseconds(10),
         });
 
-        await publisher.UpdateValueAsync(new ItemModel("Temperature", 23.5).Repath("Edm1.Temperature")).ConfigureAwait(false);
+        await publisher.PublishReadAsync(ItemExtension.CreateWithPath("edm1.temperature", 23.5), retained: true).ConfigureAwait(false);
 
         var deadline = DateTimeOffset.UtcNow.AddSeconds(2);
         while (DateTimeOffset.UtcNow < deadline)
         {
             if (hostClient.Items.GetDictionary().TryGetValue("shared", out var root)
-                && object.Equals(23.5, root["Edm1"]["Temperature"].Value))
+                && object.Equals(23.5f, root["edm1"]["temperature"].Value))
             {
                 return;
             }
@@ -447,10 +453,10 @@ static async Task HostItemBrokerClientHidesSelfPublishedItems()
         await using var hostClient = new HostItemBrokerClient("BrokerWidgetSelfEcho", IPAddress.Loopback.ToString(), port, "hornet", "hornet-studio-self-echo-test");
         await hostClient.ConnectAsync().ConfigureAwait(false);
 
-        await hostClient.PublishSnapshotAsync(new ItemModel("Pressure", 12.5).Repath("studio.SelfEcho.Pressure")).ConfigureAwait(false);
+        await hostClient.PublishSnapshotAsync(ItemExtension.CreateWithPath("studio.self_echo.pressure", 12.5)).ConfigureAwait(false);
         await Task.Delay(TimeSpan.FromMilliseconds(500)).ConfigureAwait(false);
 
-        AssertFalse(hostClient.GetItemSnapshots().Values.Any(root => ContainsItemPath(root, "studio.SelfEcho.Pressure")));
+        AssertFalse(hostClient.GetItemSnapshots().Values.Any(root => ContainsItemPath(root, "studio.self_echo.pressure")));
     }
     finally
     {
@@ -483,14 +489,14 @@ static async Task HostItemBrokerClientSnapshotsAreDetached()
             ReconnectDelay = TimeSpan.FromMilliseconds(10),
         });
 
-        await publisher.UpdateValueAsync(new ItemModel("Temperature", 23.5).Repath("Edm1.Temperature")).ConfigureAwait(false);
+        await publisher.PublishReadAsync(ItemExtension.CreateWithPath("edm1.temperature", 23.5), retained: true).ConfigureAwait(false);
         await WaitForSnapshotAsync(hostClient, "shared").ConfigureAwait(false);
 
         var snapshot = hostClient.GetItemSnapshots();
-        snapshot["shared"]["Edm1"]["Temperature"].Value = 99.0;
+        snapshot["shared"]["edm1"]["temperature"].Value = 99.0f;
 
         var nextSnapshot = hostClient.GetItemSnapshots();
-        AssertEqual(23.5, nextSnapshot["shared"]["Edm1"]["Temperature"].Value);
+        AssertEqual(23.5f, nextSnapshot["shared"]["edm1"]["temperature"].Value);
     }
     finally
     {
@@ -524,13 +530,13 @@ static async Task HostItemBrokerClientPublishesLocalSnapshots()
         });
         await receiver.ConnectAsync().ConfigureAwait(false);
 
-        await publisher.PublishSnapshotAsync(new ItemModel("Pressure", 12.5).Repath("studio.default_layout.Edm1.Pressure")).ConfigureAwait(false);
+        await publisher.PublishSnapshotAsync(ItemExtension.CreateWithPath("studio.default_layout.edm1.pressure", 12.5)).ConfigureAwait(false);
 
         var deadline = DateTimeOffset.UtcNow.AddSeconds(2);
         while (DateTimeOffset.UtcNow < deadline)
         {
-            if (receiver.RemoteItems.GetClientRoots().TryGetValue("shared", out var root)
-                && object.Equals(12.5, root["Studio"]["default_layout"]["Edm1"]["Pressure"].Value))
+            if (receiver.RemoteItems.GetItemRoots().TryGetValue("studio", out var root)
+                && object.Equals(12.5f, root["default_layout"]["edm1"]["pressure"].Value))
             {
                 return;
             }
@@ -547,10 +553,10 @@ static async Task HostItemBrokerClientPublishesLocalSnapshots()
     }
 }
 
-static async Task OwnedItemBrokerAdapterStartsAndDisposesEndpoint()
+static async Task OwnedItemBrokerHostStartsAndDisposesEndpoint()
 {
     var port = GetAvailableTcpPort();
-    var adapter = new MqttItemServerAdapter(new MqttItemServerOptions
+    var host = new MqttItemServerHost(new MqttItemServerOptions
     {
         Host = IPAddress.Loopback.ToString(),
         Port = port,
@@ -558,26 +564,22 @@ static async Task OwnedItemBrokerAdapterStartsAndDisposesEndpoint()
         ClientId = "owned-broker-test",
     });
 
-    await adapter.StartAsync(new InMemoryItemServer()).ConfigureAwait(false);
-    await using (var hostClient = new HostItemBrokerClient("BrokerWidget1", IPAddress.Loopback.ToString(), port, "hornet", "hornet-studio-owned-test"))
+    try
     {
-        await hostClient.ConnectAsync().ConfigureAwait(false);
-        AssertTrue(hostClient.IsConnected);
+        await host.StartAsync().ConfigureAwait(false);
+        await using (var hostClient = new HostItemBrokerClient("BrokerWidget1", IPAddress.Loopback.ToString(), port, "hornet", "hornet-studio-owned-test"))
+        {
+            await hostClient.ConnectAsync().ConfigureAwait(false);
+            AssertTrue(hostClient.IsConnected);
+        }
     }
-
-    await adapter.DisposeAsync().ConfigureAwait(false);
-
-    var server = new MqttServerFactory().CreateMqttServer(new MqttServerOptionsBuilder()
-        .WithDefaultEndpoint()
-        .WithDefaultEndpointBoundIPAddress(IPAddress.Loopback)
-        .WithDefaultEndpointPort(port)
-        .Build());
-    await server.StartAsync().ConfigureAwait(false);
-    await server.StopAsync().ConfigureAwait(false);
-    server.Dispose();
+    finally
+    {
+        await host.DisposeAsync().ConfigureAwait(false);
+    }
 }
 
-static async Task OwnedItemBrokerAdapterFailsOnOccupiedEndpoint()
+static async Task OwnedItemBrokerHostFailsOnOccupiedEndpoint()
 {
     var port = GetAvailableTcpPort();
     var server = new MqttServerFactory().CreateMqttServer(new MqttServerOptionsBuilder()
@@ -589,7 +591,7 @@ static async Task OwnedItemBrokerAdapterFailsOnOccupiedEndpoint()
     await server.StartAsync().ConfigureAwait(false);
     try
     {
-        var adapter = new MqttItemServerAdapter(new MqttItemServerOptions
+        await using var host = new MqttItemServerHost(new MqttItemServerOptions
         {
             Host = IPAddress.Loopback.ToString(),
             Port = port,
@@ -600,15 +602,11 @@ static async Task OwnedItemBrokerAdapterFailsOnOccupiedEndpoint()
         var failed = false;
         try
         {
-            await adapter.StartAsync(new InMemoryItemServer()).ConfigureAwait(false);
+            await host.StartAsync().ConfigureAwait(false);
         }
         catch
         {
             failed = true;
-        }
-        finally
-        {
-            await adapter.DisposeAsync().ConfigureAwait(false);
         }
 
         AssertTrue(failed);
@@ -620,76 +618,13 @@ static async Task OwnedItemBrokerAdapterFailsOnOccupiedEndpoint()
     }
 }
 
-static void MonitorSnapshotStoreReplacesRemovedPaths()
-{
-    var store = new MonitorSnapshotStore();
-    store.ReplaceAll([
-        CreateMonitorSnapshot("runtime.Device.Read", 1, 10),
-        CreateMonitorSnapshot("runtime.Device.State", "ok", 20),
-    ]);
-
-    store.ReplaceAll([
-        CreateMonitorSnapshot("runtime.Device.Read", 2, 30),
-    ]);
-
-    AssertEqual(1, store.Count);
-    AssertTrue(store.TryGet("runtime.Device.Read", out var read));
-    AssertEqual(2, read?.ItemModel.Value);
-    AssertFalse(store.TryGet("runtime.Device.State", out _));
-}
-
-static void MonitorTreeStoreKeepsAncestorContextForFilter()
-{
-    var store = new MonitorTreeStore();
-    var rows = store.BuildVisibleRows([
-        CreateMonitorSnapshot("runtime.Device.Read", 42, 100),
-        CreateMonitorSnapshot("runtime.Device.State", "idle", 100),
-    ], "Read");
-
-    AssertEqual(3, rows.Count);
-    AssertEqual("runtime", rows[0].Path);
-    AssertEqual("runtime.Device", rows[1].Path);
-    AssertEqual("runtime.Device.Read", rows[2].Path);
-}
-
-static void MonitorTreeStoreExpandAllShowsDescendants()
-{
-    var store = new MonitorTreeStore();
-    store.BuildVisibleRows([
-        CreateMonitorSnapshot("runtime.Device.Read", 7, 100),
-        CreateMonitorSnapshot("runtime.Device.State", "idle", 100),
-    ], string.Empty);
-
-    store.ExpandAll();
-    var rows = store.BuildVisibleRows([
-        CreateMonitorSnapshot("runtime.Device.Read", 7, 100),
-        CreateMonitorSnapshot("runtime.Device.State", "idle", 100),
-    ], string.Empty);
-
-    AssertTrue(rows.Any(row => string.Equals(row.Path, "runtime.Device.Read", StringComparison.OrdinalIgnoreCase)));
-    AssertTrue(rows.Any(row => string.Equals(row.Path, "runtime.Device.State", StringComparison.OrdinalIgnoreCase)));
-}
-
-static void MonitorTreeStoreMatchesValueTextFilter()
-{
-    var store = new MonitorTreeStore();
-    var rows = store.BuildVisibleRows([
-        CreateMonitorSnapshot("runtime.Device.Read", 12.5, 100),
-        CreateMonitorSnapshot("runtime.Device.State", "idle", 100),
-    ], "12.5");
-
-    AssertEqual(3, rows.Count);
-    AssertEqual("runtime.Device.Read", rows[^1].Path);
-    AssertEqual("12.5", rows[^1].ValueText);
-}
-
 static async Task WaitForSnapshotAsync(HostItemBrokerClient hostClient, string clientId)
 {
     var deadline = DateTimeOffset.UtcNow.AddSeconds(2);
     while (DateTimeOffset.UtcNow < deadline)
     {
         if (hostClient.GetItemSnapshots().TryGetValue(clientId, out var root)
-            && object.Equals(23.5, root["Edm1"]["Temperature"].Value))
+            && object.Equals(23.5f, root["edm1"]["temperature"].Value))
         {
             return;
         }
@@ -702,18 +637,11 @@ static async Task WaitForSnapshotAsync(HostItemBrokerClient hostClient, string c
 
 static ItemModel CreateDeviceSnapshot(int readValue)
 {
-    var root = new ItemModel("Device");
-    root["Read"].Value = readValue;
-    root["Read"].Properties["unit"].Value = "V";
-    root["Read"].Properties["writable"].Value = true;
-    return root.Repath("runtime.Device");
-}
-
-static MonitorItemSnapshot CreateMonitorSnapshot(string path, object? value, ulong timestamp)
-{
-    var name = path.Split(['.'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Last();
-    var item = new ItemModel(name, value).Repath(path);
-    return new MonitorItemSnapshot(path, item, DataChangeKind.SnapshotUpserted, timestamp);
+    var root = new ItemModel("device");
+    root["read"].Value = readValue;
+    root["read"].Properties["unit"].Value = "V";
+    root["read"].Properties["writable"].Value = true;
+    return ItemExtension.CloneWithPath(root, "runtime.device");
 }
 
 static bool ContainsItemPath(ItemModel root, string path)
