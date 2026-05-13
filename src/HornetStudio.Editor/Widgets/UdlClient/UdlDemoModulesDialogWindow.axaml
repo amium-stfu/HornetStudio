@@ -125,7 +125,7 @@
 
                 <TextBlock FontSize="11"
                            Foreground="{Binding SecondaryTextBrush}"
-                           Text="For SetDriven modules, SetTauSeconds simulates a first-order settling time. 0 means immediate jump, larger values mean slower approach to Set.Request.Value."
+                           Text="For SetDriven modules, SetTauSeconds simulates a first-order settling time. 0 means immediate jump, larger values mean slower approach to Set.write while Set.read mirrors Set.write and Read.read shows the actual feedback value."
                            TextWrapping="Wrap"
                            IsVisible="{Binding SelectedRow.IsSetDriven}" />
 

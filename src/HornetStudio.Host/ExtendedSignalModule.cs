@@ -5,7 +5,6 @@ namespace HornetStudio.Host;
 
 public sealed class ExtendedSignalModule : ItemModel
 {
-    private const string RequestItemName = "request";
     private const string RawItemName = "raw";
     private const string ReadItemName = "read";
     private const string SetItemName = "set";
@@ -22,13 +21,13 @@ public sealed class ExtendedSignalModule : ItemModel
         Properties["text"].Value = name;
         Properties["unit"].Value = string.Empty;
 
-        AddItem(RawItemName);
-        AddRequestChannel(ReadItemName);
-        AddRequestChannel(SetItemName);
-        AddRequestChannel(OutItemName);
-        AddItem(StateItemName);
-        AddItem(AlertItemName);
-        AddRequestChannel(CommandItemName);
+        AddChannel(RawItemName);
+        AddChannel(ReadItemName, hasWriteChannel: true);
+        AddChannel(SetItemName, hasWriteChannel: true);
+        AddChannel(OutItemName, hasWriteChannel: true);
+        AddChannel(StateItemName, hasWriteChannel: true);
+        AddChannel(AlertItemName);
+        AddChannel(CommandItemName, hasWriteChannel: true);
         AddItem(ConfigItemName);
     }
 
@@ -36,15 +35,9 @@ public sealed class ExtendedSignalModule : ItemModel
 
     public ItemModel Read => this[ReadItemName];
 
-    public ItemModel ReadRequest => Read[RequestItemName];
-
     public ItemModel Set => this[SetItemName];
 
-    public ItemModel SetRequest => Set[RequestItemName];
-
     public ItemModel Out => this[OutItemName];
-
-    public ItemModel OutRequest => Out[RequestItemName];
 
     public ItemModel State => this[StateItemName];
 
@@ -52,16 +45,13 @@ public sealed class ExtendedSignalModule : ItemModel
 
     public ItemModel Command => this[CommandItemName];
 
-    public ItemModel CommandRequest => Command[RequestItemName];
-
     public ItemModel Config => this[ConfigItemName];
 
-    private void AddRequestChannel(string name)
+    private void AddChannel(string name, bool hasWriteChannel = false)
     {
-        AddItem(name);
-        var channel = this[name];
-        channel.AddItem(RequestItemName);
-        channel[RequestItemName].Properties["text"].Value = $"{name} Request";
-        channel[RequestItemName].Value = channel.Value;
+        this[name] = new ItemModel(
+            name,
+            path: Path,
+            hasWriteChannel: hasWriteChannel);
     }
 }

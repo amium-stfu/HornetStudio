@@ -203,11 +203,6 @@ public sealed class HostItemBrokerWriteBackClient : IDisposable, IAsyncDisposabl
             return declaredTarget.Path ?? fallbackPath;
         }
 
-        if (sourceItem.Has("Request"))
-        {
-            return sourceItem["Request"].Path ?? fallbackPath;
-        }
-
         return sourceItem.Path ?? fallbackPath;
     }
 
@@ -244,13 +239,13 @@ public sealed class HostItemBrokerWriteBackClient : IDisposable, IAsyncDisposabl
         if (sourceItem.Properties.Has("write_mode")
             && Enum.TryParse<SignalWriteMode>(writeModeText, true, out SignalWriteMode parsedMode))
         {
-            writeMode = parsedMode;
+            writeMode = parsedMode == SignalWriteMode.Request
+                ? SignalWriteMode.Direct
+                : parsedMode;
         }
 
         var nonNullResolvedItem = resolvedItem!;
-        writeTargetItem = writeMode == SignalWriteMode.Request && nonNullResolvedItem.Has("Request")
-            ? nonNullResolvedItem["Request"]!
-            : nonNullResolvedItem;
+        writeTargetItem = nonNullResolvedItem;
         return true;
     }
 

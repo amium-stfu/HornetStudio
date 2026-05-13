@@ -24,5 +24,5 @@
 ## Build Verification
 
 - A build check means building the complete solution without starting any application.
-- Prefer `dotnet build HornetStudio.sln --no-restore` for build verification when restore has already completed.
+- Prefer the repository-specific build command defined in the solution rules when restore has already completed.
 - Do not use `dotnet run` or start demo, UI, or service projects as part of a build check.

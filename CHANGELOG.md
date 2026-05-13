@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Kept the normal Item and Signal widget `Property` editor field hidden while keeping `write` out of display-property pickers, and documented that runtime input automatically writes to an item's `write` property when available before falling back to `read`.
 - Removed the legacy `tools/` tree, including the old Amium multimaster demo build output and the obsolete `Item.Server.Monitor` project, and detached the monitor from the solution and host tests.
 - Migrated HornetStudio from embedded `amium_item/` source and artifact DLL references to fixed-version internal NuGet packages `Amium.Item`, `Amium.Item.Client`, and `Amium.Item.Server` from the configured `amium-at` feed, and simplified the local build flow to restore and build `HornetStudio.sln` directly.
 - Reworked the default `Amium.Item.Server` MQTT host path into a lean embedded MQTT item host: it no longer creates an implicit in-memory item broker for normal MQTT traffic, publishes core and MQTT health directly as retained `$SYS/...` topics, keeps only cheap visible-topic/client metrics for health, and documents MQTT retained topics plus client-side reconstruction as the current last-known-state source.

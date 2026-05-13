@@ -253,6 +253,12 @@ Die Enhanced-Signal-Runtime unterstützt im ersten Wurf einen optionalen Kalman-
 - Wenn `KalmanEnabled = true` ist, verwendet die Runtime für dieses Signal den Kalman-Pfad als alternative Stage-2-Berechnung.
 - Die klassischen Filtermodi bleiben im Code unverändert und werden nur dann weiter genutzt, wenn Kalman deaktiviert ist.
 
+**Set-Write-Routing**
+
+- Wenn `ForwardChildWritesToSource = true` ist, behandelt die Runtime `studio.<Folder>.enhanced_signals.<Signal>.set` und `...set.write` als Schreib-Proxy zur Source.
+- Vor dem Weiterreichen wird eine aktive `Adjustment`-Konfiguration invers angewendet, damit die Source den unkalibrierten Rohwert erhaelt.
+- Das Ziel-Item wird bevorzugt ueber dessen `write`-Property beschrieben. Nur wenn keine `write`-Property vorhanden ist, faellt die Runtime auf `Item.Value` zurueck.
+
 ### 8.2. Teach-Mode
 
 - Der erste Teach-Wurf lernt nur die Messrausch-Varianz `R`.
@@ -299,7 +305,7 @@ Unter dem veröffentlichten Filtermodul wird ein `Kalman`-Zweig publiziert. Dort
 - Unter `Statistics.Params` stehen die aktiven Publish-Flags sowie `RetentionWindowMs`, `StdDevWindowMs` und `IntegralDivisorMs` fuer Diagnose und Nachvollziehbarkeit zur Verfuegung.
 - `Statistics.Reset` ist ein Bool-Trigger. Ein Schreibzugriff mit `true` setzt nur die Statistik lokal zurueck, ohne die gemeinsame Sample-Historie der restlichen Filterpfade zu loeschen, und springt danach automatisch wieder auf `false`.
 
-Der Teach-Mode wird ueber `studio.<Folder>.EnhancedSignals.<SignalName>.Kalman.Request` gesteuert:
+Der Teach-Mode wird ueber `studio.<Folder>.enhanced_signals.<SignalName>.Kalman.Request` gesteuert:
 
 - `StartTeach`
 - `StopTeach`

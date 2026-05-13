@@ -26,6 +26,8 @@ Displays a bound signal value and can open editors or execute interactions again
 
 The signal widget uses property visualization and can open typed value editors or send direct input to the configured target.
 
+Target selection resolves an item path. The displayed property defaults to `read` when available. User input is routed automatically to the same item's `write` property when that property exists; otherwise the widget falls back to writing the displayed `read` value.
+
 ## Source
 
 - `src/Hornetstudio.Editor/Widgets/Signal/`

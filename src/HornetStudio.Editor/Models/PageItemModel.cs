@@ -3399,19 +3399,16 @@ public sealed class FolderItemModel : ObservableObject
             return ResolveWriteParameter();
         }
 
-        if (TryResolveDeclaredWriteBinding(targetItem, out var declaredTarget))
-        {
-            return ResolveValueParameter(declaredTarget);
-        }
-
         if (targetItem.Properties.Has("write"))
         {
             return targetItem.Properties["write"];
         }
 
-        if (targetItem.Has("Request"))
+        if (TryResolveDeclaredWriteBinding(targetItem, out var declaredTarget))
         {
-            return targetItem["Request"].Properties["read"];
+            return declaredTarget.Properties.Has("write")
+                ? declaredTarget.Properties["write"]
+                : ResolveValueParameter(declaredTarget);
         }
 
         return ResolveInteractionReadParameter(targetPath, targetItem);
@@ -4546,19 +4543,16 @@ public sealed class FolderItemModel : ObservableObject
             return null;
         }
 
-        if (TryResolveDeclaredWriteBinding(Target, out var declaredTarget))
-        {
-            return ResolveValueParameter(declaredTarget);
-        }
-
         if (Target.Properties.Has("write"))
         {
             return Target.Properties["write"];
         }
 
-        if (Target.Has("Request"))
+        if (TryResolveDeclaredWriteBinding(Target, out var declaredTarget))
         {
-            return Target["Request"].Properties["read"];
+            return declaredTarget.Properties.Has("write")
+                ? declaredTarget.Properties["write"]
+                : ResolveValueParameter(declaredTarget);
         }
 
         return ResolveTargetProperty();
@@ -4581,11 +4575,6 @@ public sealed class FolderItemModel : ObservableObject
             return Target;
         }
 
-        if (Target.Has("Request"))
-        {
-            return Target["Request"];
-        }
-
         return Target;
     }
 
@@ -4599,11 +4588,6 @@ public sealed class FolderItemModel : ObservableObject
         if (targetItem.Properties.Has("write"))
         {
             return targetItem;
-        }
-
-        if (targetItem.Has("Request"))
-        {
-            return targetItem["Request"];
         }
 
         return targetItem;
@@ -4820,10 +4804,12 @@ public sealed class FolderItemModel : ObservableObject
         if (sourceItem.Properties.Has("write_mode")
             && Enum.TryParse<SignalWriteMode>(sourceItem.Properties["write_mode"].Value?.ToString(), true, out parsedMode))
         {
-            return parsedMode;
+            return parsedMode == SignalWriteMode.Request
+                ? SignalWriteMode.Direct
+                : parsedMode;
         }
 
-        return sourceItem.Has("Request") ? SignalWriteMode.Request : SignalWriteMode.Direct;
+        return SignalWriteMode.Direct;
     }
 
     private static string GetResolvedWritePath(ItemModel sourceItem)
@@ -4845,11 +4831,6 @@ public sealed class FolderItemModel : ObservableObject
             }
 
             return declaredWritePath;
-        }
-
-        if (sourceItem.Has("Request"))
-        {
-            return sourceItem["Request"].Path ?? "-";
         }
 
         return sourceItem.Path ?? "-";
@@ -4886,13 +4867,13 @@ public sealed class FolderItemModel : ObservableObject
         if (sourceItem.Properties.Has("write_mode")
             && Enum.TryParse<SignalWriteMode>(sourceItem.Properties["write_mode"].Value?.ToString(), true, out parsedMode))
         {
-            writeMode = parsedMode;
+            writeMode = parsedMode == SignalWriteMode.Request
+                ? SignalWriteMode.Direct
+                : parsedMode;
         }
 
         var nonNullResolvedItem = resolvedItem!;
-        writeTargetItem = writeMode == SignalWriteMode.Request && nonNullResolvedItem.Has("Request")
-            ? nonNullResolvedItem["Request"]
-            : nonNullResolvedItem;
+        writeTargetItem = nonNullResolvedItem;
         return true;
     }
 

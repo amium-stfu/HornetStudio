@@ -151,7 +151,7 @@ public sealed class UdlDemoModulesDialogViewModel : ObservableObject
         string candidateName;
         do
         {
-            candidateName = $"DemoModule{suffix:00}";
+            candidateName = $"m{suffix:000}";
             suffix++;
         }
         while (Rows.Any(row => string.Equals(row.Name, candidateName, StringComparison.OrdinalIgnoreCase)));
@@ -403,6 +403,12 @@ public sealed class UdlDemoModuleEditorRow : ObservableObject
             return false;
         }
 
+        if (!IsCanonicalModuleName(name))
+        {
+            errorMessage = "Module name must use format m000: lowercase m followed by exactly three digits.";
+            return false;
+        }
+
         if (!TryParseDouble(BaseValueText, out var baseValue, out errorMessage, "BaseValue")
             || !TryParseDouble(AmplitudeText, out var amplitude, out errorMessage, "Amplitude")
             || !TryParseDouble(PeriodSecondsText, out var periodSeconds, out errorMessage, "PeriodSeconds")
@@ -442,6 +448,13 @@ public sealed class UdlDemoModuleEditorRow : ObservableObject
 
     private static string FormatNumber(double value)
         => value.ToString("0.###", CultureInfo.InvariantCulture);
+
+    private static bool IsCanonicalModuleName(string value)
+        => value.Length == 4
+           && value[0] == 'm'
+           && char.IsDigit(value[1])
+           && char.IsDigit(value[2])
+           && char.IsDigit(value[3]);
 
     private static bool TryParseDouble(string rawValue, out double value, out string errorMessage, string label)
     {

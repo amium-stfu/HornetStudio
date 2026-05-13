@@ -75,6 +75,7 @@ public sealed class UiFolderContext : IDisposable
         private readonly List<ItemModel> _subscribedSourceItems = [];
         private bool _isSyncingFromSource;
         private bool _isSyncingFromTarget;
+        private bool _initialTargetSnapshotObserved;
         private readonly string _targetPath;
 
         public AttachedItemLink(ItemModel source, ItemModel attachedItem, string targetPath)
@@ -209,6 +210,14 @@ public sealed class UiFolderContext : IDisposable
             var isChildTarget = e.Key.StartsWith(_targetPath + ".", StringComparison.Ordinal);
             if (!isDirectTarget && !isChildTarget)
             {
+                return;
+            }
+
+            if (isDirectTarget
+                && !_initialTargetSnapshotObserved
+                && e.ChangeKind == DataChangeKind.SnapshotUpserted)
+            {
+                _initialTargetSnapshotObserved = true;
                 return;
             }
 

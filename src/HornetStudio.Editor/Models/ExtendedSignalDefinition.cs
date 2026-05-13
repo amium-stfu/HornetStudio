@@ -90,7 +90,7 @@ public sealed class ExtendedSignalDefinitionDocument
 
     public string WritePath { get; init; } = string.Empty;
 
-    public SignalWriteMode WriteMode { get; init; } = SignalWriteMode.Request;
+    public SignalWriteMode WriteMode { get; init; } = SignalWriteMode.Direct;
 
     public bool ForwardChildWritesToSource { get; init; }
 

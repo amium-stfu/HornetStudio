@@ -4,6 +4,7 @@ using Amium.Item.Server;
 using Amium.Item.Server.Mqtt;
 using Amium.Item.Client;
 using HornetStudio.Contracts;
+using HornetStudio.Editor.Models;
 using HornetStudio.Host;
 using MQTTnet.Server;
 using System.Reflection;
@@ -36,8 +37,13 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Prune clears stale descendants", () => RunSync(PruneClearsStaleDescendants)),
     ("Signal lookup works for descendants", () => RunSync(SignalLookupWorksForDescendants)),
     ("Signal update fires for descendant updates", () => RunSync(SignalUpdateFiresForDescendantUpdates)),
-    ("UI folder child source update preserves request child", () => RunSync(UiFolderChildSourceUpdatePreservesRequestChild)),
+    ("UI folder child source update preserves write property", () => RunSync(UiFolderChildSourceUpdatePreservesWriteProperty)),
+    ("UI folder initial publish preserves source runtime paths", () => RunSync(UiFolderInitialPublishPreservesSourceRuntimePaths)),
     ("Host UDL client creates flat channels", () => RunSync(HostUdlClientCreatesFlatChannels)),
+    ("Enhanced signal runtime publishes snake_case write paths", () => RunSync(EnhancedSignalRuntimePublishesSnakeCaseWritePaths)),
+    ("Enhanced signal set write forwards inverse adjustment", () => RunSync(EnhancedSignalSetWriteForwardsInverseAdjustment)),
+    ("Enhanced signal prefers child read over source container text", () => RunSync(EnhancedSignalPrefersChildReadOverSourceContainerText)),
+    ("Enhanced signal ignores nonnumeric source text for numeric conversion", () => RunSync(EnhancedSignalIgnoresNonnumericSourceTextForNumericConversion)),
     ("Host item broker client receives live items", HostItemBrokerClientReceivesLiveItems),
     ("Host item broker client hides self-published items", HostItemBrokerClientHidesSelfPublishedItems),
     ("Host item broker client snapshots are detached", HostItemBrokerClientSnapshotsAreDetached),
@@ -241,6 +247,8 @@ static void ProtectedParameterPolicyDetectsProtectedNames()
     AssertTrue(HostRegistryPropertyPolicy.IsProtectedProperty("writepath"));
     AssertFalse(HostRegistryPropertyPolicy.IsProtectedProperty("Value"));
     AssertFalse(HostRegistryPropertyPolicy.IsProtectedProperty("Unit"));
+    AssertFalse(HostRegistryPropertyPolicy.CanShowInUserPicker("write"));
+    AssertTrue(HostRegistryPropertyPolicy.CanUserWriteProperty("write"));
 }
 
 static void GuardedUserParameterWriteRejectsProtectedNames()
@@ -349,22 +357,35 @@ static void SignalUpdateFiresForDescendantUpdates()
     AssertEqual(5, changedValue);
 }
 
-static void UiFolderChildSourceUpdatePreservesRequestChild()
+static void UiFolderChildSourceUpdatePreservesWriteProperty()
 {
     var source = ItemExtension.CreateWithPath("runtime.ui_folder_mirror.m300", 0);
     source["read"].Value = 0;
-    source["set"]["request"].Value = 0;
+    source["set"].Properties["write"].Value = 0;
     using var context = new UiFolderContext("MirrorTest");
     var attached = context.Attach(source, "m300");
     HostRegistries.Data.UpsertSnapshot(attached.Path!, attached);
 
-    AssertTrue(HostRegistries.Data.UpdateValue("studio.mirror_test.m300.set.request", 42));
+    AssertTrue(HostRegistries.Data.TryUpdateUserProperty("studio.mirror_test.m300.set", "write", 42));
     source["read"].Value = 1;
 
     AssertTrue(HostRegistries.Data.TryResolve("studio.mirror_test.m300.read", out var read));
     AssertEqual(1, read?.Value);
-    AssertTrue(HostRegistries.Data.TryResolve("studio.mirror_test.m300.set.request", out var request));
-    AssertEqual(42, request?.Value);
+    AssertTrue(HostRegistries.Data.TryResolve("studio.mirror_test.m300.set", out var set));
+    AssertEqual(42, set?.Properties["write"].Value);
+}
+
+static void UiFolderInitialPublishPreservesSourceRuntimePaths()
+{
+    var source = ItemExtension.CreateWithPath("runtime.ui_folder_mirror.m002", 0);
+    source["read"].Value = 1;
+
+    using var context = new UiFolderContext("MirrorTest");
+    var attached = context.Attach(source, "m002");
+    HostRegistries.Data.UpsertSnapshot(attached.Path!, attached.Clone(), DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
+
+    AssertEqual("runtime.ui_folder_mirror.m002", source.Path);
+    AssertEqual("runtime.ui_folder_mirror.m002.read", source["read"].Path);
 }
 
 static void HostUdlClientCreatesFlatChannels()
@@ -389,6 +410,151 @@ static void HostUdlClientCreatesFlatChannels()
     AssertTrue(module.Has("alert"));
     AssertTrue(module["alert"].Properties.Has("read"));
     AssertFalse(module["alert"].Properties.Has("write"));
+}
+
+static void EnhancedSignalRuntimePublishesSnakeCaseWritePaths()
+{
+    var definition = new ExtendedSignalDefinition
+    {
+        Name = "enhanced_signal_test",
+        SourcePath = "runtime.enhanced_signal_source.read",
+        KalmanEnabled = true,
+        KalmanDynamicQEnabled = true,
+        DynamicFilter = new ExtendedSignalDynamicFilterDefinition
+        {
+            Enabled = true
+        },
+        PeakFilter = new ExtendedSignalPeakFilterDefinition
+        {
+            Enabled = true
+        },
+        Statistics = new ExtendedSignalStatisticsDefinition
+        {
+            Enabled = true,
+            PublishMin = true,
+            PublishMax = true,
+            PublishAverage = true,
+            PublishStdDev = true,
+            PublishIntegral = true
+        },
+        Adjustment = new ExtendedSignalAdjustmentDefinition
+        {
+            Enabled = true,
+            MappingMode = ExtendedSignalAdjustmentMode.Spline
+        }
+    };
+
+    using var runtime = new EnhancedSignalRuntime("enhanced_signal_runtime_test", definition);
+    var rootPath = runtime.RegistryPath;
+
+    AssertTrue(HostRegistries.Data.TryResolve($"{rootPath}.kalman.write", out _));
+    AssertTrue(HostRegistries.Data.TryResolve($"{rootPath}.adjustment.write", out _));
+    AssertTrue(HostRegistries.Data.TryResolve($"{rootPath}.adjustment.mapping_mode", out _));
+    AssertTrue(HostRegistries.Data.TryResolve($"{rootPath}.statistics.reset", out _));
+    AssertTrue(HostRegistries.Data.TryResolve($"{rootPath}.read", out var read));
+    AssertTrue(read!.Properties.Has("read"));
+    AssertTrue(read.Properties.Has("write"));
+    AssertFalse(read.Has("write"));
+
+    AssertTrue(HostRegistries.Data.TryGetMetadata(rootPath, out var metadata));
+    AssertTrue(metadata.Capabilities.HasFlag(DataRegistryItemCapabilities.Display));
+    AssertTrue(HostRegistries.Data.GetKeysByCapability(DataRegistryItemCapabilities.Display).Contains(rootPath, StringComparer.OrdinalIgnoreCase));
+
+    AssertTrue(HostRegistries.Data.TryGet(rootPath, out var root));
+    AssertFalse(EnumerateItemPaths(root!).Any(static path => path.Split('.').Any(static segment => !IsSnakeCaseSegment(segment))));
+}
+
+static void EnhancedSignalSetWriteForwardsInverseAdjustment()
+{
+    const string sourcePath = "runtime.enhanced_signal_inverse_source.m001";
+    var source = CreateFlatSourceModule("m001", initialValue: 10d);
+    HostRegistries.Data.UpsertSnapshot(sourcePath, source, pruneMissingMembers: true);
+
+    var definition = new ExtendedSignalDefinition
+    {
+        Name = "inverse_adjustment_test",
+        SourcePath = $"{sourcePath}.read",
+        ForwardChildWritesToSource = true,
+        Adjustment = new ExtendedSignalAdjustmentDefinition
+        {
+            Enabled = true,
+            Gain = 2d,
+            Offset = 5d,
+            SupportsInverseMapping = true
+        }
+    };
+
+    using var runtime = new EnhancedSignalRuntime("enhanced_signal_runtime_test", definition);
+
+    AssertTrue(HostRegistries.Data.UpdateProperty($"{runtime.RegistryPath}.set", "write", 25d));
+    AssertTrue(HostRegistries.Data.TryResolve($"{sourcePath}.set", out var sourceSet));
+    AssertEqual(10d, sourceSet?.Properties["write"].Value);
+    AssertTrue(HostRegistries.Data.TryResolve($"{runtime.RegistryPath}.set", out var enhancedSet));
+    AssertEqual(25d, enhancedSet?.Properties["read"].Value);
+    AssertEqual(25d, enhancedSet?.Properties["write"].Value);
+
+    AssertTrue(HostRegistries.Data.UpdateValue($"{runtime.RegistryPath}.set", 45d));
+    AssertEqual(20d, sourceSet?.Properties["write"].Value);
+    AssertEqual(45d, enhancedSet?.Properties["read"].Value);
+    AssertEqual(45d, enhancedSet?.Properties["write"].Value);
+
+    const string fallbackSourcePath = "runtime.enhanced_signal_inverse_source.m003";
+    var fallbackSource = CreateFlatSourceModule("m003", initialValue: 10d, setHasWriteChannel: false);
+    HostRegistries.Data.UpsertSnapshot(fallbackSourcePath, fallbackSource, pruneMissingMembers: true);
+
+    var fallbackDefinition = new ExtendedSignalDefinition
+    {
+        Name = "inverse_adjustment_fallback_test",
+        SourcePath = $"{fallbackSourcePath}.read",
+        ForwardChildWritesToSource = true,
+        Adjustment = new ExtendedSignalAdjustmentDefinition
+        {
+            Enabled = true,
+            Gain = 2d,
+            Offset = 5d,
+            SupportsInverseMapping = true
+        }
+    };
+
+    using var fallbackRuntime = new EnhancedSignalRuntime("enhanced_signal_runtime_test", fallbackDefinition);
+
+    AssertTrue(HostRegistries.Data.UpdateValue($"{fallbackRuntime.RegistryPath}.set", 25d));
+    AssertTrue(HostRegistries.Data.TryResolve($"{fallbackSourcePath}.set", out var fallbackSourceSet));
+    AssertFalse(fallbackSourceSet!.Properties.Has("write"));
+    AssertEqual(10d, fallbackSourceSet.Value);
+}
+
+static void EnhancedSignalPrefersChildReadOverSourceContainerText()
+{
+    const string sourcePath = "runtime.enhanced_signal_inverse_source.m002";
+    const double expectedValue = -0.485d;
+    var source = CreateFlatSourceModule("m002", expectedValue);
+    source.Value = "Noise Jitter -0,485";
+    HostRegistries.Data.UpsertSnapshot(sourcePath, source, pruneMissingMembers: true);
+
+    var definition = new ExtendedSignalDefinition
+    {
+        Name = "container_text_test",
+        SourcePath = sourcePath
+    };
+
+    using var runtime = new EnhancedSignalRuntime("enhanced_signal_runtime_test", definition);
+
+    AssertTrue(HostRegistries.Data.TryResolve($"{runtime.RegistryPath}.raw", out var raw));
+    AssertTrue(HostRegistries.Data.TryResolve($"{runtime.RegistryPath}.read", out var read));
+    AssertEqual(expectedValue, raw?.Value);
+    AssertEqual(expectedValue, raw?.Properties["read"].Value);
+    AssertEqual(expectedValue, read?.Value);
+    AssertEqual(expectedValue, read?.Properties["read"].Value);
+}
+
+static void EnhancedSignalIgnoresNonnumericSourceTextForNumericConversion()
+{
+    var method = typeof(EnhancedSignalRuntime).GetMethod("ToNullableDouble", BindingFlags.Static | BindingFlags.NonPublic);
+    AssertTrue(method is not null);
+
+    var value = method!.Invoke(null, ["Noise Jitter -0,348"]);
+    AssertEqual(null, value);
 }
 
 static async Task HostItemBrokerClientReceivesLiveItems()
@@ -644,6 +810,25 @@ static ItemModel CreateDeviceSnapshot(int readValue)
     return ItemExtension.CloneWithPath(root, "runtime.device");
 }
 
+static ItemModel CreateFlatSourceModule(string name, double initialValue, bool setHasWriteChannel = true)
+{
+    var root = new ItemModel(name);
+    AddFlatSourceChannel(root, "read", initialValue, hasWriteChannel: true);
+    AddFlatSourceChannel(root, "set", initialValue, hasWriteChannel: setHasWriteChannel);
+    AddFlatSourceChannel(root, "out", initialValue, hasWriteChannel: true);
+    return ItemExtension.CloneWithPath(root, $"runtime.enhanced_signal_inverse_source.{name}");
+}
+
+static void AddFlatSourceChannel(ItemModel root, string channelName, double initialValue, bool hasWriteChannel)
+{
+    root[channelName] = new ItemModel(channelName, hasWriteChannel: hasWriteChannel);
+    root[channelName].Properties["read"].Value = initialValue;
+    if (hasWriteChannel)
+    {
+        root[channelName].Properties["write"].Value = initialValue;
+    }
+}
+
 static bool ContainsItemPath(ItemModel root, string path)
 {
     var segments = path
@@ -659,6 +844,54 @@ static bool ContainsItemPath(ItemModel root, string path)
         }
 
         current = current.GetDictionary()[matchingChildName];
+    }
+
+    return true;
+}
+
+static IEnumerable<string> EnumerateItemPaths(ItemModel item)
+{
+    if (!string.IsNullOrWhiteSpace(item.Path))
+    {
+        yield return item.Path!;
+    }
+
+    foreach (var child in item.GetDictionary().Values)
+    {
+        foreach (var childPath in EnumerateItemPaths(child))
+        {
+            yield return childPath;
+        }
+    }
+}
+
+static bool IsSnakeCaseSegment(string segment)
+{
+    if (string.IsNullOrWhiteSpace(segment) || !char.IsLetter(segment[0]) || segment[^1] == '_')
+    {
+        return false;
+    }
+
+    var previousWasSeparator = false;
+    foreach (var character in segment)
+    {
+        if (character == '_')
+        {
+            if (previousWasSeparator)
+            {
+                return false;
+            }
+
+            previousWasSeparator = true;
+            continue;
+        }
+
+        if (!char.IsLower(character) && !char.IsDigit(character))
+        {
+            return false;
+        }
+
+        previousWasSeparator = false;
     }
 
     return true;

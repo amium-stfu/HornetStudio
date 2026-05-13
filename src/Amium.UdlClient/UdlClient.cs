@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
-using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using ItemModel = Amium.Items.Item;
@@ -234,14 +234,13 @@ public sealed class UdlClient : IDisposable
             }
 
             case 2:
-                module.Alert.Value = BitConverter.ToSingle(data, 0);
+                SetChannelReadValue(module.Alert, BitConverter.ToSingle(data, 0));
                 break;
 
             case 3:
             {
                 var value = BitConverter.ToSingle(data, 0);
                 SetChannelReadValue(module.Read, value);
-                module.Value = value;
                 var metadata = (ushort)(data[4] | (data[5] << 8));
                 module.Read.Properties["MetaData"].Value = metadata;
                 module.Properties["MetaData"].Value = metadata;
@@ -338,15 +337,6 @@ public sealed class UdlClient : IDisposable
 
         Items[key] = module;
         return module;
-    }
-
-    private void ProcessWriteSet(uint moduleId, Module module)
-    {
-        WriteDiagnostic($"process write set moduleId=0x{moduleId:X3} readWrite={FormatObject(TryGetWritePropertyValue(module.Read))} read={FormatObject(module.Read.Value)} setWrite={FormatObject(TryGetWritePropertyValue(module.Set))} set={FormatObject(module.Set.Value)} outWrite={FormatObject(TryGetWritePropertyValue(module.Out))} out={FormatObject(module.Out.Value)} stateWrite={FormatObject(TryGetWritePropertyValue(module.State))} state={FormatObject(module.State.Value)}");
-        TryWrite(moduleId, module.Read, module.Read, 3);
-        TryWriteCommand(moduleId, module);
-        TryWrite(moduleId, module.Set, module.Set, 4);
-        TryWrite(moduleId, module.Out, module.Out, 5);
     }
 
     private void OnWriteItemChanged(uint moduleId, Module module, ItemChangedEventArgs e)
@@ -448,7 +438,7 @@ public sealed class UdlClient : IDisposable
         shouldSend = false;
         timedOut = false;
 
-        var hasRequest = TryGetRequestedValue(module.State, out var requestedValue);
+        var hasRequest = TryGetWriteValue(module.State, out var requestedValue);
         var now = DateTime.UtcNow;
         var sendTimeout = GetSendTimeout();
 
@@ -540,15 +530,15 @@ public sealed class UdlClient : IDisposable
 
     private void TryWrite(uint moduleId, ItemModel requestItem, ItemModel currentItem, int function)
     {
-        WriteDiagnostic($"try write moduleId=0x{moduleId:X3} function={function} requestPath={requestItem.Path} requestValue={FormatObject(TryGetWritePropertyValue(requestItem) ?? requestItem.Value)} currentPath={currentItem.Path} currentValue={FormatObject(currentItem.Value)}");
+        WriteDiagnostic($"try write moduleId=0x{moduleId:X3} function={function} requestPath={requestItem.Path} requestValue={FormatObject(TryGetWritePropertyValue(requestItem))} currentPath={currentItem.Path} currentValue={FormatObject(TryGetReadPropertyValue(currentItem))}");
 
-        if (!TryGetDesiredWriteValue(requestItem, currentItem, out var desiredValue))
+        if (!TryGetWriteValue(requestItem, out var desiredValue))
         {
             WriteDiagnostic($"try write skipped moduleId=0x{moduleId:X3} function={function} reason=no-desired-value requestPath={requestItem.Path}");
             return;
         }
 
-        if (!TryConvertToDouble(currentItem.Value, out double currentValue))
+        if (!TryGetReadValue(currentItem, out double currentValue))
         {
             WriteDiagnostic($"write request moduleId=0x{moduleId:X3} function={function} current=<unset> desired={desiredValue:0.###} source={requestItem.Path}");
             var queuedWithoutCurrent = SendWritePdo(moduleId, desiredValue, function);
@@ -616,106 +606,20 @@ public sealed class UdlClient : IDisposable
         return false;
     }
 
-    private static bool TryGetModuleId(Module module, out uint moduleId)
-    {
-        moduleId = 0;
-        if (!module.Properties.Has("module_id"))
-        {
-            return false;
-        }
-
-        var value = module.Properties["module_id"].Value;
-        return TryConvertToUInt32(value, out moduleId);
-    }
-
     private static bool TryGetWriteValue(ItemModel item, out double value)
     {
         value = 0;
-        if (item.Properties.Has("write"))
-        {
-            return TryConvertToDouble(item.Properties["write"].Value, out value) && !double.IsNaN(value);
-        }
-
-        if (!item.Properties.Has("Write"))
-        {
-            return false;
-        }
-
-        return TryConvertToDouble(item.Properties["Write"].Value, out value) && !double.IsNaN(value);
+        return item.Properties.Has("write")
+            && TryConvertToDouble(item.Properties["write"].Value, out value)
+            && !double.IsNaN(value);
     }
 
-    private static bool TryGetSetValue(ItemModel item, out double value)
+    private static bool TryGetReadValue(ItemModel item, out double value)
     {
         value = 0;
-        if (item.Properties.Has("set"))
-        {
-            return TryConvertToDouble(item.Properties["set"].Value, out value) && !double.IsNaN(value);
-        }
-
-        if (!item.Properties.Has("Set"))
-        {
-            return false;
-        }
-
-        return TryConvertToDouble(item.Properties["Set"].Value, out value) && !double.IsNaN(value);
-    }
-
-    private static bool TryGetRequestItemValue(ItemModel item, out double value)
-    {
-        value = 0;
-        if (!item.Has("Request"))
-        {
-            return false;
-        }
-
-        return TryConvertToDouble(item["Request"].Value, out value) && !double.IsNaN(value);
-    }
-
-    private static bool TryGetRequestedValue(ItemModel item, out double value)
-    {
-        return TryGetRequestItemValue(item, out value)
-            || TryGetSetValue(item, out value)
-            || TryGetWriteValue(item, out value);
-    }
-
-    private static bool TryGetDesiredWriteValue(ItemModel requestItem, ItemModel ownerItem, out double value)
-    {
-        value = 0;
-
-        if (TryGetRequestedValue(requestItem, out value))
-        {
-            return true;
-        }
-
-        if (TryConvertToDouble(requestItem.Value, out value) && !double.IsNaN(value))
-        {
-            return true;
-        }
-
-        return TryGetSetValue(ownerItem, out value)
-            || TryGetWriteValue(ownerItem, out value);
-    }
-
-    private static bool HasRequestedValue(ItemModel item)
-    {
-        return TryGetRequestItemValue(item, out _)
-            || item.Properties.Has("set")
-            || item.Properties.Has("write")
-            || item.Properties.Has("Set")
-            || item.Properties.Has("Write");
-    }
-
-    private static void InitializeRequestValueIfMissing(ItemModel item)
-    {
-        if (!item.Has("Request"))
-        {
-            return;
-        }
-
-        if (item["Request"].Value is null)
-        {
-            item["Request"].Value = item.Value;
-        }
+        return item.Properties.Has("read")
+            && TryConvertToDouble(item.Properties["read"].Value, out value)
+            && !double.IsNaN(value);
     }
 
     private static void ClearRequestedValue(ItemModel item)
@@ -727,34 +631,23 @@ public sealed class UdlClient : IDisposable
                 : null!;
         }
 
-        if (item.Has("Request"))
-        {
-            if (item.Value is null)
-            {
-                item["Request"].Properties.Remove("Value");
-            }
-            else
-            {
-                item["Request"].Value = item.Value;
-            }
-
-            item["Request"].Properties.Remove("Set");
-            item["Request"].Properties.Remove("Write");
-        }
-
         item.Properties.Remove("Set");
         item.Properties.Remove("Write");
         item.Properties.Remove("set");
     }
 
     private static bool IsWriteTriggerProperty(string propertyName)
-        => string.Equals(propertyName, "write", StringComparison.OrdinalIgnoreCase)
-           || string.Equals(propertyName, "set", StringComparison.OrdinalIgnoreCase);
+        => string.Equals(propertyName, "write", StringComparison.OrdinalIgnoreCase);
 
     private static object? TryGetWritePropertyValue(ItemModel item)
         => item.Properties.Has("write")
             ? item.Properties["write"].Value
-            : (item.Properties.Has("Write") ? item.Properties["Write"].Value : null);
+            : null;
+
+    private static object? TryGetReadPropertyValue(ItemModel item)
+        => item.Properties.Has("read")
+            ? item.Properties["read"].Value
+            : null;
 
     private static void SetChannelReadValue(ItemModel item, object? value)
     {

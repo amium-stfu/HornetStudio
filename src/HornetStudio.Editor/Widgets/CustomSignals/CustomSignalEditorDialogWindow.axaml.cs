@@ -162,7 +162,7 @@ public sealed class CustomSignalEditorDialogViewModel : ObservableObject
         _availableDataTypeOptions = _allDataTypeOptions;
         ModeOptions = Enum.GetNames<CustomSignalMode>();
         TriggerOptions = Enum.GetNames<CustomSignalComputationTrigger>();
-        WriteModeOptions = Enum.GetNames<SignalWriteMode>();
+        WriteModeOptions = [SignalWriteMode.Direct.ToString()];
         OperatorButtons = CreateOperatorButtons();
         Variables.CollectionChanged += OnVariablesCollectionChanged;
 

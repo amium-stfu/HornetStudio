@@ -11,16 +11,14 @@ namespace HornetStudio.Host;
 
 public sealed class EnhancedSignalRuntime : IDisposable
 {
-    private static readonly string[] ForwardedChannelNames = ["Read", "Set", "Out", "Command"];
+    private static readonly string[] ForwardedChannelNames = ["read", "set", "out", "command"];
 
     private readonly ExtendedSignalDefinition _definition;
     private readonly ExtendedSignalModule _module;
     private readonly string _folderName;
     private readonly string _registryPath;
-    private readonly string _setRequestPath;
-    private readonly string _commandRequestPath;
-    private readonly string _kalmanRequestPath;
-    private readonly string _adjustmentRequestPath;
+    private readonly string _kalmanWritePath;
+    private readonly string _adjustmentWritePath;
     private readonly string _adjustmentEnabledPath;
     private readonly string _adjustmentMappingModePath;
     private readonly string _adjustmentSplineInterpolationModePath;
@@ -104,18 +102,16 @@ public sealed class EnhancedSignalRuntime : IDisposable
         _folderName = folderName;
         _definition = definition.Clone();
         _registryPath = BuildRegistryPath(folderName, _definition);
-        _setRequestPath = _registryPath + ".set.request";
-        _commandRequestPath = _registryPath + ".Command.Request";
-        _kalmanRequestPath = _registryPath + ".Kalman.Request";
-        _adjustmentRequestPath = _registryPath + ".Adjustment.Request";
-        _adjustmentEnabledPath = _registryPath + ".Adjustment.Enabled";
-        _adjustmentMappingModePath = _registryPath + ".Adjustment.MappingMode";
-        _adjustmentSplineInterpolationModePath = _registryPath + ".Adjustment.SplineInterpolationMode";
-        _adjustmentSplinePath = _registryPath + ".Adjustment.Spline";
-        _adjustmentGainPath = _registryPath + ".Adjustment.Gain";
-        _adjustmentOffsetPath = _registryPath + ".Adjustment.Offset";
-        _adjustmentSupportsInverseMappingPath = _registryPath + ".Adjustment.SupportsInverseMapping";
-        _statisticsResetPath = _registryPath + ".Statistics.Reset";
+        _kalmanWritePath = _registryPath + ".kalman.write";
+        _adjustmentWritePath = _registryPath + ".adjustment.write";
+        _adjustmentEnabledPath = _registryPath + ".adjustment.enabled";
+        _adjustmentMappingModePath = _registryPath + ".adjustment.mapping_mode";
+        _adjustmentSplineInterpolationModePath = _registryPath + ".adjustment.spline_interpolation_mode";
+        _adjustmentSplinePath = _registryPath + ".adjustment.spline";
+        _adjustmentGainPath = _registryPath + ".adjustment.gain";
+        _adjustmentOffsetPath = _registryPath + ".adjustment.offset";
+        _adjustmentSupportsInverseMappingPath = _registryPath + ".adjustment.supports_inverse_mapping";
+        _statisticsResetPath = _registryPath + ".statistics.reset";
         _sourceReadCandidates = EnhancedSignalPathHelper.EnumerateResolutionCandidates(_definition.SourcePath, folderName)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -137,11 +133,11 @@ public sealed class EnhancedSignalRuntime : IDisposable
 
     public object? CurrentRawValue => _module.Raw.Value;
 
-    public object? CurrentOutputValue => _module.Read.Value;
+    public object? CurrentOutputValue => ExtractValue(_module.Read);
 
-    public object? CurrentSetValue => _module.Set.Value;
+    public object? CurrentSetValue => ExtractValue(_module.Set);
 
-    public object? CurrentCommandValue => _module.Command.Value;
+    public object? CurrentCommandValue => ExtractValue(_module.Command);
 
     public object? CurrentAlertValue => _module.Alert.Value;
 
@@ -179,7 +175,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
         ArgumentNullException.ThrowIfNull(definition);
         var normalizedFolder = EnhancedSignalPathHelper.NormalizeConfiguredTargetPath(folderName).Replace('/', '.');
         var normalizedName = EnhancedSignalPathHelper.NormalizeConfiguredTargetPath(definition.Name).Replace('/', '.');
-        return $"studio.{normalizedFolder}.EnhancedSignals.{normalizedName}";
+        return $"studio.{normalizedFolder}.enhanced_signals.{normalizedName}";
     }
 
     public static string BuildRegistryPath(string folderName, string definitionName)
@@ -194,27 +190,15 @@ public sealed class EnhancedSignalRuntime : IDisposable
             return;
         }
 
-        if (EnhancedSignalPathHelper.PathsEqual(e.Key, _setRequestPath))
+        if (EnhancedSignalPathHelper.PathsEqual(e.Key, _kalmanWritePath))
         {
-            ProcessSetRequest(e.ItemModel);
+            ProcessKalmanWrite(e.ItemModel);
             return;
         }
 
-        if (EnhancedSignalPathHelper.PathsEqual(e.Key, _commandRequestPath))
+        if (EnhancedSignalPathHelper.PathsEqual(e.Key, _adjustmentWritePath))
         {
-            ProcessCommandRequest(e.ItemModel);
-            return;
-        }
-
-        if (EnhancedSignalPathHelper.PathsEqual(e.Key, _kalmanRequestPath))
-        {
-            ProcessKalmanRequest(e.ItemModel);
-            return;
-        }
-
-        if (EnhancedSignalPathHelper.PathsEqual(e.Key, _adjustmentRequestPath))
-        {
-            ProcessAdjustmentRequest(e.ItemModel);
+            ProcessAdjustmentWrite(e.ItemModel);
             return;
         }
 
@@ -309,18 +293,40 @@ public sealed class EnhancedSignalRuntime : IDisposable
         var now = DateTimeOffset.UtcNow;
         var isDynamic = false;
         var peakSuppressed = false;
+        var hasInvalidSourceValue = false;
 
         lock (_sync)
         {
             rawValue = useResolvedSourceValue ? resolvedSourceValue : ResolveSourceValue();
+            var sourceResolved = rawValue is not null;
+            if (!TryNormalizeNumericValue(rawValue, out rawValue))
+            {
+                hasInvalidSourceValue = sourceResolved;
+                captureSample = false;
+                rawValue = _definition.FillMissingWithLastValue ? _latestSourceValue : null;
+                if (!TryNormalizeNumericValue(rawValue, out rawValue))
+                {
+                    rawValue = null;
+                }
+            }
+
             hasSource = rawValue is not null;
             if (rawValue is null && !useResolvedSourceValue)
             {
                 rawValue = _latestSourceValue;
+                if (!TryNormalizeNumericValue(rawValue, out rawValue))
+                {
+                    rawValue = null;
+                }
+
                 hasSource = rawValue is not null;
             }
 
-            _latestSourceValue = rawValue;
+            if (rawValue is not null)
+            {
+                _latestSourceValue = rawValue;
+            }
+
             if (!hasSource)
             {
                 ResetFilterState();
@@ -339,10 +345,14 @@ public sealed class EnhancedSignalRuntime : IDisposable
             _module.Value = filteredValue!;
             _module.Raw.Value = rawValue!;
             _module.Read.Value = filteredValue!;
+            SetChannelReadValue(_module.Raw, rawValue);
+            SetChannelReadValue(_module.Read, filteredValue);
             _module.State.Value = string.IsNullOrWhiteSpace(_definition.SourcePath)
                 ? "No source"
-                : hasSource ? "Active" : "Waiting for source";
-            _module.Alert.Value = string.Empty;
+                : hasInvalidSourceValue && !hasSource ? "Invalid source value" : hasSource ? "Active" : "Waiting for source";
+            SetChannelReadValue(_module.State, _module.State.Value);
+            _module.Alert.Value = hasInvalidSourceValue && !hasSource ? "Source value must be numeric" : string.Empty;
+            SetChannelReadValue(_module.Alert, _module.Alert.Value);
             if (ShouldPublishDiagnostics(now, isDynamic))
             {
                 PublishDiagnostics(now, isDynamic, acceptedRawValue, peakSuppressed);
@@ -357,87 +367,13 @@ public sealed class EnhancedSignalRuntime : IDisposable
         FlushPendingPersistedDefinitionUpdate();
     }
 
-    private void ProcessSetRequest(ItemModel requestItem)
+    private void ProcessKalmanWrite(ItemModel writeItem)
     {
-        if (string.IsNullOrWhiteSpace(_definition.SourcePath))
-        {
-            SetAlert("SourcePath not configured");
-            return;
-        }
-
-        var requestValue = requestItem.Properties.Has("value") ? requestItem.Properties["value"].Value : requestItem.Value;
-        object? routedValue = requestValue;
-
-        if (!TryApplyInverseAdjustment(requestValue, out routedValue, out string errorMessage))
-        {
-            SetAlert(errorMessage);
-            return;
-        }
-
-        var routed = _definition.ForwardChildWritesToSource
-            ? ForwardChildValue("set.request", routedValue)
-            : UpdateTargetValue(_definition.SourcePath, routedValue);
-
-        if (!routed)
-        {
-            SetAlert($"Unable to route set to '{_definition.SourcePath}'");
-            return;
-        }
-
-        _isUpdating = true;
-        try
-        {
-            _module.Set.Value = requestValue!;
-            _module.State.Value = "Set routed";
-            _module.Alert.Value = string.Empty;
-            PublishSnapshot();
-        }
-        finally
-        {
-            _isUpdating = false;
-        }
-    }
-
-    private void ProcessCommandRequest(ItemModel requestItem)
-    {
-        var requestValue = requestItem.Properties.Has("value") ? requestItem.Properties["value"].Value : requestItem.Value;
-        if (string.IsNullOrWhiteSpace(_definition.SourcePath))
-        {
-            SetAlert("SourcePath not configured");
-            return;
-        }
-
-        var routed = _definition.ForwardChildWritesToSource
-            ? ForwardChildValue("Command.Request", requestValue)
-            : UpdateTargetValue(_definition.SourcePath, requestValue);
-
-        if (!routed)
-        {
-            SetAlert($"Unable to route command to '{_definition.SourcePath}'");
-            return;
-        }
-
-        _isUpdating = true;
-        try
-        {
-            _module.Command.Value = requestValue!;
-            _module.State.Value = "Command routed";
-            _module.Alert.Value = string.Empty;
-            PublishSnapshot();
-        }
-        finally
-        {
-            _isUpdating = false;
-        }
-    }
-
-    private void ProcessKalmanRequest(ItemModel requestItem)
-    {
-        var requestValue = requestItem.Properties.Has("value") ? requestItem.Properties["value"].Value : requestItem.Value;
-        var command = NormalizeRequestCommand(requestValue);
+        var writeValue = writeItem.Properties.Has("value") ? writeItem.Properties["value"].Value : writeItem.Value;
+        var command = NormalizeWriteCommand(writeValue);
         if (string.IsNullOrWhiteSpace(command))
         {
-            SetAlert("Kalman request is empty");
+            SetAlert("Kalman write is empty");
             return;
         }
 
@@ -468,7 +404,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
                     _kalmanTeachState = "Reset";
                     break;
                 default:
-                    SetAlert($"Unknown Kalman request '{requestValue}'");
+                    SetAlert($"Unknown Kalman write '{writeValue}'");
                     return;
             }
         }
@@ -476,9 +412,9 @@ public sealed class EnhancedSignalRuntime : IDisposable
         FlushPendingPersistedDefinitionUpdate();
     }
 
-    private void ProcessAdjustmentRequest(ItemModel requestItem)
+    private void ProcessAdjustmentWrite(ItemModel writeItem)
     {
-        if (!TryParseAdjustmentRequest(requestItem, out var action, out var targetValue, out var errorMessage))
+        if (!TryParseAdjustmentWrite(writeItem, out var action, out var targetValue, out var errorMessage))
         {
             SetAlert(errorMessage);
             return;
@@ -627,7 +563,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
             _isUpdating = true;
             try
             {
-                EnsureStatisticsBranch()["Reset"].Value = false;
+                EnsureStatisticsBranch()["reset"].Value = false;
                 PublishSnapshot();
             }
             finally
@@ -713,9 +649,24 @@ public sealed class EnhancedSignalRuntime : IDisposable
 
     private static object? ExtractValue(ItemModel item)
     {
-        if (item.Properties.Has("value"))
+        if (TryExtractChildChannelValue(item, "read", out var readValue))
         {
-            return item.Properties["value"].Value;
+            return readValue;
+        }
+
+        if (TryExtractChildChannelValue(item, "out", out var outValue))
+        {
+            return outValue;
+        }
+
+        if (TryGetPropertyValue(item, "value", out var valuePropertyValue))
+        {
+            return valuePropertyValue;
+        }
+
+        if (TryGetPropertyValue(item, "read", out var readPropertyValue))
+        {
+            return readPropertyValue;
         }
 
         if (item.Value is not null)
@@ -723,19 +674,44 @@ public sealed class EnhancedSignalRuntime : IDisposable
             return item.Value;
         }
 
-        if (item.Has("Out"))
-        {
-            var outItem = item["Out"];
-            return outItem.Properties.Has("value") ? outItem.Properties["value"].Value : outItem.Value;
-        }
-
-        if (item.Has("Read"))
-        {
-            var readItem = item["Read"];
-            return readItem.Properties.Has("value") ? readItem.Properties["value"].Value : readItem.Value;
-        }
-
         return null;
+    }
+
+    private static bool TryExtractChildChannelValue(ItemModel item, string childName, out object? value)
+    {
+        value = null;
+        var matchingChildName = item.GetDictionary().Keys
+            .FirstOrDefault(key => string.Equals(key, childName, StringComparison.OrdinalIgnoreCase));
+        if (matchingChildName is null)
+        {
+            return false;
+        }
+
+        var child = item[matchingChildName];
+        if (TryGetPropertyValue(child, "read", out value))
+        {
+            return true;
+        }
+
+        if (TryGetPropertyValue(child, "value", out value))
+        {
+            return true;
+        }
+
+        value = child.Value;
+        return child.Value is not null;
+    }
+
+    private static bool TryGetPropertyValue(ItemModel item, string propertyName, out object? value)
+    {
+        value = null;
+        if (!item.Properties.Has(propertyName))
+        {
+            return false;
+        }
+
+        value = item.Properties[propertyName].Value;
+        return value is not null;
     }
 
     private object? ApplyAdjustment(object? rawValue)
@@ -1179,16 +1155,16 @@ public sealed class EnhancedSignalRuntime : IDisposable
 
         if (_definition.PeakFilter.Enabled)
         {
-            _module["Peak"].Properties["Enabled"].Value = true;
-            _module["Peak"].Properties["Threshold"].Value = _definition.PeakFilter.Threshold;
-            _module["Peak"].Properties["MaxLengthMs"].Value = _definition.PeakFilter.MaxLengthMs;
-            _module["Peak"].Properties["active"].Value = peakActive;
-            _module["Peak"].Properties["Suppressed"].Value = peakSuppressed;
-            _module["Peak"].Properties["AcceptedRaw"].Value = acceptedRawText;
+            _module["peak"].Properties["Enabled"].Value = true;
+            _module["peak"].Properties["Threshold"].Value = _definition.PeakFilter.Threshold;
+            _module["peak"].Properties["MaxLengthMs"].Value = _definition.PeakFilter.MaxLengthMs;
+            _module["peak"].Properties["active"].Value = peakActive;
+            _module["peak"].Properties["Suppressed"].Value = peakSuppressed;
+            _module["peak"].Properties["AcceptedRaw"].Value = acceptedRawText;
         }
-        else if (_module.Has("Peak"))
+        else if (_module.Has("peak"))
         {
-            _module.Remove("Peak");
+            _module.Remove("peak");
         }
 
         if (ShouldPublishDynamicDiagnostics())
@@ -1201,22 +1177,22 @@ public sealed class EnhancedSignalRuntime : IDisposable
             dynamic.Properties["AppliedThreshold"].Value = dynamicThreshold;
             dynamic.Properties["DynamicFilterTimeMs"].Value = _definition.DynamicFilter.DynamicFilterTimeMs;
             dynamic.Properties["HoldTimeMs"].Value = _definition.DynamicFilter.HoldTimeMs;
-            dynamic["Active"].Value = isDynamic;
-            dynamic["Slope"].Value = dynamicSlope;
-            dynamic["Residual"].Value = dynamicResidual;
-            dynamic["RawAngleDeg"].Value = dynamicRawAngleDegrees;
-            dynamic["AngleDeg"].Value = dynamicAngleDegrees;
-            dynamic["RelativeChange"].Value = dynamicSlopeRatio;
-            dynamic["ReferenceValue"].Value = dynamicReferenceValue;
-            dynamic["EffectiveReferenceValue"].Value = dynamicEffectiveReferenceValue;
-            dynamic["NoiseReferenceValue"].Value = dynamicNoiseReferenceValue;
-            dynamic["NormalizationMode"].Value = dynamicNormalizationMode;
-            dynamic["ResidualWeight"].Value = dynamicResidualWeight;
-            dynamic["RemainingHoldMs"].Value = remainingHoldMs;
+            dynamic["active"].Value = isDynamic;
+            dynamic["slope"].Value = dynamicSlope;
+            dynamic["residual"].Value = dynamicResidual;
+            dynamic["raw_angle_deg"].Value = dynamicRawAngleDegrees;
+            dynamic["angle_deg"].Value = dynamicAngleDegrees;
+            dynamic["relative_change"].Value = dynamicSlopeRatio;
+            dynamic["reference_value"].Value = dynamicReferenceValue;
+            dynamic["effective_reference_value"].Value = dynamicEffectiveReferenceValue;
+            dynamic["noise_reference_value"].Value = dynamicNoiseReferenceValue;
+            dynamic["normalization_mode"].Value = dynamicNormalizationMode;
+            dynamic["residual_weight"].Value = dynamicResidualWeight;
+            dynamic["remaining_hold_ms"].Value = remainingHoldMs;
         }
-        else if (_module.Has("Dynamic"))
+        else if (_module.Has("dynamic"))
         {
-            _module.Remove("Dynamic");
+            _module.Remove("dynamic");
         }
 
         if (kalmanEnabled || kalmanTeachActive || !string.Equals(kalmanTeachState, "Idle", StringComparison.OrdinalIgnoreCase))
@@ -1253,39 +1229,39 @@ public sealed class EnhancedSignalRuntime : IDisposable
             kalman.Properties["DynamicTrendConfidence"].Value = dynamicTrendConfidence;
             kalman.Properties["DynamicNormalizationMode"].Value = dynamicNormalizationMode;
             kalman.Properties["DynamicResidualWeight"].Value = dynamicResidualWeight;
-            kalman["Estimate"].Value = kalmanEstimate;
-            kalman["MeasurementNoiseR"].Value = kalmanMeasurementNoiseR;
-            kalman["ProcessNoiseQ"].Value = kalmanProcessNoiseQ;
-            kalman["EffectiveProcessNoiseQ"].Value = effectiveKalmanProcessNoiseQ;
-            kalman["AdaptiveQActive"].Value = adaptiveKalmanQActive;
-            kalman["AdaptiveQHoldRemainingMs"].Value = adaptiveKalmanQHoldRemainingMs;
-            kalman["DynamicTriggerActive"].Value = isDynamic;
-            kalman["InnovationAbs"].Value = kalmanInnovationAbs;
-            kalman["AdaptiveQIntensity"].Value = adaptiveKalmanQIntensity;
-            kalman["DynamicSlopeRatio"].Value = dynamicSlopeRatio;
-            kalman["DynamicRawAngleDeg"].Value = dynamicRawAngleDegrees;
-            kalman["DynamicAngleDeg"].Value = dynamicAngleDegrees;
-            kalman["DynamicReferenceValue"].Value = dynamicReferenceValue;
-            kalman["DynamicEffectiveReferenceValue"].Value = dynamicEffectiveReferenceValue;
-            kalman["DynamicNoiseReferenceValue"].Value = dynamicNoiseReferenceValue;
-            kalman["DynamicMaxSlope"].Value = dynamicMaxSlope;
-            kalman["DynamicMaxAngleDeg"].Value = dynamicMaxAngleDegrees;
-            kalman["DynamicTrendConfidence"].Value = dynamicTrendConfidence;
-            kalman["DynamicNormalizationMode"].Value = dynamicNormalizationMode;
-            kalman["DynamicResidualWeight"].Value = dynamicResidualWeight;
+            kalman["estimate"].Value = kalmanEstimate;
+            kalman["measurement_noise_r"].Value = kalmanMeasurementNoiseR;
+            kalman["process_noise_q"].Value = kalmanProcessNoiseQ;
+            kalman["effective_process_noise_q"].Value = effectiveKalmanProcessNoiseQ;
+            kalman["adaptive_q_active"].Value = adaptiveKalmanQActive;
+            kalman["adaptive_q_hold_remaining_ms"].Value = adaptiveKalmanQHoldRemainingMs;
+            kalman["dynamic_trigger_active"].Value = isDynamic;
+            kalman["innovation_abs"].Value = kalmanInnovationAbs;
+            kalman["adaptive_q_intensity"].Value = adaptiveKalmanQIntensity;
+            kalman["dynamic_slope_ratio"].Value = dynamicSlopeRatio;
+            kalman["dynamic_raw_angle_deg"].Value = dynamicRawAngleDegrees;
+            kalman["dynamic_angle_deg"].Value = dynamicAngleDegrees;
+            kalman["dynamic_reference_value"].Value = dynamicReferenceValue;
+            kalman["dynamic_effective_reference_value"].Value = dynamicEffectiveReferenceValue;
+            kalman["dynamic_noise_reference_value"].Value = dynamicNoiseReferenceValue;
+            kalman["dynamic_max_slope"].Value = dynamicMaxSlope;
+            kalman["dynamic_max_angle_deg"].Value = dynamicMaxAngleDegrees;
+            kalman["dynamic_trend_confidence"].Value = dynamicTrendConfidence;
+            kalman["dynamic_normalization_mode"].Value = dynamicNormalizationMode;
+            kalman["dynamic_residual_weight"].Value = dynamicResidualWeight;
         }
-        else if (_module.Has("Kalman"))
+        else if (_module.Has("kalman"))
         {
-            _module.Remove("Kalman");
+            _module.Remove("kalman");
         }
 
         if (statistics.Enabled)
         {
             PublishStatisticsSnapshot(statistics);
         }
-        else if (_module.Has("Statistics"))
+        else if (_module.Has("statistics"))
         {
-            _module.Remove("Statistics");
+            _module.Remove("statistics");
         }
     }
 
@@ -1409,7 +1385,13 @@ public sealed class EnhancedSignalRuntime : IDisposable
                 return false;
             }
 
-            return ForwardChildParameter(relativePath, e.ParameterName, e.ItemModel.Properties[e.ParameterName].Value, e.Timestamp);
+            var value = e.ItemModel.Properties[e.ParameterName].Value;
+            if (IsSetWriteProperty(relativePath, e.ParameterName))
+            {
+                return ForwardSetInput(relativePath, value, e.Timestamp);
+            }
+
+            return ForwardChildParameter(relativePath, e.ParameterName, value, e.Timestamp);
         }
 
         if (e.ChangeKind != DataChangeKind.ValueUpdated)
@@ -1417,7 +1399,74 @@ public sealed class EnhancedSignalRuntime : IDisposable
             return false;
         }
 
+        if (IsSetPath(relativePath))
+        {
+            return ForwardSetInput(relativePath, ExtractSetInputValue(e.ItemModel), e.Timestamp);
+        }
+
         return ForwardChildValue(relativePath, ExtractValue(e.ItemModel), e.Timestamp);
+    }
+
+    private bool ForwardSetInput(string relativePath, object? value, ulong? timestamp)
+    {
+        if (!TryApplyInverseAdjustment(value, out var routedValue, out var error))
+        {
+            SetAlert(error);
+            return true;
+        }
+
+        foreach (var candidate in EnumerateForwardTargetCandidates(relativePath))
+        {
+            if (TryWriteInputToTarget(candidate, routedValue, timestamp))
+            {
+                UpdateLocalSetInput(value);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void UpdateLocalSetInput(object? value)
+    {
+        _isUpdating = true;
+        try
+        {
+            _module.Set.Value = value!;
+            SetChannelReadValue(_module.Set, value);
+            if (_module.Set.Properties.Has("write"))
+            {
+                _module.Set.Properties["write"].Value = value!;
+            }
+
+            PublishSnapshot();
+        }
+        finally
+        {
+            _isUpdating = false;
+        }
+    }
+
+    private static bool TryWriteInputToTarget(string targetPath, object? value, ulong? timestamp)
+    {
+        if (!HostRegistries.Data.TryResolve(targetPath, out var target) || target is null)
+        {
+            return false;
+        }
+
+        if (target.Properties.Has("write"))
+        {
+            return HostRegistries.Data.UpdateProperty(targetPath, "write", value, timestamp);
+        }
+
+        return HostRegistries.Data.UpdateValue(targetPath, value, timestamp);
+    }
+
+    private static object? ExtractSetInputValue(ItemModel item)
+    {
+        return (item.Properties.Has("write") ? item.Properties["write"].Value : null)
+            ?? item.Value
+            ?? ExtractValue(item);
     }
 
     private bool ForwardChildValue(string relativePath, object? value, ulong? timestamp = null)
@@ -1448,8 +1497,75 @@ public sealed class EnhancedSignalRuntime : IDisposable
 
     private IEnumerable<string> EnumerateForwardTargetCandidates(string relativePath)
     {
-        var targetPath = JoinNormalizedPath(_definition.SourcePath, relativePath);
+        var targetPath = ResolveForwardTargetPath(relativePath);
         return EnhancedSignalPathHelper.EnumerateResolutionCandidates(targetPath, _folderName);
+    }
+
+    private string ResolveForwardTargetPath(string relativePath)
+    {
+        var segments = EnhancedSignalPathHelper.SplitPathSegments(relativePath);
+        if (segments.Count == 0)
+        {
+            return _definition.SourcePath;
+        }
+
+        if (string.Equals(segments[0], "set", StringComparison.OrdinalIgnoreCase))
+        {
+            var writePath = ResolveEffectiveWritePath();
+            if (!string.IsNullOrWhiteSpace(writePath))
+            {
+                return AppendRemainingSegments(writePath, segments.Skip(1));
+            }
+
+            return AppendRemainingSegments(BuildSourceSiblingPath("set"), segments.Skip(1));
+        }
+
+        if (string.Equals(segments[0], "read", StringComparison.OrdinalIgnoreCase))
+        {
+            return AppendRemainingSegments(_definition.SourcePath, segments.Skip(1));
+        }
+
+        return JoinNormalizedPath(ResolveSourceRootPath(), relativePath);
+    }
+
+    private string BuildSourceSiblingPath(string channelName)
+    {
+        var sourceRootPath = ResolveSourceRootPath();
+        return string.IsNullOrWhiteSpace(sourceRootPath)
+            ? channelName
+            : JoinNormalizedPath(sourceRootPath, channelName);
+    }
+
+    private string ResolveSourceRootPath()
+    {
+        var segments = EnhancedSignalPathHelper.SplitPathSegments(_definition.SourcePath);
+        if (segments.Count > 0 && ForwardedChannelNames.Contains(segments[^1], StringComparer.OrdinalIgnoreCase))
+        {
+            return string.Join('.', segments.Take(segments.Count - 1));
+        }
+
+        return _definition.SourcePath;
+    }
+
+    private static string AppendRemainingSegments(string basePath, IEnumerable<string> remainingSegments)
+    {
+        var suffix = string.Join('.', remainingSegments);
+        return string.IsNullOrWhiteSpace(suffix)
+            ? basePath
+            : JoinNormalizedPath(basePath, suffix);
+    }
+
+    private static bool IsSetWriteProperty(string relativePath, string parameterName)
+    {
+        return IsSetPath(relativePath)
+            && string.Equals(parameterName, "write", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSetPath(string relativePath)
+    {
+        var segments = EnhancedSignalPathHelper.SplitPathSegments(relativePath);
+        return segments.Count > 0
+            && string.Equals(segments[0], "set", StringComparison.OrdinalIgnoreCase);
     }
 
     private string TryGetRelativePath(string path)
@@ -1554,13 +1670,13 @@ public sealed class EnhancedSignalRuntime : IDisposable
         _module.Config.Properties["PipelineMode"].Value = "TwoStage";
 
         var adjustment = EnsureAdjustmentBranch();
-        adjustment["Enabled"].Value = _definition.Adjustment.Enabled;
-        adjustment["MappingMode"].Value = _definition.Adjustment.MappingMode.ToString();
-        adjustment["Offset"].Value = _definition.Adjustment.Offset;
-        adjustment["Gain"].Value = _definition.Adjustment.Gain;
-        adjustment["SplineInterpolationMode"].Value = _definition.Adjustment.SplineInterpolationMode.ToString();
-        adjustment["SupportsInverseMapping"].Value = _definition.Adjustment.SupportsInverseMapping;
-        adjustment["Spline"].Value = JsonSerializer.Serialize(_definition.Adjustment.SplinePoints);
+        adjustment["enabled"].Value = _definition.Adjustment.Enabled;
+        adjustment["mapping_mode"].Value = _definition.Adjustment.MappingMode.ToString();
+        adjustment["offset"].Value = _definition.Adjustment.Offset;
+        adjustment["gain"].Value = _definition.Adjustment.Gain;
+        adjustment["spline_interpolation_mode"].Value = _definition.Adjustment.SplineInterpolationMode.ToString();
+        adjustment["supports_inverse_mapping"].Value = _definition.Adjustment.SupportsInverseMapping;
+        adjustment["spline"].Value = JsonSerializer.Serialize(_definition.Adjustment.SplinePoints);
 
         if (_definition.KalmanEnabled)
         {
@@ -1585,7 +1701,11 @@ public sealed class EnhancedSignalRuntime : IDisposable
 
     private void PublishSnapshot()
     {
-        HostRegistries.Data.UpsertSnapshot(_registryPath, _module, pruneMissingMembers: true);
+        HostRegistries.Data.UpsertSnapshot(
+            _registryPath,
+            _module,
+            DataRegistryItemMetadata.PublicData(),
+            pruneMissingMembers: true);
     }
 
     private string ResolveEffectiveWritePath()
@@ -1600,9 +1720,15 @@ public sealed class EnhancedSignalRuntime : IDisposable
             return _definition.WritePath;
         }
 
-        return _definition.WriteMode == SignalWriteMode.Request
-            ? _registryPath + ".Set"
-            : _definition.SourcePath;
+        return BuildSourceSiblingPath("set");
+    }
+
+    private static void SetChannelReadValue(ItemModel item, object? value)
+    {
+        if (item.Properties.Has("read"))
+        {
+            item.Properties["read"].Value = value!;
+        }
     }
 
     private void SetAlert(string message)
@@ -2240,108 +2366,108 @@ public sealed class EnhancedSignalRuntime : IDisposable
 
     private ItemModel EnsureKalmanBranch()
     {
-        if (!_module.Has("Kalman"))
+        if (!_module.Has("kalman"))
         {
-            _module.AddItem("Kalman");
+            _module.AddItem("kalman");
         }
 
-        var kalman = _module["Kalman"];
+        var kalman = _module["kalman"];
         kalman.Properties["text"].Value = $"{_definition.Name} Kalman";
-        if (!kalman.Has("Request"))
+        if (!kalman.Has("write"))
         {
-            kalman.AddItem("Request");
-            kalman["Request"].Properties["text"].Value = "Kalman Request";
-            kalman["Request"].Value = string.Empty;
+            kalman.AddItem("write");
+            kalman["write"].Properties["text"].Value = "Kalman Write";
+            kalman["write"].Value = string.Empty;
         }
 
-        EnsureKalmanValueItem(kalman, "Estimate", "Kalman Estimate");
-        EnsureKalmanValueItem(kalman, "MeasurementNoiseR", "Kalman Measurement Noise R");
-        EnsureKalmanValueItem(kalman, "ProcessNoiseQ", "Kalman Process Noise Q");
-        EnsureKalmanValueItem(kalman, "EffectiveProcessNoiseQ", "Kalman Effective Process Noise Q");
-        EnsureKalmanValueItem(kalman, "AdaptiveQActive", "Kalman Adaptive Q Active");
-        EnsureKalmanValueItem(kalman, "AdaptiveQHoldRemainingMs", "Kalman Adaptive Q Hold Remaining");
-        EnsureKalmanValueItem(kalman, "DynamicTriggerActive", "Kalman Dynamic Trigger Active");
-        EnsureKalmanValueItem(kalman, "InnovationAbs", "Kalman Innovation Abs");
-        EnsureKalmanValueItem(kalman, "AdaptiveQIntensity", "Kalman Adaptive Q Intensity");
-        EnsureKalmanValueItem(kalman, "DynamicSlopeRatio", "Kalman Dynamic Relative Change");
-        EnsureKalmanValueItem(kalman, "DynamicRawAngleDeg", "Kalman Dynamic Raw Angle Deg");
-        EnsureKalmanValueItem(kalman, "DynamicAngleDeg", "Kalman Dynamic Angle Deg");
-        EnsureKalmanValueItem(kalman, "DynamicReferenceValue", "Kalman Dynamic Reference Value");
-        EnsureKalmanValueItem(kalman, "DynamicEffectiveReferenceValue", "Kalman Dynamic Effective Reference Value");
-        EnsureKalmanValueItem(kalman, "DynamicNoiseReferenceValue", "Kalman Dynamic Noise Reference Value");
-        EnsureKalmanValueItem(kalman, "DynamicMaxSlope", "Kalman Dynamic Max Slope");
-        EnsureKalmanValueItem(kalman, "DynamicMaxAngleDeg", "Kalman Dynamic Max Angle Deg");
-        EnsureKalmanValueItem(kalman, "DynamicTrendConfidence", "Kalman Dynamic Trend Confidence");
-        EnsureKalmanValueItem(kalman, "DynamicNormalizationMode", "Kalman Dynamic Normalization Mode");
-        EnsureKalmanValueItem(kalman, "DynamicResidualWeight", "Kalman Dynamic Residual Weight");
+        EnsureKalmanValueItem(kalman, "estimate", "Kalman Estimate");
+        EnsureKalmanValueItem(kalman, "measurement_noise_r", "Kalman Measurement Noise R");
+        EnsureKalmanValueItem(kalman, "process_noise_q", "Kalman Process Noise Q");
+        EnsureKalmanValueItem(kalman, "effective_process_noise_q", "Kalman Effective Process Noise Q");
+        EnsureKalmanValueItem(kalman, "adaptive_q_active", "Kalman Adaptive Q Active");
+        EnsureKalmanValueItem(kalman, "adaptive_q_hold_remaining_ms", "Kalman Adaptive Q Hold Remaining");
+        EnsureKalmanValueItem(kalman, "dynamic_trigger_active", "Kalman Dynamic Trigger Active");
+        EnsureKalmanValueItem(kalman, "innovation_abs", "Kalman Innovation Abs");
+        EnsureKalmanValueItem(kalman, "adaptive_q_intensity", "Kalman Adaptive Q Intensity");
+        EnsureKalmanValueItem(kalman, "dynamic_slope_ratio", "Kalman Dynamic Relative Change");
+        EnsureKalmanValueItem(kalman, "dynamic_raw_angle_deg", "Kalman Dynamic Raw Angle Deg");
+        EnsureKalmanValueItem(kalman, "dynamic_angle_deg", "Kalman Dynamic Angle Deg");
+        EnsureKalmanValueItem(kalman, "dynamic_reference_value", "Kalman Dynamic Reference Value");
+        EnsureKalmanValueItem(kalman, "dynamic_effective_reference_value", "Kalman Dynamic Effective Reference Value");
+        EnsureKalmanValueItem(kalman, "dynamic_noise_reference_value", "Kalman Dynamic Noise Reference Value");
+        EnsureKalmanValueItem(kalman, "dynamic_max_slope", "Kalman Dynamic Max Slope");
+        EnsureKalmanValueItem(kalman, "dynamic_max_angle_deg", "Kalman Dynamic Max Angle Deg");
+        EnsureKalmanValueItem(kalman, "dynamic_trend_confidence", "Kalman Dynamic Trend Confidence");
+        EnsureKalmanValueItem(kalman, "dynamic_normalization_mode", "Kalman Dynamic Normalization Mode");
+        EnsureKalmanValueItem(kalman, "dynamic_residual_weight", "Kalman Dynamic Residual Weight");
 
         return kalman;
     }
 
     private ItemModel EnsureDynamicBranch()
     {
-        if (!_module.Has("Dynamic"))
+        if (!_module.Has("dynamic"))
         {
-            _module.AddItem("Dynamic");
+            _module.AddItem("dynamic");
         }
 
-        var dynamic = _module["Dynamic"];
+        var dynamic = _module["dynamic"];
         dynamic.Properties["text"].Value = $"{_definition.Name} Dynamic";
-        EnsureDynamicValueItem(dynamic, "Active", "Dynamic Active");
-        EnsureDynamicValueItem(dynamic, "Slope", "Dynamic Slope");
-        EnsureDynamicValueItem(dynamic, "Residual", "Dynamic Residual");
-        EnsureDynamicValueItem(dynamic, "RawAngleDeg", "Dynamic Raw Angle Deg");
-        EnsureDynamicValueItem(dynamic, "AngleDeg", "Dynamic Angle Deg");
-        EnsureDynamicValueItem(dynamic, "RelativeChange", "Dynamic Relative Change");
-        EnsureDynamicValueItem(dynamic, "ReferenceValue", "Dynamic Reference Value");
-        EnsureDynamicValueItem(dynamic, "EffectiveReferenceValue", "Dynamic Effective Reference Value");
-        EnsureDynamicValueItem(dynamic, "NoiseReferenceValue", "Dynamic Noise Reference Value");
-        EnsureDynamicValueItem(dynamic, "NormalizationMode", "Dynamic Normalization Mode");
-        EnsureDynamicValueItem(dynamic, "ResidualWeight", "Dynamic Residual Weight");
-        EnsureDynamicValueItem(dynamic, "RemainingHoldMs", "Dynamic Remaining Hold Ms");
+        EnsureDynamicValueItem(dynamic, "active", "Dynamic Active");
+        EnsureDynamicValueItem(dynamic, "slope", "Dynamic Slope");
+        EnsureDynamicValueItem(dynamic, "residual", "Dynamic Residual");
+        EnsureDynamicValueItem(dynamic, "raw_angle_deg", "Dynamic Raw Angle Deg");
+        EnsureDynamicValueItem(dynamic, "angle_deg", "Dynamic Angle Deg");
+        EnsureDynamicValueItem(dynamic, "relative_change", "Dynamic Relative Change");
+        EnsureDynamicValueItem(dynamic, "reference_value", "Dynamic Reference Value");
+        EnsureDynamicValueItem(dynamic, "effective_reference_value", "Dynamic Effective Reference Value");
+        EnsureDynamicValueItem(dynamic, "noise_reference_value", "Dynamic Noise Reference Value");
+        EnsureDynamicValueItem(dynamic, "normalization_mode", "Dynamic Normalization Mode");
+        EnsureDynamicValueItem(dynamic, "residual_weight", "Dynamic Residual Weight");
+        EnsureDynamicValueItem(dynamic, "remaining_hold_ms", "Dynamic Remaining Hold Ms");
         return dynamic;
     }
 
     private ItemModel EnsureAdjustmentBranch()
     {
-        if (!_module.Has("Adjustment"))
+        if (!_module.Has("adjustment"))
         {
-            _module.AddItem("Adjustment");
+            _module.AddItem("adjustment");
         }
 
-        var adjustment = _module["Adjustment"];
+        var adjustment = _module["adjustment"];
         adjustment.Properties["text"].Value = $"{_definition.Name} Adjustment";
-        if (!adjustment.Has("Request"))
+        if (!adjustment.Has("write"))
         {
-            adjustment.AddItem("Request");
-            adjustment["Request"].Properties["text"].Value = "Adjustment Request";
-            adjustment["Request"].Value = string.Empty;
+            adjustment.AddItem("write");
+            adjustment["write"].Properties["text"].Value = "Adjustment Write";
+            adjustment["write"].Value = string.Empty;
         }
 
-        EnsureAdjustmentValueItem(adjustment, "Enabled", "Adjustment Enabled");
-        EnsureAdjustmentValueItem(adjustment, "MappingMode", "Adjustment Mapping Mode");
-        EnsureAdjustmentValueItem(adjustment, "Offset", "Adjustment Offset");
-        EnsureAdjustmentValueItem(adjustment, "Gain", "Adjustment Gain");
-        EnsureAdjustmentValueItem(adjustment, "SplineInterpolationMode", "Adjustment Spline Interpolation Mode");
-        EnsureAdjustmentValueItem(adjustment, "SupportsInverseMapping", "Adjustment Supports Inverse Mapping");
-        EnsureAdjustmentValueItem(adjustment, "Spline", "Adjustment Spline Points");
+        EnsureAdjustmentValueItem(adjustment, "enabled", "Adjustment Enabled");
+        EnsureAdjustmentValueItem(adjustment, "mapping_mode", "Adjustment Mapping Mode");
+        EnsureAdjustmentValueItem(adjustment, "offset", "Adjustment Offset");
+        EnsureAdjustmentValueItem(adjustment, "gain", "Adjustment Gain");
+        EnsureAdjustmentValueItem(adjustment, "spline_interpolation_mode", "Adjustment Spline Interpolation Mode");
+        EnsureAdjustmentValueItem(adjustment, "supports_inverse_mapping", "Adjustment Supports Inverse Mapping");
+        EnsureAdjustmentValueItem(adjustment, "spline", "Adjustment Spline Points");
         return adjustment;
     }
 
     private ItemModel EnsureStatisticsBranch()
     {
-        if (!_module.Has("Statistics"))
+        if (!_module.Has("statistics"))
         {
-            _module.AddItem("Statistics");
+            _module.AddItem("statistics");
         }
 
-        var statistics = _module["Statistics"];
+        var statistics = _module["statistics"];
         statistics.Properties["text"].Value = $"{_definition.Name} Statistics";
-        EnsureStatisticsExtremaItem(statistics, "Min", "Statistics Min", "Statistics Min Timestamp");
-        EnsureStatisticsExtremaItem(statistics, "Max", "Statistics Max", "Statistics Max Timestamp");
-        EnsureStatisticsValueItem(statistics, "Average", "Statistics Average");
-        EnsureStatisticsValueItem(statistics, "StdDev", "Statistics StdDev");
-        EnsureStatisticsValueItem(statistics, "Integral", "Statistics Integral");
+        EnsureStatisticsExtremaItem(statistics, "min", "Statistics Min", "Statistics Min Timestamp");
+        EnsureStatisticsExtremaItem(statistics, "max", "Statistics Max", "Statistics Max Timestamp");
+        EnsureStatisticsValueItem(statistics, "average", "Statistics Average");
+        EnsureStatisticsValueItem(statistics, "std_dev", "Statistics StdDev");
+        EnsureStatisticsValueItem(statistics, "integral", "Statistics Integral");
         EnsureStatisticsResetItem(statistics);
         return statistics;
     }
@@ -2359,14 +2485,14 @@ public sealed class EnhancedSignalRuntime : IDisposable
         statisticsBranch.Properties["PublishStdDev"].Value = statistics.PublishStdDev;
         statisticsBranch.Properties["PublishIntegral"].Value = statistics.PublishIntegral;
 
-        statisticsBranch["Min"].Value = (statistics.PublishMin && statistics.MinValue.HasValue) ? statistics.MinValue.Value : null!;
-        statisticsBranch["Min"]["TimeStamp"].Value = (statistics.PublishMin && statistics.MinTimestampUnixMs.HasValue) ? statistics.MinTimestampUnixMs.Value : null!;
-        statisticsBranch["Max"].Value = (statistics.PublishMax && statistics.MaxValue.HasValue) ? statistics.MaxValue.Value : null!;
-        statisticsBranch["Max"]["TimeStamp"].Value = (statistics.PublishMax && statistics.MaxTimestampUnixMs.HasValue) ? statistics.MaxTimestampUnixMs.Value : null!;
-        statisticsBranch["Average"].Value = (statistics.PublishAverage && statistics.AverageValue.HasValue) ? statistics.AverageValue.Value : null!;
-        statisticsBranch["StdDev"].Value = (statistics.PublishStdDev && statistics.StdDevValue.HasValue) ? statistics.StdDevValue.Value : null!;
-        statisticsBranch["Integral"].Value = (statistics.PublishIntegral && statistics.IntegralValue.HasValue) ? statistics.IntegralValue.Value : null!;
-        statisticsBranch["Reset"].Value = false;
+        statisticsBranch["min"].Value = (statistics.PublishMin && statistics.MinValue.HasValue) ? statistics.MinValue.Value : null!;
+        statisticsBranch["min"]["timestamp"].Value = (statistics.PublishMin && statistics.MinTimestampUnixMs.HasValue) ? statistics.MinTimestampUnixMs.Value : null!;
+        statisticsBranch["max"].Value = (statistics.PublishMax && statistics.MaxValue.HasValue) ? statistics.MaxValue.Value : null!;
+        statisticsBranch["max"]["timestamp"].Value = (statistics.PublishMax && statistics.MaxTimestampUnixMs.HasValue) ? statistics.MaxTimestampUnixMs.Value : null!;
+        statisticsBranch["average"].Value = (statistics.PublishAverage && statistics.AverageValue.HasValue) ? statistics.AverageValue.Value : null!;
+        statisticsBranch["std_dev"].Value = (statistics.PublishStdDev && statistics.StdDevValue.HasValue) ? statistics.StdDevValue.Value : null!;
+        statisticsBranch["integral"].Value = (statistics.PublishIntegral && statistics.IntegralValue.HasValue) ? statistics.IntegralValue.Value : null!;
+        statisticsBranch["reset"].Value = false;
     }
 
     private static void EnsureDynamicValueItem(ItemModel dynamic, string itemName, string text)
@@ -2399,13 +2525,13 @@ public sealed class EnhancedSignalRuntime : IDisposable
             statistics[itemName].Properties["text"].Value = text;
         }
 
-        if (statistics[itemName].Has("TimeStamp"))
+        if (statistics[itemName].Has("timestamp"))
         {
             return;
         }
 
-        statistics[itemName].AddItem("TimeStamp");
-        statistics[itemName]["TimeStamp"].Properties["text"].Value = timeStampText;
+        statistics[itemName].AddItem("timestamp");
+        statistics[itemName]["timestamp"].Properties["text"].Value = timeStampText;
     }
 
     private static void EnsureStatisticsValueItem(ItemModel statistics, string itemName, string text)
@@ -2421,14 +2547,14 @@ public sealed class EnhancedSignalRuntime : IDisposable
 
     private static void EnsureStatisticsResetItem(ItemModel statistics)
     {
-        if (statistics.Has("Reset"))
+        if (statistics.Has("reset"))
         {
             return;
         }
 
-        statistics.AddItem("Reset");
-        statistics["Reset"].Properties["text"].Value = "Statistics Reset";
-        statistics["Reset"].Value = false;
+        statistics.AddItem("reset");
+        statistics["reset"].Properties["text"].Value = "Statistics Reset";
+        statistics["reset"].Value = false;
     }
 
     private bool ShouldPublishDiagnostics(DateTimeOffset now, bool isDynamic)
@@ -2462,26 +2588,26 @@ public sealed class EnhancedSignalRuntime : IDisposable
         kalman[itemName].Properties["text"].Value = text;
     }
 
-    private bool TryParseAdjustmentRequest(ItemModel requestItem, out string action, out double targetValue, out string error)
+    private bool TryParseAdjustmentWrite(ItemModel writeItem, out string action, out double targetValue, out string error)
     {
         action = string.Empty;
         targetValue = 0d;
         error = string.Empty;
 
-        if (requestItem.Properties.Has("Action"))
+        if (writeItem.Properties.Has("Action"))
         {
-            action = requestItem.Properties["Action"].Value?.ToString() ?? string.Empty;
-            var requestValue = requestItem.Properties.Has("value") ? requestItem.Properties["value"].Value : requestItem.Value;
-            var numericValue = ToNullableDouble(requestValue);
+            action = writeItem.Properties["Action"].Value?.ToString() ?? string.Empty;
+            var writeValue = writeItem.Properties.Has("value") ? writeItem.Properties["value"].Value : writeItem.Value;
+            var numericValue = ToNullableDouble(writeValue);
             if (string.IsNullOrWhiteSpace(action))
             {
-                error = "Adjustment request action is empty";
+                error = "Adjustment write action is empty";
                 return false;
             }
 
             if (numericValue is null)
             {
-                error = "Adjustment request value must be numeric";
+                error = "Adjustment write value must be numeric";
                 return false;
             }
 
@@ -2489,33 +2615,33 @@ public sealed class EnhancedSignalRuntime : IDisposable
             return true;
         }
 
-        var requestText = requestItem.Value?.ToString() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(requestText))
+        var writeText = writeItem.Value?.ToString() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(writeText))
         {
-            error = "Adjustment request is empty";
+            error = "Adjustment write is empty";
             return false;
         }
 
         try
         {
-            using var document = JsonDocument.Parse(requestText);
+            using var document = JsonDocument.Parse(writeText);
             if (!document.RootElement.TryGetProperty("Action", out JsonElement actionProperty))
             {
-                error = "Adjustment request requires an Action property";
+                error = "Adjustment write requires an Action property";
                 return false;
             }
 
             action = actionProperty.GetString() ?? string.Empty;
             if (string.IsNullOrWhiteSpace(action))
             {
-                error = "Adjustment request action is empty";
+                error = "Adjustment write action is empty";
                 return false;
             }
 
             if (!document.RootElement.TryGetProperty("Value", out JsonElement valueProperty)
                 || !TryGetJsonDouble(valueProperty, out targetValue))
             {
-                error = "Adjustment request Value must be numeric";
+                error = "Adjustment write Value must be numeric";
                 return false;
             }
 
@@ -2523,7 +2649,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
         }
         catch (JsonException)
         {
-            error = "Adjustment request must be valid JSON with Action and Value";
+            error = "Adjustment write must be valid JSON with Action and Value";
             return false;
         }
     }
@@ -2538,7 +2664,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
 
         lock (_sync)
         {
-            switch (NormalizeRequestCommand(action))
+            switch (NormalizeWriteCommand(action))
             {
                 case "adjustspan":
                     if (Math.Abs(baseValue) < double.Epsilon)
@@ -2553,7 +2679,7 @@ public sealed class EnhancedSignalRuntime : IDisposable
                     _definition.Adjustment.Offset = targetValue - (baseValue * _definition.Adjustment.Gain);
                     break;
                 default:
-                    error = $"Unknown adjustment request '{action}'";
+                    error = $"Unknown adjustment write '{action}'";
                     return false;
             }
 
@@ -2716,9 +2842,9 @@ public sealed class EnhancedSignalRuntime : IDisposable
         return Equals(left, right);
     }
 
-    private static string NormalizeRequestCommand(object? requestValue)
+    private static string NormalizeWriteCommand(object? writeValue)
     {
-        return requestValue?.ToString()?
+        return writeValue?.ToString()?
             .Trim()
             .ToLowerInvariant()
             .Replace(" ", string.Empty, StringComparison.Ordinal)
@@ -2849,9 +2975,37 @@ public sealed class EnhancedSignalRuntime : IDisposable
             short shortValue => shortValue,
             byte byteValue => byteValue,
             string text when double.TryParse(text, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var parsed) => parsed,
-            IConvertible convertible => convertible.ToDouble(CultureInfo.InvariantCulture),
+            string => null,
+            IConvertible convertible => TryConvertToDouble(convertible, out var converted) ? converted : null,
             _ => null
         };
+    }
+
+    private static bool TryNormalizeNumericValue(object? value, out object? normalizedValue)
+    {
+        var numericValue = ToNullableDouble(value);
+        if (numericValue is null)
+        {
+            normalizedValue = null;
+            return false;
+        }
+
+        normalizedValue = numericValue.Value;
+        return true;
+    }
+
+    private static bool TryConvertToDouble(IConvertible value, out double converted)
+    {
+        try
+        {
+            converted = value.ToDouble(CultureInfo.InvariantCulture);
+            return true;
+        }
+        catch (Exception ex) when (ex is InvalidCastException or FormatException or OverflowException)
+        {
+            converted = 0d;
+            return false;
+        }
     }
 
     private static double ApplySpline(double value, IReadOnlyList<ExtendedSignalSplinePoint> points, ExtendedSignalSplineInterpolationMode interpolationMode)
@@ -3138,7 +3292,8 @@ public sealed class EnhancedSignalRuntime : IDisposable
         var normalizedPath = path.Replace('/', '.').Replace('\\', '.').Trim('.');
         var lastSeparatorIndex = normalizedPath.LastIndexOf('.');
         var parentPath = lastSeparatorIndex >= 0 ? normalizedPath[..lastSeparatorIndex] : null;
-        return new ExtendedSignalModule(definition.Name, parentPath);
+        var itemName = lastSeparatorIndex >= 0 ? normalizedPath[(lastSeparatorIndex + 1)..] : normalizedPath;
+        return new ExtendedSignalModule(itemName, parentPath);
     }
 
     private readonly record struct SignalSample(DateTimeOffset Timestamp, double Value);

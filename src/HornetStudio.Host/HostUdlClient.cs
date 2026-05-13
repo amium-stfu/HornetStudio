@@ -245,14 +245,13 @@ public sealed class HostUdlClient : IHostUdlClient
             }
 
             case 2:
-                module.Alert.Value = BitConverter.ToSingle(data, 0);
+                SetChannelReadValue(module.Alert, BitConverter.ToSingle(data, 0));
                 break;
 
             case 3:
             {
                 var value = BitConverter.ToSingle(data, 0);
                 SetChannelReadValue(module.Read, value);
-                module.Value = value;
                 var metadata = (ushort)(data[4] | (data[5] << 8));
                 module.Read.Properties["MetaData"].Value = metadata;
                 module.Properties["MetaData"].Value = metadata;
@@ -494,7 +493,7 @@ public sealed class HostUdlClient : IHostUdlClient
         shouldSend = false;
         timedOut = false;
 
-        var hasRequest = TryGetRequestedValue(module.State, out var requestedValue);
+        var hasRequest = TryGetWriteValue(module.State, out var requestedValue);
         var now = DateTime.UtcNow;
         var sendTimeout = GetSendTimeout();
 
@@ -587,15 +586,15 @@ public sealed class HostUdlClient : IHostUdlClient
 
     private void TryWrite(uint moduleId, ItemModel requestItem, ItemModel currentItem, int function)
     {
-        RaiseDiagnostic($"[HostUdlClient:{Name}] try write moduleId=0x{moduleId:X3} function={function} requestPath={requestItem.Path} requestValue={FormatObject(TryGetWritePropertyValue(requestItem) ?? requestItem.Value)} currentPath={currentItem.Path} currentValue={FormatObject(currentItem.Value)}");
+        RaiseDiagnostic($"[HostUdlClient:{Name}] try write moduleId=0x{moduleId:X3} function={function} requestPath={requestItem.Path} requestValue={FormatObject(TryGetWritePropertyValue(requestItem))} currentPath={currentItem.Path} currentValue={FormatObject(TryGetReadPropertyValue(currentItem))}");
 
-        if (!TryGetDesiredWriteValue(requestItem, currentItem, out var desiredValue))
+        if (!TryGetWriteValue(requestItem, out var desiredValue))
         {
             RaiseDiagnostic($"[HostUdlClient:{Name}] try write skipped moduleId=0x{moduleId:X3} function={function} reason=no-desired-value requestPath={requestItem.Path}");
             return;
         }
 
-        if (!TryConvertToDouble(currentItem.Value, out double currentValue))
+        if (!TryGetReadValue(currentItem, out double currentValue))
         {
             RaiseDiagnostic($"[HostUdlClient:{Name}] write request moduleId=0x{moduleId:X3} function={function} current=<unset> desired={desiredValue:0.###} source={requestItem.Path}");
             var queuedWithoutCurrent = SendWritePdo(moduleId, desiredValue, function);
@@ -667,69 +666,17 @@ public sealed class HostUdlClient : IHostUdlClient
     private static bool TryGetWriteValue(ItemModel item, out double value)
     {
         value = 0;
-        if (item.Properties.Has("write"))
-        {
-            return TryConvertToDouble(item.Properties["write"].Value, out value) && !double.IsNaN(value);
-        }
-
-        if (!item.Properties.Has("Write"))
-        {
-            return false;
-        }
-
-        return TryConvertToDouble(item.Properties["Write"].Value, out value) && !double.IsNaN(value);
+        return item.Properties.Has("write")
+            && TryConvertToDouble(item.Properties["write"].Value, out value)
+            && !double.IsNaN(value);
     }
 
-    private static bool TryGetSetValue(ItemModel item, out double value)
+    private static bool TryGetReadValue(ItemModel item, out double value)
     {
         value = 0;
-        if (item.Properties.Has("set"))
-        {
-            return TryConvertToDouble(item.Properties["set"].Value, out value) && !double.IsNaN(value);
-        }
-
-        if (!item.Properties.Has("Set"))
-        {
-            return false;
-        }
-
-        return TryConvertToDouble(item.Properties["Set"].Value, out value) && !double.IsNaN(value);
-    }
-
-    private static bool TryGetRequestItemValue(ItemModel item, out double value)
-    {
-        value = 0;
-        if (!item.Has("Request"))
-        {
-            return false;
-        }
-
-        return TryConvertToDouble(item["Request"].Value, out value) && !double.IsNaN(value);
-    }
-
-    private static bool TryGetRequestedValue(ItemModel item, out double value)
-    {
-        return TryGetRequestItemValue(item, out value)
-            || TryGetSetValue(item, out value)
-            || TryGetWriteValue(item, out value);
-    }
-
-    private static bool TryGetDesiredWriteValue(ItemModel requestItem, ItemModel ownerItem, out double value)
-    {
-        value = 0;
-
-        if (TryGetRequestedValue(requestItem, out value))
-        {
-            return true;
-        }
-
-        if (TryConvertToDouble(requestItem.Value, out value) && !double.IsNaN(value))
-        {
-            return true;
-        }
-
-        return TryGetSetValue(ownerItem, out value)
-            || TryGetWriteValue(ownerItem, out value);
+        return item.Properties.Has("read")
+            && TryConvertToDouble(item.Properties["read"].Value, out value)
+            && !double.IsNaN(value);
     }
 
     private static void ClearRequestedValue(ItemModel item)
@@ -741,34 +688,23 @@ public sealed class HostUdlClient : IHostUdlClient
                 : null!;
         }
 
-        if (item.Has("Request"))
-        {
-            if (item.Value is null)
-            {
-                item["Request"].Properties.Remove("Value");
-            }
-            else
-            {
-                item["Request"].Value = item.Value;
-            }
-
-            item["Request"].Properties.Remove("Set");
-            item["Request"].Properties.Remove("Write");
-        }
-
         item.Properties.Remove("Set");
         item.Properties.Remove("Write");
         item.Properties.Remove("set");
     }
 
     private static bool IsWriteTriggerProperty(string propertyName)
-        => string.Equals(propertyName, "write", StringComparison.OrdinalIgnoreCase)
-           || string.Equals(propertyName, "set", StringComparison.OrdinalIgnoreCase);
+        => string.Equals(propertyName, "write", StringComparison.OrdinalIgnoreCase);
 
     private static object? TryGetWritePropertyValue(ItemModel item)
         => item.Properties.Has("write")
             ? item.Properties["write"].Value
-            : (item.Properties.Has("Write") ? item.Properties["Write"].Value : null);
+            : null;
+
+    private static object? TryGetReadPropertyValue(ItemModel item)
+        => item.Properties.Has("read")
+            ? item.Properties["read"].Value
+            : null;
 
     private static void SetChannelReadValue(ItemModel item, object? value)
     {

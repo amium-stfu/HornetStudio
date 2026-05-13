@@ -185,7 +185,7 @@ public sealed class EnhancedSignalEditorDialogViewModel : ObservableObject
     private bool _isWritable;
     private string _sourcePath = string.Empty;
     private string _writePath = string.Empty;
-    private string _selectedWriteMode = SignalWriteMode.Request.ToString();
+    private string _selectedWriteMode = SignalWriteMode.Direct.ToString();
     private string _unit = string.Empty;
     private string _format = string.Empty;
     private string _selectedFilterMode = ExtendedSignalFilterMode.Raw.ToString();
@@ -257,7 +257,7 @@ public sealed class EnhancedSignalEditorDialogViewModel : ObservableObject
             ExtendedSignalAdjustmentMode.None.ToString(),
             ExtendedSignalAdjustmentMode.Spline.ToString()
         ];
-        WriteModeOptions = Enum.GetNames<SignalWriteMode>();
+        WriteModeOptions = [SignalWriteMode.Direct.ToString()];
         KalmanDynamicNormalizationModeOptions = [KalmanDynamicNormalizationMode.HybridReferenceFloor.ToString()];
 
         DialogBackground = mainWindowViewModel?.DialogBackground ?? "#E3E5EE";
@@ -523,9 +523,9 @@ public sealed class EnhancedSignalEditorDialogViewModel : ObservableObject
 
     public string IsWritableToolTip => "Enables user-facing write access for the published enhanced signal. Disable it when the signal should remain read-only in generic editors and interactions.";
 
-    public string WritePathToolTip => "Optional target path for writes. Leave it empty to use the default path for the selected write mode. In Request mode the enhanced signal uses its internal Set channel by default.";
+    public string WritePathToolTip => "Optional target path for writes. Leave it empty to write to the configured target directly. When the target exposes a write property, writes update that property instead of the displayed read value.";
 
-    public string WriteModeToolTip => "Direct writes target the configured path as-is. Request writes route to the configured path and use its Request child automatically when available.";
+    public string WriteModeToolTip => "Writes target the configured path directly. When the target exposes a write property, writes update that property instead of the displayed read value.";
 
     public string ForwardChildWritesToSourceToolTip => "Forwards non-signal-owned child writes under the enhanced signal to matching child paths below the source path. Internal enhanced-signal runtime nodes such as Raw, Read, State, Alert, Config, Adjustment, and Kalman stay local.";
 
@@ -691,7 +691,7 @@ public sealed class EnhancedSignalEditorDialogViewModel : ObservableObject
     public string SelectedWriteMode
     {
         get => _selectedWriteMode;
-        set => SetProperty(ref _selectedWriteMode, value ?? SignalWriteMode.Request.ToString());
+        set => SetProperty(ref _selectedWriteMode, value ?? SignalWriteMode.Direct.ToString());
     }
 
     public string Unit

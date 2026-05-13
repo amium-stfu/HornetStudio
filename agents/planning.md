@@ -2,18 +2,20 @@
 
 ## PLAN
 
-- Before creating a workitem or handoff, check whether the goal, scope, constraints, dependencies, and acceptance criteria are sufficiently defined for planning.
+- Before creating a plan, workitem, or handoff, check whether the goal, scope, constraints, dependencies, and acceptance criteria are sufficiently defined for planning.
 - If plan-relevant information is missing, do not create a plan, do not create a workitem folder, and do not create a handoff.
 - Instead, list the open questions in a concise, structured way and stop after clarification is requested.
-- If the task is sufficiently defined, creating a plan is the trigger for a workitem folder.
-- Create or reuse a matching folder under `docs/workitems/<yyyy.MM.dd.HHmm>-<slug>/`.
-- Always create a dedicated implementation handoff in `handoffs/`.
+- The agent decides whether a plan is small enough for chat or requires a workitem and handoff.
+- If the classification is unclear, ask the user before creating files.
+- Use a small chat-only plan when the task is local, low-risk, clearly scoped, and can be completed in one session.
+- Create or reuse a matching folder under `docs/workitems/<yyyy.MM.dd.HHmm>-<slug>/` when the task is multi-step, cross-cutting, risky, architecture-relevant, intended for later handoff, or explicitly requested as a handoff.
+- Create a dedicated implementation handoff in `handoffs/` only when a workitem-worthy plan requires durable handoff context.
 - Never overwrite an existing handoff file. Create a new timestamped file instead.
 - Keep the handoff concise, self-contained, and optimized for a new chat with minimal context.
 - Do not create a separate `plan.md` file unless the user explicitly asks for one.
-- Do not write the full plan in chat.
-- In chat, only state whether the scope is sufficiently defined, whether blockers remain, and which handoff file was created.
-- Write the implementation handoff as an execution-ready package for another model or a new chat.
+- For small chat-only plans, write the plan directly in chat and do not create files.
+- For workitem-worthy plans, keep the chat response short and state whether blockers remain and which handoff file was created.
+- Write implementation handoffs as execution-ready packages for another model or a new chat.
 - Assume the implementation model has less context and should not have to infer missing scope, task order, or target files.
 
 ## Required PLAN File
@@ -24,8 +26,9 @@
 
 - First validate that no major planning blockers remain.
 - If blockers exist, output only the open questions needed to proceed.
-- If the task is sufficiently defined, put the planning detail into the implementation handoff.
-- Keep the chat response short and avoid duplicating the handoff content.
+- If the task is small, local, and low-risk, put the plan directly in chat.
+- If the task is workitem-worthy, put the planning detail into the implementation handoff.
+- For handoff plans, keep the chat response short and avoid duplicating the handoff content.
 - Use a separate `plans/` folder or `plan.md` file only when explicitly requested.
 
 ## IMPLEMENTATION HANDOFF Requirements
@@ -100,6 +103,7 @@ What is included and what is explicitly NOT included.
 - Create `docs/todos/` if it does not exist.
 - Store each todo as a separate Markdown file in `docs/todos/`.
 - Use the file name format `<yyyy.MM.dd.HHmm>-<slug>.md`.
+- Use `snake_case` for todo slugs.
 - Keep todo entries short, specific, and actionable.
 - If a todo is later selected for active work, create a `PLAN` and move forward with a workitem.
 
@@ -133,11 +137,11 @@ Low / Medium / High
 ## Workitem Rules
 
 - A workitem folder represents one concrete planned topic.
-- `PLAN` is the trigger that creates the workitem folder.
+- `PLAN` creates a workitem folder only when the plan is workitem-worthy or a handoff is explicitly requested.
 - `STRUCTURE` alone does not require a workitem folder.
 - Reuse an existing workitem folder when the topic is clearly the same.
 - Create a new workitem folder when the topic is new or the scope has materially changed.
-- Use short lowercase slugs with hyphens.
+- Use short lowercase `snake_case` slugs.
 
 ## Recommended Workitem Layout
 

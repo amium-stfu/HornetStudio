@@ -577,10 +577,15 @@ public partial class CustomSignalsControl : EditorTemplateControl
 
             if (TryResolveWriteTarget(configuredWritePath, _observedItem?.FolderName, out var writeTarget))
             {
-                var valueTarget = row.Definition.WriteMode == SignalWriteMode.Request && writeTarget.Has("Request")
-                    ? writeTarget["Request"]
-                    : writeTarget;
-                HostRegistries.Data.UpdateValue(valueTarget.Path ?? configuredWritePath, convertedValue);
+                var writeTargetPath = writeTarget.Path ?? configuredWritePath;
+                if (writeTarget.Properties.Has("write"))
+                {
+                    HostRegistries.Data.TryUpdateUserProperty(writeTargetPath, "write", convertedValue);
+                }
+                else
+                {
+                    HostRegistries.Data.UpdateValue(writeTargetPath, convertedValue);
+                }
             }
             else if (!string.IsNullOrWhiteSpace(configuredWritePath))
             {
@@ -600,10 +605,7 @@ public partial class CustomSignalsControl : EditorTemplateControl
 
     private IEnumerable<string> GetSourceOptions()
     {
-        return HostRegistries.Data.GetKeysByCapability(DataRegistryItemCapabilities.Display)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        return MainWindowViewModel.EnumerateSignalSourceOptions();
     }
 
     private static async System.Threading.Tasks.Task<object?> EditNumericValueAsync(Window owner, CustomSignalRow row)

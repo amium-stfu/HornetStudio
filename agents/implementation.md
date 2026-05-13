@@ -28,7 +28,7 @@
 ## Build
 
 - Build the complete solution without starting any application.
-- Prefer `dotnet build HornetStudio.sln --no-restore` when restore has already completed.
+- Prefer the repository-specific build command defined in the solution rules when restore has already completed.
 - Do not use `dotnet run`.
 - Do not start demo, UI, service, or worker projects.
 - Report build success, warnings, and errors concisely.

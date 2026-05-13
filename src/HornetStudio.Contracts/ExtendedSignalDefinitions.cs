@@ -193,7 +193,7 @@ public sealed class ExtendedSignalDefinition
 
     public string WritePath { get; set; } = string.Empty;
 
-    public SignalWriteMode WriteMode { get; set; } = SignalWriteMode.Request;
+    public SignalWriteMode WriteMode { get; set; } = SignalWriteMode.Direct;
 
     public bool ForwardChildWritesToSource { get; set; }
 
@@ -339,11 +339,9 @@ public sealed class ExtendedSignalDefinition
             IsWritable = true;
         }
 
-        if (!string.IsNullOrWhiteSpace(WritePath)
-            && WritePath.EndsWith(".Request", StringComparison.OrdinalIgnoreCase))
-        {
-            WriteMode = SignalWriteMode.Request;
-        }
+        WriteMode = WriteMode == SignalWriteMode.Request
+            ? SignalWriteMode.Direct
+            : WriteMode;
 
         Adjustment ??= new ExtendedSignalAdjustmentDefinition();
         Adjustment = Adjustment.NormalizeLegacyFields();

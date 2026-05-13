@@ -16,7 +16,7 @@ Defines the signal target path to resolve.
 
 ### TargetPropertyPath
 
-Selects the displayed or editable property.
+Stores the displayed property. Normal Signal widget editing keeps this field hidden and defaults it to `read` when the target exposes a `read` property.
 
 ### TargetPropertyFormat
 
@@ -39,6 +39,10 @@ Blocks input actions when enabled.
 ### Open value dialog
 
 The widget can open the shared value input editor for writable targets.
+
+### Target writeback
+
+The target picker selects an item path, not a property path. When a target item exposes a `write` property, user input is written to `write` automatically while the widget continues to display the selected property, typically `read`. Targets without a `write` property fall back to writing the displayed `read` value.
 
 ### Toggle bits
 

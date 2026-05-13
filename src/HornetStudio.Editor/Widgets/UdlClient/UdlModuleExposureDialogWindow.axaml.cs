@@ -656,7 +656,7 @@ public sealed class UdlModuleExposureEditorRow : NotifyBase
     public UdlModuleExposureEditorRow(string moduleName, string channelName, string format, string unit, int bitCount, bool exposeBits, string bitLabels)
     {
         ModuleName = moduleName?.Trim() ?? string.Empty;
-        ChannelName = channelName?.Trim() ?? string.Empty;
+        ChannelName = channelName?.Trim().ToLowerInvariant() ?? string.Empty;
         _format = format?.Trim() ?? string.Empty;
         _unit = unit?.Trim() ?? string.Empty;
         _bitCount = bitCount > 0 ? bitCount : GetBitCountFromFormat(format);
@@ -805,7 +805,7 @@ public sealed class UdlModuleExposureEditorRow : NotifyBase
     }
 
     public static string BuildKey(string moduleName, string channelName)
-        => $"{moduleName?.Trim() ?? string.Empty}|{channelName?.Trim() ?? string.Empty}";
+        => $"{moduleName?.Trim() ?? string.Empty}|{channelName?.Trim().ToLowerInvariant() ?? string.Empty}";
 
     private static bool IsBitFormat(string format)
     {

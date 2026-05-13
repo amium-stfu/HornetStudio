@@ -36,6 +36,8 @@ Stores configured attached runtime items.
 
 Stores configured demo module definitions.
 
+For set-driven demo modules, `Set.write` is the requested setpoint. `Set.read` mirrors that requested setpoint, and the simulated feedback value is published on `Read.read`.
+
 ### UdlModuleExposureDefinitions
 
 Stores configured module/channel exposure rules owned by the UdlClient widget.
@@ -91,6 +93,12 @@ Published helper bits always use `Format=bool` for their value handling. General
 ### Synchronize attached items
 
 The widget can keep attached item state aligned with runtime data.
+
+`Received Items` stays driven by live runtime root modules only. When a module is attached, the row remains visible, the status indicator turns green, and the primary action changes from `Attach` to a disabled `Attached` state.
+
+`Attached Items` stays driven by persisted `UdlAttachedItemPaths`. Attached module trees and generated helper bits are available in signal source pickers, while widget status roots are excluded from those signal source options.
+
+Attached-state checks and the module-scoped `Edit` dialog resolve runtime modules and channels from both the active client item tree and the published UDL runtime snapshots. This preserves green attached indicators and bitmask channel choices when the canonical runtime registry branch is the available source.
 
 ### Monitor runtime state
 

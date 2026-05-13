@@ -104,7 +104,7 @@
       InteractionRules:
         - Event: BodyLeftClick
           Action: SendInputTo
-          TargetPath: "udl_book.Page1.udl1.m310.set.request"
+          TargetPath: "udl_book.Page1.udl1.m310.set"
           Argument: ""
 
       Properties:

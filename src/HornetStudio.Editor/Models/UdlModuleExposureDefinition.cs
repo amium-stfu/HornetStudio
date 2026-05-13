@@ -54,7 +54,7 @@ public static class UdlModuleExposureDefinitionCodec
             .Select(static obj => new UdlModuleExposureDefinition
             {
                 ModuleName = obj["ModuleName"]?.GetValue<string>()?.Trim() ?? string.Empty,
-                ChannelName = obj["ChannelName"]?.GetValue<string>()?.Trim() ?? string.Empty,
+                ChannelName = NormalizeChannelName(obj["ChannelName"]?.GetValue<string>()),
                 Format = obj["Format"]?.GetValue<string>()?.Trim() ?? string.Empty,
                 Unit = obj["Unit"]?.GetValue<string>()?.Trim() ?? string.Empty,
                 ExposeBits = obj["ExposeBits"]?.GetValue<bool>() ?? false,
@@ -115,7 +115,7 @@ public static class UdlModuleExposureDefinitionCodec
         return new UdlModuleExposureDefinition
         {
             ModuleName = definition.ModuleName?.Trim() ?? string.Empty,
-            ChannelName = definition.ChannelName?.Trim() ?? string.Empty,
+            ChannelName = NormalizeChannelName(definition.ChannelName),
             Format = definition.Format?.Trim() ?? string.Empty,
             Unit = definition.Unit?.Trim() ?? string.Empty,
             ExposeBits = definition.ExposeBits,
@@ -124,4 +124,7 @@ public static class UdlModuleExposureDefinitionCodec
             BitLabels = definition.BitLabels?.Trim() ?? string.Empty
         };
     }
+
+    private static string NormalizeChannelName(string? channelName)
+        => channelName?.Trim().ToLowerInvariant() ?? string.Empty;
 }

@@ -6703,6 +6703,24 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             .ToArray();
     }
 
+    internal static IEnumerable<string> EnumerateSignalSourceOptions()
+    {
+        return HostRegistries.Data.GetKeysByCapability(DataRegistryItemCapabilities.Display)
+            .Where(static key => !IsStatusRootKey(key))
+            .SelectMany(static key => EnumerateSelectablePaths(key))
+            .Select(TargetPathHelper.NormalizeConfiguredTargetPath)
+            .Where(static path => !string.IsNullOrWhiteSpace(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static bool IsStatusRootKey(string key)
+    {
+        return HostRegistries.Data.TryGetMetadata(key, out var metadata)
+            && metadata.Role == DataRegistryItemRole.Status;
+    }
+
     private IReadOnlyList<string> GetAttachedUdlTargetOptions(FolderItemModel? item, IReadOnlyList<string> allOptions)
     {
         if (item is null || (item.Kind != ControlKind.ItemModel && item.Kind != ControlKind.Signal))

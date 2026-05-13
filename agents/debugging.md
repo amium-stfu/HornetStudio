@@ -2,10 +2,11 @@
 
 ## Workitem Requirement
 
+- Use `DEBUG` for unclear, broad, recurring, high-risk, or multi-step defect analysis.
 - Before debugging, verify that the matching workitem is known.
 - A workitem is known only when a path under `docs/workitems/<yyyy.MM.dd.HHmm>-<slug>/` is open or mentioned, a handoff from that workitem is open or mentioned, the user explicitly names the workitem, or exactly one existing workitem clearly matches the problem.
 - If no workitem is known, do not start debugging and do not create debug files.
-- Instead, ask the user to open or name the matching handoff file, or to switch to `PLAN` if a new workitem should be created.
+- Instead, ask the user to open or name the matching handoff file, to switch to `PLAN` if a new workitem should be created, or to switch to `FIX` if the issue is concrete and localized.
 - If multiple workitems could match, ask the user to choose the correct workitem before continuing.
 
 ## Analysis Order
@@ -14,8 +15,9 @@
 - Use previous debug reports to avoid repeating already disproven hypotheses, failed fixes, or analysis loops.
 - First analyze and explain the root cause.
 - Do not jump directly to code without explaining the issue.
-- Then propose a solution.
-- Provide code only when useful or explicitly requested.
+- Then propose a targeted solution.
+- Implement targeted code changes when they are necessary to verify or fix the identified issue.
+- Keep changes limited to the diagnosed issue and the validation needed to prove it.
 
 ## Validation Rules
 
@@ -23,15 +25,17 @@
 - Use the narrowest reliable reproduction or verification path that can prove the issue and the fix.
 - Prefer a measurable failing check before changing code whenever a lightweight reproduction exists.
 - Re-run the same focused validation after each targeted fix to confirm actual progress.
+- Count each autonomous code or configuration change that is intended to fix the issue as one fix attempt.
 - Prefer returning to the last known stable state over accumulating speculative workaround chains.
 - When a fix does not improve the measured result, treat that attempt as disproven and update the working hypothesis.
 
 ## Stop Conditions
 
 - Do not continue speculative autonomous fix loops without confirmed progress.
-- Avoid more than 10 consecutive autonomous fix attempts without measurable progress.
+- Stop after 5 consecutive autonomous fix attempts without measurable progress.
 - If repeated attempts do not improve the failing validation, stop, summarize the disproven paths, and surface the remaining uncertainty.
 - If validation becomes ambiguous, reduce scope to the smallest reproducible case before continuing.
+- Create or update a handoff only when the issue cannot be completed within the stop conditions or requires follow-up work outside the current debug scope.
 
 ## Debug File Rules
 

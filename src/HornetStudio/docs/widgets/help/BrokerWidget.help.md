@@ -12,7 +12,7 @@ Remote items are published under `runtime.item_broker.{WidgetName}.shared.{ItemP
 
 `PublishItems` selects local registry roots and stores structured local publish definitions in `BrokerPublishedItemPaths`. The widget body lists these roots under `Published Items`. New selections are inactive by default and default to `studio.<LocalPath>`, `OnChanged`, `1000` ms, and `Writable=false`.
 
-Published entries use shared flat MQTT topics. For example, `studio.default_layout.UdlClient1.m400.set.request` publishes `meta` JSON as `hornet/studio/default_layout/udl_client1/m400/set/request`, the value as `hornet/studio/default_layout/udl_client1/m400/set/request/read`, and `unit` as `hornet/studio/default_layout/udl_client1/m400/set/request/unit`.
+Published entries use shared flat MQTT topics. For example, `studio.default_layout.UdlClient1.m400.set` publishes `meta` JSON as `hornet/studio/default_layout/udl_client1/m400/set`, the current feedback value as `hornet/studio/default_layout/udl_client1/m400/set/read`, the desired write value as `hornet/studio/default_layout/udl_client1/m400/set/write`, and `unit` as `hornet/studio/default_layout/udl_client1/m400/set/unit`.
 
 Use `Edit` in `Published Items` to configure the selected root and its subitems. The visible root row is only a grouping and navigation row; only individual rows with `Active=true` publish while connected.
 

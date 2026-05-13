@@ -19,6 +19,7 @@ var tests = new (string Name, Action Run)[]
     ("Custom signal manual trigger path uses lowercase suffix", CustomSignalManualTriggerPathUsesLowercaseSuffix),
     ("Enhanced signal editor defaults to snake_case name", EnhancedSignalEditorDefaultsToSnakeCaseName),
     ("Enhanced signal editor rejects uppercase name", EnhancedSignalEditorRejectsUppercaseName),
+    ("Enhanced signal runtime path uses snake_case segments", EnhancedSignalRuntimePathUsesSnakeCaseSegments),
     ("Broker widget mode defaults to external", BrokerWidgetModeDefaultsToExternal),
     ("Broker widget mode normalizes values", BrokerWidgetModeNormalizesValues),
     ("Broker widget layout document defaults to external mode", BrokerWidgetLayoutDocumentDefaultsToExternalMode),
@@ -37,6 +38,11 @@ var tests = new (string Name, Action Run)[]
     ("Broker widget attach selection normalizes legacy shared path", BrokerWidgetAttachSelectionNormalizesLegacySharedPath),
     ("UDL attach add normalizes and de-duplicates paths", UdlAttachAddNormalizesAndDeduplicatesPaths),
     ("UDL attach remove clears selected path", UdlAttachRemoveClearsSelectedPath),
+    ("UDL received rows stay visible when attached", UdlReceivedRowsStayVisibleWhenAttached),
+    ("UDL attached items resolve via runtime registry", UdlAttachedItemsResolveViaRuntimeRegistry),
+    ("UDL set-driven demo writes feedback to read only", UdlSetDrivenDemoWritesFeedbackToReadOnly),
+    ("UDL runtime channels include registry items", UdlRuntimeChannelsIncludeRegistryItems),
+    ("UDL runtime exposure bits use snake_case paths", UdlRuntimeExposureBitsUseSnakeCasePaths),
     ("Target path normalization uses Studio root", TargetPathNormalizationUsesStudioRoot),
     ("Broker published item codec migrates legacy paths", BrokerPublishedItemCodecMigratesLegacyPaths),
     ("Broker published item codec keeps explicit Studio broker paths", BrokerPublishedItemCodecKeepsExplicitStudioBrokerPaths),
@@ -48,7 +54,7 @@ var tests = new (string Name, Action Run)[]
     ("Broker write-back ignores non-writable entries", BrokerWriteBackIgnoresNonWritableEntries),
     ("Broker write-back ignores inactive entries", BrokerWriteBackIgnoresInactiveEntries),
     ("Broker write-back updates writable value", BrokerWriteBackUpdatesWritableValue),
-    ("Broker write-back uses request write target", BrokerWriteBackUsesRequestWriteTarget),
+    ("Broker write-back normalizes legacy request mode", BrokerWriteBackNormalizesLegacyRequestMode),
     ("Broker write-back converts numeric value to local type", BrokerWriteBackConvertsNumericValueToLocalType),
     ("Broker write-back blocks protected properties", BrokerWriteBackBlocksProtectedProperties),
     ("Broker write-back ignores same-value self echoes", BrokerWriteBackIgnoresSameValueSelfEchoes),
@@ -62,6 +68,8 @@ var tests = new (string Name, Action Run)[]
     ("Target property defaults to value", TargetPropertyDefaultsToValue),
     ("Target property protected fallback uses value", TargetPropertyProtectedFallbackUsesValue),
     ("Signal write emits registry value update", SignalWriteEmitsRegistryValueUpdate),
+    ("Signal write updates write property when present", SignalWriteUpdatesWritePropertyWhenPresent),
+    ("Signal source options include descendants and skip status roots", SignalSourceOptionsIncludeDescendantsAndSkipStatusRoots),
 };
 
 var failures = new List<string>();
@@ -253,6 +261,19 @@ static void EnhancedSignalEditorRejectsUppercaseName()
     AssertTrue(errorMessage.Contains("snake_case", StringComparison.Ordinal));
 }
 
+static void EnhancedSignalRuntimePathUsesSnakeCaseSegments()
+{
+    var definition = new ExtendedSignalDefinition
+    {
+        Name = "enhanced_signal_1",
+        SourcePath = "studio.default_layout.signal_1"
+    };
+
+    AssertEqual(
+        "studio.default_layout.enhanced_signals.enhanced_signal_1",
+        EnhancedSignalRuntime.BuildRegistryPath("default_layout", definition));
+}
+
 static void ItemExposureCodecRoundtrip()
 {
     var serialized = ItemExposureDefinitionCodec.SerializeDefinitions(
@@ -283,6 +304,7 @@ static void TargetPropertyOptionsHideProtectedProperties()
     var item = ItemExtension.CreateWithPath("runtime.policy_picker.device");
     item.Properties["read"].Value = 1;
     item.Properties["unit"].Value = "V";
+    item.Properties["write"].Value = 1;
     item.Properties["writable"].Value = true;
     item.Properties["write_path"].Value = "runtime.policy_picker.device.request";
     HostRegistries.Data.UpsertSnapshot("runtime.policy_picker.device", item);
@@ -299,6 +321,7 @@ static void TargetPropertyOptionsHideProtectedProperties()
     AssertTrue(options.Contains("read", StringComparer.OrdinalIgnoreCase));
     AssertEqual("read", options[0]);
     AssertTrue(options.Contains("Unit", StringComparer.OrdinalIgnoreCase));
+    AssertFalse(options.Contains("write", StringComparer.OrdinalIgnoreCase));
     AssertFalse(options.Contains("Writable", StringComparer.OrdinalIgnoreCase));
     AssertFalse(options.Contains("WritePath", StringComparer.OrdinalIgnoreCase));
 }
@@ -705,6 +728,209 @@ static void UdlAttachRemoveClearsSelectedPath()
     AssertEqual(string.Empty, updated);
 }
 
+static void UdlReceivedRowsStayVisibleWhenAttached()
+{
+    var method = typeof(UdlClientControl).GetMethod("BuildReceivedAttachSectionRows", BindingFlags.NonPublic | BindingFlags.Static);
+    if (method is null)
+    {
+        throw new InvalidOperationException("BuildReceivedAttachSectionRows was not found.");
+    }
+
+    var ownerItem = new FolderItemModel { Kind = ControlKind.UdlClientControl, Name = "udl_client_control" };
+    ownerItem.SetHierarchy("default_layout", null);
+    var detachedRows = (IReadOnlyList<UdlClientAttachSectionRow>)method.Invoke(null, [ownerItem, new[] { "m310" }, new HashSet<string>(StringComparer.OrdinalIgnoreCase)])!;
+
+    AssertEqual(1, detachedRows.Count);
+    AssertEqual("m310", detachedRows[0].RelativePath);
+    AssertEqual("Attach", detachedRows[0].ActionText);
+    AssertEqual(true, detachedRows[0].CanExecuteAction);
+
+    var attachedRows = (IReadOnlyList<UdlClientAttachSectionRow>)method.Invoke(null, [ownerItem, new[] { "m310" }, new HashSet<string>(["m310"], StringComparer.OrdinalIgnoreCase)])!;
+
+    AssertEqual(1, attachedRows.Count);
+    AssertEqual("m310", attachedRows[0].RelativePath);
+    AssertEqual("Attached", attachedRows[0].ActionText);
+    AssertEqual(false, attachedRows[0].CanExecuteAction);
+}
+
+static void UdlAttachedItemsResolveViaRuntimeRegistry()
+{
+    var method = typeof(UdlClientControl).GetMethod("ResolveRuntimeItemFromSources", BindingFlags.NonPublic | BindingFlags.Static);
+    if (method is null)
+    {
+        throw new InvalidOperationException("ResolveRuntimeItemFromSources was not found.");
+    }
+
+    var ownerItem = new FolderItemModel { Kind = ControlKind.UdlClientControl, Name = "udl_client_control" };
+    ownerItem.SetHierarchy("default_layout", null);
+
+    var runtimePath = "runtime.udl_client.udl_client_control.m310";
+    HostRegistries.Data.Remove(runtimePath);
+
+    try
+    {
+        var runtimeItem = ItemExtension.CreateWithPath(runtimePath);
+        HostRegistries.Data.UpsertSnapshot(runtimePath, runtimeItem, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
+
+        var resolved = (ItemModel?)method.Invoke(null, [ownerItem, Array.Empty<ItemModel>(), "m310"]);
+        AssertTrue(resolved is not null);
+        AssertEqual(runtimePath, resolved!.Path);
+    }
+    finally
+    {
+        HostRegistries.Data.Remove(runtimePath);
+    }
+}
+
+static void UdlSetDrivenDemoWritesFeedbackToReadOnly()
+{
+    var definition = new UdlDemoModuleDefinition
+    {
+        Name = "m001",
+        Kind = UdlDemoModuleKind.SetDriven,
+        InitialValue = 0,
+        SetScale = 1,
+        SetOffset = 0,
+        SetTauSeconds = 0
+    };
+
+    using var client = new SimulatedHostUdlClient(
+        name: "udl_client_control",
+        host: "demo",
+        port: 9001,
+        definitions: [definition]);
+
+    client.ConnectAsync().GetAwaiter().GetResult();
+    try
+    {
+        var module = client.Items["m001"];
+        module["set"].Properties["write"].Value = 20d;
+
+        Thread.Sleep(250);
+
+        AssertEqual(20d, module["read"].Properties["read"].Value);
+        AssertEqual(20d, module["set"].Properties["write"].Value);
+        AssertEqual(20d, module["set"].Properties["read"].Value);
+    }
+    finally
+    {
+        client.DisconnectAsync().GetAwaiter().GetResult();
+    }
+}
+
+static void UdlRuntimeChannelsIncludeRegistryItems()
+{
+    var method = typeof(UdlClientControl).GetMethod("BuildRuntimeChannelDescriptors", BindingFlags.NonPublic | BindingFlags.Static);
+    if (method is null)
+    {
+        throw new InvalidOperationException("BuildRuntimeChannelDescriptors was not found.");
+    }
+
+    var ownerItem = new FolderItemModel { Kind = ControlKind.UdlClientControl, Name = "udl_client_control" };
+    ownerItem.SetHierarchy("default_layout", null);
+
+    var runtimeChannelPath = "runtime.udl_client.udl_client_control.m310.read";
+    HostRegistries.Data.Remove("runtime.udl_client.udl_client_control.m310");
+
+    try
+    {
+        var runtimeChannel = ItemExtension.CreateWithPath(runtimeChannelPath);
+        runtimeChannel.Properties["format"].Value = "b16";
+        runtimeChannel.Properties["unit"].Value = "raw";
+        HostRegistries.Data.UpsertSnapshot(runtimeChannelPath, runtimeChannel, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
+
+        var descriptors = ((IReadOnlyList<UdlRuntimeModuleChannelDescriptor>)method.Invoke(null, [ownerItem, Array.Empty<ItemModel>()])!).ToArray();
+        var descriptor = descriptors.FirstOrDefault(candidate => string.Equals(candidate.ModuleName, "m310", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(candidate.ChannelName, "read", StringComparison.OrdinalIgnoreCase));
+
+        AssertTrue(descriptor is not null);
+        AssertEqual("b16", descriptor!.Format);
+        AssertEqual("raw", descriptor.Unit);
+        AssertEqual(16, descriptor.BitCount);
+    }
+    finally
+    {
+        HostRegistries.Data.Remove("runtime.udl_client.udl_client_control.m310");
+    }
+}
+
+static void UdlRuntimeExposureBitsUseSnakeCasePaths()
+{
+    var method = typeof(UdlClientControl).GetMethod("UpsertRuntimeExposureBits", BindingFlags.NonPublic | BindingFlags.Instance);
+    if (method is null)
+    {
+        throw new InvalidOperationException("UpsertRuntimeExposureBits was not found.");
+    }
+
+    var control = (UdlClientControl)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(UdlClientControl));
+    var runtimeChannel = new ItemModel("read", path: "runtime.udl_client.udl_client_control.m002");
+    runtimeChannel.Properties["read"].Value = 5;
+    runtimeChannel.Properties["format"].Value = "b4";
+
+    var definition = new UdlModuleExposureDefinition
+    {
+        ModuleName = "m002",
+        ChannelName = "read",
+        ExposeBits = true,
+        BitCount = 4,
+        BitLabels = "Bit0=Ready\nBit2=Fault"
+    };
+
+    method.Invoke(control, [runtimeChannel, definition, 4]);
+
+    AssertTrue(runtimeChannel.Has("bits"));
+    AssertTrue(runtimeChannel["bits"].Has("bit0"));
+    AssertTrue(runtimeChannel.GetDictionary().ContainsKey("bits"));
+    AssertTrue(runtimeChannel["bits"].GetDictionary().ContainsKey("bit0"));
+    AssertEqual(true, runtimeChannel["bits"]["bit0"].Value);
+    AssertEqual(false, runtimeChannel["bits"]["bit1"].Value);
+    AssertEqual(true, runtimeChannel["bits"]["bit2"].Value);
+    AssertEqual("Ready", runtimeChannel["bits"]["bit0"].Properties["title"].Value);
+    AssertEqual("m002", runtimeChannel["bits"]["bit0"].Properties["module_name"].Value);
+    AssertEqual("read", runtimeChannel["bits"]["bit0"].Properties["channel_name"].Value);
+    AssertEqual(0, runtimeChannel["bits"]["bit0"].Properties["bit_index"].Value);
+}
+
+static void SignalSourceOptionsIncludeDescendantsAndSkipStatusRoots()
+{
+    var attachedRootPath = "studio.default_layout.udl_client_control.m310";
+    var statusRootPath = "studio.default_layout.udl_client_control.status";
+    HostRegistries.Data.Remove(attachedRootPath);
+    HostRegistries.Data.Remove(statusRootPath);
+
+    try
+    {
+        var attachedRoot = ItemExtension.CreateWithPath(attachedRootPath);
+        attachedRoot["read"].Value = 1;
+        attachedRoot["read"]["bits"]["bit0"].Value = true;
+
+        var statusRoot = ItemExtension.CreateWithPath(statusRootPath);
+        statusRoot["connection"].Value = "Connected";
+
+        HostRegistries.Data.UpsertSnapshot(attachedRootPath, attachedRoot, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
+        HostRegistries.Data.UpsertSnapshot(statusRootPath, statusRoot, DataRegistryItemMetadata.WidgetStatus(), pruneMissingMembers: true);
+
+        var method = typeof(MainWindowViewModel).GetMethod("EnumerateSignalSourceOptions", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static);
+        if (method is null)
+        {
+            throw new InvalidOperationException("EnumerateSignalSourceOptions was not found.");
+        }
+
+        var options = ((IEnumerable<string>)method.Invoke(null, [])!).ToArray();
+
+        AssertTrue(options.Contains(attachedRootPath, StringComparer.OrdinalIgnoreCase));
+        AssertTrue(options.Contains("studio.default_layout.udl_client_control.m310.read", StringComparer.OrdinalIgnoreCase));
+        AssertTrue(options.Contains("studio.default_layout.udl_client_control.m310.read.bits.bit0", StringComparer.OrdinalIgnoreCase));
+        AssertFalse(options.Contains(statusRootPath, StringComparer.OrdinalIgnoreCase));
+        AssertFalse(options.Contains("studio.default_layout.udl_client_control.status.connection", StringComparer.OrdinalIgnoreCase));
+    }
+    finally
+    {
+        HostRegistries.Data.Remove(attachedRootPath);
+        HostRegistries.Data.Remove(statusRootPath);
+    }
+}
+
 static void TargetPathNormalizationUsesStudioRoot()
 {
     var helperType = typeof(MainWindowViewModel).Assembly.GetType("HornetStudio.Editor.Helpers.TargetPathHelper");
@@ -968,6 +1194,30 @@ static void SignalWriteEmitsRegistryValueUpdate()
     }
 }
 
+static void SignalWriteUpdatesWritePropertyWhenPresent()
+{
+    var targetPath = "studio.editor_tests.signal_write.demo_write_property";
+    var target = ItemExtension.CreateWithPath(targetPath, 80d);
+    target.Properties["read"].Value = 80d;
+    target.Properties["write"].Value = 80d;
+    HostRegistries.Data.UpsertSnapshot(targetPath, target);
+
+    var signal = new FolderItemModel
+    {
+        Kind = ControlKind.Signal,
+        Name = "DemoWriteProperty",
+        TargetPath = targetPath,
+    };
+
+    AssertEqual("read", signal.TargetPropertyPath);
+    AssertTrue(signal.TryUpdateTargetPropertyValue(10d, out var error));
+    AssertEqual(string.Empty, error);
+    AssertTrue(HostRegistries.Data.TryResolve(targetPath, out var resolved));
+    AssertEqual(80d, resolved?.Value);
+    AssertEqual(80d, resolved?.Properties["read"].Value);
+    AssertEqual(10d, resolved?.Properties["write"].Value);
+}
+
 static void BrokerWriteBackIgnoresNonWritableEntries()
 {
     var client = new FakeHostItemBrokerClient();
@@ -1014,7 +1264,7 @@ static void BrokerWriteBackUpdatesWritableValue()
     AssertEqual(42, resolved?.Value);
 }
 
-static void BrokerWriteBackUsesRequestWriteTarget()
+static void BrokerWriteBackNormalizesLegacyRequestMode()
 {
     var localPath = "runtime.broker_write_back.request_value";
     var brokerPath = "studio.runtime.broker_write_back.request_value";
@@ -1033,9 +1283,9 @@ static void BrokerWriteBackUsesRequestWriteTarget()
     client.PublishToSubscription(new ItemValueChangedMessage(brokerPath, 42, "external-client", null, DateTimeOffset.UtcNow));
 
     AssertTrue(HostRegistries.Data.TryResolve(localPath, out var resolved));
-    AssertEqual(1, resolved?.Value);
+    AssertEqual(42, resolved?.Value);
     AssertTrue(HostRegistries.Data.TryResolve($"{localPath}.request", out var request));
-    AssertEqual(42, request?.Value);
+    AssertEqual(1, request?.Value);
 }
 
 static void BrokerWriteBackConvertsNumericValueToLocalType()

@@ -402,6 +402,26 @@ public partial class UdlClientControl : EditorTemplateControl
             RefreshPresentation();
         }
 
+        if (e.PropertyName == nameof(FolderItemModel.UdlAttachedItemPaths))
+        {
+            if (_observedItem is not null)
+            {
+                UpdateAttachedPathsFlag(_observedItem);
+            }
+            else
+            {
+                Volatile.Write(ref _hasAttachedPaths, 0);
+            }
+
+            var attachmentsChanged = SynchronizeAttachedItems();
+            RebuildAttachRows();
+            RebuildAttachSectionRows();
+            if (attachmentsChanged)
+            {
+                Host?.RefreshFolderBindings(ItemModel?.FolderName ?? string.Empty);
+            }
+        }
+
         if (e.PropertyName is nameof(FolderItemModel.EffectiveBodyBackground)
             or nameof(FolderItemModel.EffectiveBodyBorder)
             or nameof(FolderItemModel.EffectiveBodyForeground)
@@ -965,23 +985,7 @@ public partial class UdlClientControl : EditorTemplateControl
         var nextAttachedItems = new List<UdlClientAttachSectionRow>();
 
         var attachedPaths = ParseAttachedPaths(item.UdlAttachedItemPaths);
-        foreach (var option in GetAttachOptions(item))
-        {
-            var isAttached = attachedPaths.Contains(option);
-            var summaryText = isAttached
-                ? "Runtime item is available and already attached to the UI."
-                : "Runtime item is available and can be attached to the UI.";
-            var alertText = isAttached ? "ItemModel is already attached." : string.Empty;
-
-            nextReceivedItems.Add(new UdlClientAttachSectionRow(
-                ownerItem: item,
-                relativePath: option,
-                summaryText: summaryText,
-                alertText: alertText,
-                actionText: isAttached ? "Attached" : "Attach",
-                canExecuteAction: !isAttached,
-                statusBrush: isAttached ? Brushes.ForestGreen : Brushes.Gray));
-        }
+        nextReceivedItems.AddRange(BuildReceivedAttachSectionRows(item, GetReceivedRuntimeRootPaths(EnumerateClientItems()), attachedPaths));
 
         foreach (var attachedPath in attachedPaths)
         {
@@ -1071,6 +1075,34 @@ public partial class UdlClientControl : EditorTemplateControl
         SynchronizeAttachedItems();
         RebuildAttachSectionRows();
         RefreshPresentation();
+    }
+
+    private static IReadOnlyList<UdlClientAttachSectionRow> BuildReceivedAttachSectionRows(
+        FolderItemModel item,
+        IEnumerable<string> runtimeRootPaths,
+        IReadOnlySet<string> attachedPaths)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+
+        return (runtimeRootPaths ?? [])
+            .Where(static path => !string.IsNullOrWhiteSpace(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)
+            .Select(path =>
+            {
+                var isAttached = attachedPaths.Contains(path);
+                return new UdlClientAttachSectionRow(
+                    ownerItem: item,
+                    relativePath: path,
+                    summaryText: isAttached
+                        ? "Runtime item is available and already attached to the UI."
+                        : "Runtime item is available and can be attached to the UI.",
+                    alertText: isAttached ? "ItemModel is already attached." : string.Empty,
+                    actionText: isAttached ? "Attached" : "Attach",
+                    canExecuteAction: !isAttached,
+                    statusBrush: isAttached ? Brushes.ForestGreen : Brushes.Gray);
+            })
+            .ToArray();
     }
 
     private void OnAttachReceivedItemClicked(object? sender, RoutedEventArgs e)
@@ -1290,10 +1322,49 @@ public partial class UdlClientControl : EditorTemplateControl
 
     private bool TryResolveRuntimeItem(string relativePath, out ItemModel? resolved)
     {
-        resolved = EnumerateClientItems()
-            .FirstOrDefault(candidate => string.Equals(GetRelativeRuntimePath(candidate), relativePath, StringComparison.OrdinalIgnoreCase));
-
+        resolved = ResolveRuntimeItemFromSources(ItemModel, EnumerateClientItems(), relativePath);
         return resolved is not null;
+    }
+
+    private static ItemModel? ResolveRuntimeItemFromSources(
+        FolderItemModel? ownerItem,
+        IEnumerable<ItemModel> runtimeItems,
+        string relativePath)
+    {
+        var normalizedRelativePath = TargetPathHelper.NormalizeConfiguredTargetPath(relativePath);
+        var resolved = (runtimeItems ?? [])
+            .FirstOrDefault(candidate => string.Equals(GetRelativeRuntimePath(candidate), normalizedRelativePath, StringComparison.OrdinalIgnoreCase));
+        if (resolved is not null)
+        {
+            return resolved;
+        }
+
+        if (ownerItem is null || string.IsNullOrWhiteSpace(normalizedRelativePath))
+        {
+            return null;
+        }
+
+        foreach (var runtimePath in EnumerateRuntimeRegistryPaths(ownerItem, normalizedRelativePath))
+        {
+            if (HostRegistries.Data.TryResolve(runtimePath, out resolved) && resolved is not null)
+            {
+                return resolved;
+            }
+        }
+
+        return null;
+    }
+
+    private static IReadOnlyList<string> EnumerateRuntimeRegistryPaths(FolderItemModel ownerItem, string relativePath)
+    {
+        var normalizedRelativePath = TargetPathHelper.NormalizeConfiguredTargetPath(relativePath);
+        return UdlPathHelper.GetRuntimeBasePaths(NormalizeClientName(ownerItem))
+            .Where(static prefix => !string.IsNullOrWhiteSpace(prefix))
+            .Select(prefix => string.IsNullOrWhiteSpace(normalizedRelativePath)
+                ? prefix
+                : $"{prefix}.{normalizedRelativePath}")
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
 
     private IReadOnlyList<ItemModel> EnumerateClientItems()
@@ -1360,6 +1431,16 @@ public partial class UdlClientControl : EditorTemplateControl
         }
 
         return TargetPathHelper.SplitPathSegments(path).Count == 1;
+    }
+
+    private static IReadOnlyList<string> GetReceivedRuntimeRootPaths(IEnumerable<ItemModel> runtimeItems)
+    {
+        return (runtimeItems ?? [])
+            .Select(GetRelativeRuntimePath)
+            .Where(IsRootAttachPath)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
 
     private static string? TryGetAttachRootOption(string registryKey, string prefix, string comparablePrefix)
@@ -1653,12 +1734,7 @@ public partial class UdlClientControl : EditorTemplateControl
             _publishedAttachOptionsBasePath = attachOptionsBasePath;
         }
 
-        var rootPaths = runtimeItems
-            .Select(GetRelativeRuntimePath)
-            .Where(IsRootAttachPath)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        var rootPaths = GetReceivedRuntimeRootPaths(runtimeItems);
 
         var desiredSnapshots = rootPaths
             .Select(rootPath =>
@@ -1969,7 +2045,14 @@ public partial class UdlClientControl : EditorTemplateControl
 
     private IReadOnlyList<UdlRuntimeModuleChannelDescriptor> GetRuntimeChannelDescriptors()
     {
-        return EnumerateClientItems()
+        return BuildRuntimeChannelDescriptors(ItemModel, EnumerateClientItems());
+    }
+
+    private static IReadOnlyList<UdlRuntimeModuleChannelDescriptor> BuildRuntimeChannelDescriptors(
+        FolderItemModel? ownerItem,
+        IEnumerable<ItemModel> runtimeItems)
+    {
+        var clientDescriptors = (runtimeItems ?? [])
             .Select(static item => new
             {
                 ItemModel = item,
@@ -1977,18 +2060,29 @@ public partial class UdlClientControl : EditorTemplateControl
                 Format = item.Properties.Has("format") ? item.Properties["format"].Value?.ToString() ?? string.Empty : string.Empty,
                 Unit = item.Properties.Has("unit") ? item.Properties["unit"].Value?.ToString() ?? string.Empty : string.Empty
             })
-            .Where(static entry => TargetPathHelper.SplitPathSegments(entry.RelativePath).Count == 2)
-            .Select(static entry =>
+            .Where(entry => TargetPathHelper.SplitPathSegments(entry.RelativePath).Count == 2)
+            .Select(entry =>
             {
                 var segments = TargetPathHelper.SplitPathSegments(entry.RelativePath);
                 return new UdlRuntimeModuleChannelDescriptor
                 {
                     ModuleName = segments[0],
-                    ChannelName = segments[1],
+                    ChannelName = NormalizeRuntimeChannelName(segments[1]),
                     Format = entry.Format,
-                    Unit = entry.Unit
+                    Unit = entry.Unit,
+                    BitCount = GetBitCount(entry.Format)
                 };
-            })
+            });
+
+        var registryDescriptors = ownerItem is null
+            ? []
+            : HostRegistries.Data.GetAllKeys()
+                .Select(key => ResolveRuntimeChannelDescriptor(ownerItem, key))
+                .Where(descriptor => descriptor is not null)
+                .Select(descriptor => descriptor!);
+
+        return clientDescriptors
+            .Concat(registryDescriptors)
             .GroupBy(static entry => UdlModuleExposureEditorRow.BuildKey(entry.ModuleName, entry.ChannelName), StringComparer.OrdinalIgnoreCase)
             .Select(static group => group.First())
             .OrderBy(static entry => entry.ModuleName, StringComparer.OrdinalIgnoreCase)
@@ -1996,10 +2090,75 @@ public partial class UdlClientControl : EditorTemplateControl
             .ToArray();
     }
 
+    private static UdlRuntimeModuleChannelDescriptor? ResolveRuntimeChannelDescriptor(FolderItemModel ownerItem, string key)
+    {
+        if (!TryResolveRuntimeRegistryRelativePath(ownerItem, key, out var relativePath, out var resolvedFullPath))
+        {
+            return null;
+        }
+
+        var segments = TargetPathHelper.SplitPathSegments(relativePath);
+        if (segments.Count != 2)
+        {
+            return null;
+        }
+
+        var format = HostRegistries.Data.TryResolve(resolvedFullPath, out var runtimeItem) && runtimeItem is not null && runtimeItem.Properties.Has("format")
+            ? runtimeItem.Properties["format"].Value?.ToString() ?? string.Empty
+            : string.Empty;
+        var unit = HostRegistries.Data.TryResolve(resolvedFullPath, out runtimeItem) && runtimeItem is not null && runtimeItem.Properties.Has("unit")
+            ? runtimeItem.Properties["unit"].Value?.ToString() ?? string.Empty
+            : string.Empty;
+
+        return new UdlRuntimeModuleChannelDescriptor
+        {
+            ModuleName = segments[0],
+            ChannelName = NormalizeRuntimeChannelName(segments[1]),
+            Format = format,
+            Unit = unit,
+            BitCount = GetBitCount(format)
+        };
+    }
+
+    private static bool TryResolveRuntimeRegistryRelativePath(
+        FolderItemModel ownerItem,
+        string fullPath,
+        out string relativePath,
+        out string resolvedFullPath)
+    {
+        relativePath = string.Empty;
+        resolvedFullPath = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(fullPath))
+        {
+            return false;
+        }
+
+        foreach (var prefix in UdlPathHelper.GetRuntimeBasePaths(NormalizeClientName(ownerItem)))
+        {
+            var suffix = TryGetPathSuffix(fullPath, prefix);
+            if (string.IsNullOrWhiteSpace(suffix))
+            {
+                suffix = TryGetPathSuffix(TargetPathHelper.NormalizeComparablePath(fullPath), TargetPathHelper.NormalizeComparablePath(prefix));
+            }
+
+            if (string.IsNullOrWhiteSpace(suffix))
+            {
+                continue;
+            }
+
+            relativePath = TargetPathHelper.NormalizeConfiguredTargetPath(suffix);
+            resolvedFullPath = TargetPathHelper.NormalizeConfiguredTargetPath(fullPath);
+            return true;
+        }
+
+        return false;
+    }
+
     private bool TryResolveRuntimeChannel(UdlModuleExposureDefinition definition, out ItemModel? runtimeChannel)
     {
-        runtimeChannel = EnumerateClientItems()
-            .FirstOrDefault(candidate => string.Equals(GetRelativeRuntimePath(candidate), $"{definition.ModuleName}.{definition.ChannelName}", StringComparison.OrdinalIgnoreCase));
+        var expectedRelativePath = $"{definition.ModuleName}.{NormalizeRuntimeChannelName(definition.ChannelName)}";
+        runtimeChannel = ResolveRuntimeItemFromSources(ItemModel, EnumerateClientItems(), expectedRelativePath);
         return runtimeChannel is not null;
     }
 
@@ -2033,15 +2192,15 @@ public partial class UdlClientControl : EditorTemplateControl
             return;
         }
 
-        var writeValueItem = ResolveWriteValueItem(runtimeChannel);
-        var currentMask = TryReadUnsignedInteger(writeValueItem.Value, out uint currentValue) ? currentValue : 0u;
+        var currentWriteValue = GetChannelWriteValue(runtimeChannel);
+        var currentMask = TryReadUnsignedInteger(currentWriteValue, out uint currentValue) ? currentValue : 0u;
         var nextMask = enabled
             ? currentMask | (1u << bitIndex)
             : currentMask & ~(1u << bitIndex);
 
         SetRuntimeExposureBitValue(moduleName, channelName, bitIndex, enabled);
         WriteDiagnosticLog(
-            $"Bit writeback requested module={moduleName} channel={channelName} effectiveChannel={effectiveChannelName} bit={bitIndex} enabled={enabled} sourceBit={ResolveExposureBitPath(moduleName, channelName, bitIndex)} writeTarget={writeValueItem.Path ?? runtimeChannel.Path ?? "<none>"} writeType={writeValueItem.Value?.GetType().Name ?? "<null>"} currentMask=0x{currentMask:X} nextMask=0x{nextMask:X} currentValue={FormatDiagnosticValue(writeValueItem.Value)}");
+            $"Bit writeback requested module={moduleName} channel={channelName} effectiveChannel={effectiveChannelName} bit={bitIndex} enabled={enabled} sourceBit={ResolveExposureBitPath(moduleName, channelName, bitIndex)} writeTarget={runtimeChannel.Path ?? "<none>"} writeType={currentWriteValue?.GetType().Name ?? "<null>"} currentMask=0x{currentMask:X} nextMask=0x{nextMask:X} currentValue={FormatDiagnosticValue(currentWriteValue)}");
         if (nextMask == currentMask)
         {
             WriteDiagnosticLog(
@@ -2049,24 +2208,24 @@ public partial class UdlClientControl : EditorTemplateControl
             return;
         }
 
-        writeValueItem.Value = ConvertMaskValue(writeValueItem.Value, nextMask);
+        SetChannelWriteValue(runtimeChannel, ConvertMaskValue(currentWriteValue, nextMask));
         WriteDiagnosticLog(
-            $"Bit writeback applied module={moduleName} channel={channelName} effectiveChannel={effectiveChannelName} bit={bitIndex} writeTarget={writeValueItem.Path ?? runtimeChannel.Path ?? "<none>"} written={FormatDiagnosticValue(writeValueItem.Value)} mask=0x{nextMask:X}");
+            $"Bit writeback applied module={moduleName} channel={channelName} effectiveChannel={effectiveChannelName} bit={bitIndex} writeTarget={runtimeChannel.Path ?? "<none>"} written={FormatDiagnosticValue(GetChannelWriteValue(runtimeChannel))} mask=0x{nextMask:X}");
     }
 
     private void SetRuntimeExposureBitValue(string moduleName, string channelName, int bitIndex, bool enabled)
     {
         if (!TryResolveRuntimeChannel(new UdlModuleExposureDefinition { ModuleName = moduleName, ChannelName = channelName }, out var sourceChannel)
             || sourceChannel is null
-            || !sourceChannel.Has("Bits"))
+            || !sourceChannel.Has("bits"))
         {
             return;
         }
 
-        var bitName = $"Bit{bitIndex}";
-        if (sourceChannel["Bits"].Has(bitName))
+        var bitName = $"bit{bitIndex}";
+        if (sourceChannel["bits"].Has(bitName))
         {
-            SetItemValueIfDifferent(sourceChannel["Bits"][bitName], enabled);
+            SetItemValueIfDifferent(sourceChannel["bits"][bitName], enabled);
         }
     }
 
@@ -2074,22 +2233,22 @@ public partial class UdlClientControl : EditorTemplateControl
     {
         if (!TryResolveRuntimeChannel(new UdlModuleExposureDefinition { ModuleName = moduleName, ChannelName = channelName }, out var sourceChannel)
             || sourceChannel is null
-            || !sourceChannel.Has("Bits"))
+            || !sourceChannel.Has("bits"))
         {
             return "<none>";
         }
 
-        var bitName = $"Bit{bitIndex}";
-        return sourceChannel["Bits"].Has(bitName)
-            ? sourceChannel["Bits"][bitName].Path ?? "<none>"
+        var bitName = $"bit{bitIndex}";
+        return sourceChannel["bits"].Has(bitName)
+            ? sourceChannel["bits"][bitName].Path ?? "<none>"
             : "<none>";
     }
 
     private string ResolveEffectiveWriteChannelName(string moduleName, string channelName)
     {
-        if (!string.Equals(channelName, "Read", StringComparison.OrdinalIgnoreCase) || ItemModel is null)
+        if (!string.Equals(channelName, "read", StringComparison.OrdinalIgnoreCase) || ItemModel is null)
         {
-            return channelName;
+            return NormalizeRuntimeChannelName(channelName);
         }
 
         var definition = UdlModuleExposureDefinitionCodec.ParseDefinitions(ItemModel.UdlModuleExposureDefinitions)
@@ -2097,12 +2256,12 @@ public partial class UdlClientControl : EditorTemplateControl
                                       && string.Equals(candidate.ChannelName, channelName, StringComparison.OrdinalIgnoreCase));
         if (definition?.RouteReadInputToSetRequest != true)
         {
-            return channelName;
+            return NormalizeRuntimeChannelName(channelName);
         }
 
-        return TryResolveRuntimeChannel(new UdlModuleExposureDefinition { ModuleName = moduleName, ChannelName = "Set" }, out _)
-            ? "Set"
-            : channelName;
+        return TryResolveRuntimeChannel(new UdlModuleExposureDefinition { ModuleName = moduleName, ChannelName = "set" }, out _)
+            ? "set"
+            : NormalizeRuntimeChannelName(channelName);
     }
 
     private void ForceAttachedItemsResync()
@@ -2148,28 +2307,28 @@ public partial class UdlClientControl : EditorTemplateControl
     private bool UpsertRuntimeExposureBits(ItemModel runtimeChannel, UdlModuleExposureDefinition definition, int bitCount)
     {
         var structureChanged = false;
-        if (!runtimeChannel.Has("Bits"))
+        if (!runtimeChannel.Has("bits"))
         {
-            runtimeChannel["Bits"] = new ItemModel("Bits", path: runtimeChannel.Path);
+            runtimeChannel["bits"] = new ItemModel("bits", path: runtimeChannel.Path);
             structureChanged = true;
         }
 
-        var bitsRoot = runtimeChannel["Bits"];
-        structureChanged |= SetPropertyValueIfDifferent(bitsRoot, "Kind", "Group");
-        structureChanged |= SetPropertyValueIfDifferent(bitsRoot, "Title", $"{definition.ModuleName}.{definition.ChannelName} Bits");
+        var bitsRoot = runtimeChannel["bits"];
+        structureChanged |= SetPropertyValueIfDifferent(bitsRoot, "kind", "Group");
+        structureChanged |= SetPropertyValueIfDifferent(bitsRoot, "title", $"{definition.ModuleName}.{definition.ChannelName} Bits");
 
         var writeTargetChannel = ResolveExposureWriteTargetChannel(runtimeChannel, definition);
         var writable = writeTargetChannel.Properties.Has("write")
             || !writeTargetChannel.Properties.Has("writable")
             || TryReadBool(writeTargetChannel.Properties["writable"].Value, false);
-        var valueSourceItem = ResolveExposureBitValueSourceItem(runtimeChannel, definition, writeTargetChannel);
-        var rawValue = TryReadUnsignedInteger(valueSourceItem.Value, out uint currentValue) ? currentValue : 0u;
+        var sourceValue = ResolveExposureBitValueSourceValue(runtimeChannel, definition, writeTargetChannel);
+        var rawValue = TryReadUnsignedInteger(sourceValue, out uint currentValue) ? currentValue : 0u;
         var labels = ParseBitLabels(definition.BitLabels);
         var desiredBitNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         for (var bitIndex = 0; bitIndex < bitCount; bitIndex++)
         {
-            var bitName = $"Bit{bitIndex}";
+            var bitName = $"bit{bitIndex}";
             desiredBitNames.Add(bitName);
 
             if (!bitsRoot.Has(bitName))
@@ -2183,17 +2342,17 @@ public partial class UdlClientControl : EditorTemplateControl
             var bitValue = ((rawValue >> bitIndex) & 1u) == 1u;
 
             SetItemValueIfDifferent(bitItem, bitValue);
-            structureChanged |= SetPropertyValueIfDifferent(bitItem, "Kind", "Bool");
-            structureChanged |= SetPropertyValueIfDifferent(bitItem, "Format", "bool");
-            structureChanged |= SetPropertyValueIfDifferent(bitItem, "Title", label);
-            structureChanged |= SetPropertyValueIfDifferent(bitItem, "Text", label);
-            structureChanged |= SetPropertyValueIfDifferent(bitItem, "ModuleName", definition.ModuleName);
-            structureChanged |= SetPropertyValueIfDifferent(bitItem, "ChannelName", definition.ChannelName);
-            structureChanged |= SetPropertyValueIfDifferent(bitItem, "BitIndex", bitIndex);
-            structureChanged |= SetPropertyValueIfDifferent(bitItem, "SourcePath", runtimeChannel.Path ?? string.Empty);
-            structureChanged |= SetPropertyValueIfDifferent(bitItem, "Writable", writable);
-            structureChanged |= SetPropertyValueIfDifferent(bitItem, "WritePath", string.Empty);
-            structureChanged |= SetPropertyValueIfDifferent(bitItem, "WriteMode", string.Empty);
+            structureChanged |= SetPropertyValueIfDifferent(bitItem, "kind", "Bool");
+            structureChanged |= SetPropertyValueIfDifferent(bitItem, "format", "bool");
+            structureChanged |= SetPropertyValueIfDifferent(bitItem, "title", label);
+            structureChanged |= SetPropertyValueIfDifferent(bitItem, "text", label);
+            structureChanged |= SetPropertyValueIfDifferent(bitItem, "module_name", definition.ModuleName);
+            structureChanged |= SetPropertyValueIfDifferent(bitItem, "channel_name", definition.ChannelName);
+            structureChanged |= SetPropertyValueIfDifferent(bitItem, "bit_index", bitIndex);
+            structureChanged |= SetPropertyValueIfDifferent(bitItem, "source_path", runtimeChannel.Path ?? string.Empty);
+            structureChanged |= SetPropertyValueIfDifferent(bitItem, "writable", writable);
+            structureChanged |= SetPropertyValueIfDifferent(bitItem, "write_path", string.Empty);
+            structureChanged |= SetPropertyValueIfDifferent(bitItem, "write_mode", string.Empty);
         }
 
         foreach (var staleBitName in bitsRoot.GetDictionary().Keys.Except(desiredBitNames, StringComparer.OrdinalIgnoreCase).ToArray())
@@ -2208,8 +2367,8 @@ public partial class UdlClientControl : EditorTemplateControl
     private ItemModel ResolveExposureWriteTargetChannel(ItemModel runtimeChannel, UdlModuleExposureDefinition definition)
     {
         if (!definition.RouteReadInputToSetRequest
-            || !string.Equals(definition.ChannelName, "Read", StringComparison.OrdinalIgnoreCase)
-            || !TryResolveRuntimeChannel(new UdlModuleExposureDefinition { ModuleName = definition.ModuleName, ChannelName = "Set" }, out var setChannel)
+            || !string.Equals(definition.ChannelName, "read", StringComparison.OrdinalIgnoreCase)
+            || !TryResolveRuntimeChannel(new UdlModuleExposureDefinition { ModuleName = definition.ModuleName, ChannelName = "set" }, out var setChannel)
             || setChannel is null)
         {
             return runtimeChannel;
@@ -2218,40 +2377,40 @@ public partial class UdlClientControl : EditorTemplateControl
         return setChannel;
     }
 
-    private ItemModel ResolveExposureBitValueSourceItem(ItemModel runtimeChannel, UdlModuleExposureDefinition definition, ItemModel writeTargetChannel)
+    private static object? ResolveExposureBitValueSourceValue(ItemModel runtimeChannel, UdlModuleExposureDefinition definition, ItemModel writeTargetChannel)
     {
-        if (string.Equals(definition.ChannelName, "Set", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(definition.ChannelName, "set", StringComparison.OrdinalIgnoreCase))
         {
-            return ResolveWriteValueItem(runtimeChannel);
+            return GetChannelWriteValue(runtimeChannel);
         }
 
-        if (definition.RouteReadInputToSetRequest && string.Equals(definition.ChannelName, "Read", StringComparison.OrdinalIgnoreCase))
+        if (definition.RouteReadInputToSetRequest && string.Equals(definition.ChannelName, "read", StringComparison.OrdinalIgnoreCase))
         {
-            return ResolveWriteValueItem(writeTargetChannel);
+            return GetChannelWriteValue(writeTargetChannel);
         }
 
-        return runtimeChannel;
+        return GetChannelReadValue(runtimeChannel);
     }
 
-    private static ItemModel ResolveWriteValueItem(ItemModel runtimeChannel)
+    private static string NormalizeRuntimeChannelName(string? channelName)
+        => channelName?.Trim().ToLowerInvariant() ?? string.Empty;
+
+    private static object? GetChannelReadValue(ItemModel runtimeChannel)
+        => runtimeChannel.Properties.Has("read")
+            ? runtimeChannel.Properties["read"].Value
+            : null;
+
+    private static object? GetChannelWriteValue(ItemModel runtimeChannel)
+        => runtimeChannel.Properties.Has("write")
+            ? runtimeChannel.Properties["write"].Value
+            : null;
+
+    private static void SetChannelWriteValue(ItemModel runtimeChannel, object? value)
     {
         if (runtimeChannel.Properties.Has("write"))
         {
-            return runtimeChannel;
+            runtimeChannel.Properties["write"].Value = value!;
         }
-
-        var writeMode = runtimeChannel.Properties.Has("write_mode") ? runtimeChannel.Properties["write_mode"].Value?.ToString() ?? string.Empty : string.Empty;
-        if (string.Equals(writeMode, SignalWriteMode.Request.ToString(), StringComparison.OrdinalIgnoreCase) && runtimeChannel.Has("Request"))
-        {
-            return runtimeChannel["Request"];
-        }
-
-        if (runtimeChannel.Has("Request") && !runtimeChannel.Properties.Has("write_mode"))
-        {
-            return runtimeChannel["Request"];
-        }
-
-        return runtimeChannel;
     }
 
     private static int ResolveBitCount(UdlModuleExposureDefinition definition, ItemModel runtimeChannel)
@@ -2278,12 +2437,12 @@ public partial class UdlClientControl : EditorTemplateControl
 
     private static bool RemoveRuntimeExposureBits(ItemModel runtimeChannel)
     {
-        if (!runtimeChannel.Has("Bits"))
+        if (!runtimeChannel.Has("bits"))
         {
             return false;
         }
 
-        runtimeChannel.Remove("Bits");
+        runtimeChannel.Remove("bits");
         return true;
     }
 

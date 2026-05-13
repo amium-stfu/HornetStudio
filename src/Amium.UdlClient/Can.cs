@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -293,9 +294,9 @@ public sealed class Can : IDisposable
         return new IPEndPoint(selectedAddress, port);
     }
 
-    private static void JoinThread(Thread thread)
+    private void JoinThread(Thread thread)
     {
-        if (thread.ThreadState == ThreadState.Unstarted)
+        if (thread.ThreadState == System.Threading.ThreadState.Unstarted)
         {
             return;
         }
@@ -304,8 +305,9 @@ public sealed class Can : IDisposable
         {
             thread.Join(250);
         }
-        catch
+        catch (Exception exception)
         {
+            WriteDiagnostic($"thread join failed name={thread.Name ?? "<unnamed>"} error={exception.GetType().Name}: {exception.Message}");
         }
     }
 
@@ -339,8 +341,23 @@ public sealed class Can : IDisposable
     private void WriteDiagnostic(string message)
     {
         var formatted = $"[Can] {message}";
-        _diagnosticSink?.Invoke(formatted);
-        Diagnostic?.Invoke(formatted);
+        try
+        {
+            _diagnosticSink?.Invoke(formatted);
+        }
+        catch (Exception exception)
+        {
+            Debug.WriteLine($"Can diagnostic sink failed: {exception}");
+        }
+
+        try
+        {
+            Diagnostic?.Invoke(formatted);
+        }
+        catch (Exception exception)
+        {
+            Debug.WriteLine($"Can diagnostic callback failed: {exception}");
+        }
     }
 
     private static string FormatBytes(byte[] data, byte dlc)

@@ -166,28 +166,28 @@ public sealed class SimulatedHostUdlClient : IHostUdlClient
             module.Properties["unit"].Value = definition.Unit;
             module.Properties["format"].Value = definition.Format;
 
-            var read = GetChannel(module, "Read");
+            var read = GetChannel(module, "read");
             read.Properties["text"].Value = $"{definition.Name} Read";
             read.Properties["unit"].Value = definition.Unit;
             read.Properties["format"].Value = definition.Format;
             read.Properties["write"].Value = definition.InitialValue;
 
-            var set = GetChannel(module, "Set");
+            var set = GetChannel(module, "set");
             set.Properties["text"].Value = $"{definition.Name} Set";
             set.Properties["unit"].Value = definition.Unit;
             set.Properties["format"].Value = definition.Format;
             set.Properties["write"].Value = definition.InitialValue;
 
-            var output = GetChannel(module, "Out");
+            var output = GetChannel(module, "out");
             output.Properties["text"].Value = $"{definition.Name} Out";
             output.Properties["unit"].Value = definition.Unit;
             output.Properties["format"].Value = definition.Format;
             output.Properties["write"].Value = definition.InitialValue;
 
-            var stateChannel = GetChannel(module, "State");
+            var stateChannel = GetChannel(module, "state");
             stateChannel.Properties["text"].Value = $"{definition.Name} State";
             stateChannel.Properties["write"].Value = 1;
-            GetChannel(module, "Alert").Properties["text"].Value = $"{definition.Name} Alert";
+            GetChannel(module, "alert").Properties["text"].Value = $"{definition.Name} Alert";
 
             var state = new ModuleRuntimeState
             {
@@ -294,7 +294,7 @@ public sealed class SimulatedHostUdlClient : IHostUdlClient
     private static double ComputeSetDrivenValue(ModuleRuntimeState state, DateTimeOffset now)
     {
         var definition = state.Definition;
-        var requestValue = TryReadDouble(GetChannel(state.Module, "Set").Properties["write"].Value, definition.InitialValue);
+        var requestValue = TryReadDouble(GetChannel(state.Module, "set").Properties["write"].Value, definition.InitialValue);
         var targetValue = requestValue * definition.SetScale + definition.SetOffset;
         var tauSeconds = Math.Max(0, definition.SetTauSeconds);
 
@@ -371,19 +371,17 @@ public sealed class SimulatedHostUdlClient : IHostUdlClient
 
     private static void ApplyModuleSnapshot(ModuleRuntimeState state, double value, string alertText, int stateCode)
     {
-        state.Module.Value = value;
-
-        var read = GetChannel(state.Module, "Read");
+        var read = GetChannel(state.Module, "read");
         SetReadValue(read, value);
 
-        var set = GetChannel(state.Module, "Set");
-        SetReadValue(set, value);
+        var set = GetChannel(state.Module, "set");
+        SetReadValue(set, set.Properties["write"].Value);
 
-        var output = GetChannel(state.Module, "Out");
+        var output = GetChannel(state.Module, "out");
         SetReadValue(output, value);
 
-        SetReadValue(GetChannel(state.Module, "State"), stateCode);
-        GetChannel(state.Module, "Alert").Value = alertText;
+        SetReadValue(GetChannel(state.Module, "state"), stateCode);
+        SetReadValue(GetChannel(state.Module, "alert"), alertText);
     }
 
     private void RaiseDiagnostic(string message)
@@ -404,11 +402,11 @@ public sealed class SimulatedHostUdlClient : IHostUdlClient
         module.Properties["text"].Value = definition.Name.Trim();
         module.Properties["unit"].Value = string.Empty;
 
-        AddChannel(module, "Read", hasWriteChannel: true);
-        AddChannel(module, "Set", hasWriteChannel: true);
-        AddChannel(module, "Out", hasWriteChannel: true);
-        AddChannel(module, "State", hasWriteChannel: true);
-        AddChannel(module, "Alert");
+        AddChannel(module, "read", hasWriteChannel: true);
+        AddChannel(module, "set", hasWriteChannel: true);
+        AddChannel(module, "out", hasWriteChannel: true);
+        AddChannel(module, "state", hasWriteChannel: true);
+        AddChannel(module, "alert");
         return module;
     }
 

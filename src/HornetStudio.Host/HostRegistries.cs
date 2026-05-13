@@ -199,6 +199,11 @@ public sealed record DataRegistryItemMetadata(DataRegistryItemRole Role, DataReg
 /// </summary>
 public static class HostRegistryPropertyPolicy
 {
+    private static readonly HashSet<string> UserPickerHiddenParameters = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "write"
+    };
+
     private static readonly HashSet<string> ProtectedParameters = new(StringComparer.OrdinalIgnoreCase)
     {
         "writable",
@@ -226,7 +231,9 @@ public static class HostRegistryPropertyPolicy
     /// <param name="parameterName">The parameter name to evaluate.</param>
     /// <returns><see langword="true"/> when the parameter may be shown; otherwise, <see langword="false"/>.</returns>
     public static bool CanShowInUserPicker(string? parameterName)
-        => !IsProtectedProperty(parameterName);
+        => !string.IsNullOrWhiteSpace(parameterName)
+           && !UserPickerHiddenParameters.Contains(HostPathSegmentNormalizer.Normalize(parameterName))
+           && !IsProtectedProperty(parameterName);
 
     /// <summary>
     /// Determines whether user- or remote-driven code may write the parameter.
