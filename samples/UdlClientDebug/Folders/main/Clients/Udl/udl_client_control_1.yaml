@@ -1,0 +1,73 @@
+Text: udl_client_control_1
+Host: 192.168.178.151
+Port: 9001
+AutoConnect: true
+Enabled: true
+DemoEnabled: true
+AttachedItemPaths:
+- m001
+- m002
+UdlModuleExposures:
+- ModuleName: m001
+  ChannelName: read
+  Format: ''
+  Unit: ''
+  BitCount: 4
+  BitLabels: ''
+- ModuleName: m002
+  ChannelName: read
+  Format: ''
+  Unit: ''
+  ExposeBits: true
+  BitCount: 4
+  RouteReadInputToSetRequest: true
+  BitLabels: ''
+- ModuleName: m002
+  ChannelName: set
+  Format: ''
+  Unit: ''
+  ExposeBits: true
+  BitCount: 4
+  BitLabels: ''
+DemoModules:
+- Name: m001
+  Unit: ''
+  Format: ''
+  Amplitude: 1
+  PeriodSeconds: 5
+  SetScale: 1
+  Faults:
+  - Kind: Noise
+    Enabled: true
+    Amount: 0.1
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+- Name: m002
+  Kind: SetDriven
+  Unit: ''
+  Format: ''
+  Amplitude: 1
+  PeriodSeconds: 5
+  SetScale: 1
+  Faults:
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000

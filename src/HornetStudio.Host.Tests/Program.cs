@@ -37,24 +37,36 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Metadata capability query returns publishable keys", () => RunSync(MetadataCapabilityQueryReturnsPublishableKeys)),
     ("Remove clears indexed descendants", () => RunSync(RemoveClearsIndexedDescendants)),
     ("Prune clears stale descendants", () => RunSync(PruneClearsStaleDescendants)),
+    ("Value reference resolves source property without mutating public snapshot", () => RunSync(ValueReferenceResolvesSourcePropertyWithoutMutatingPublicSnapshot)),
+    ("Value reference notification publishes public path", () => RunSync(ValueReferenceNotificationPublishesPublicPath)),
     ("Signal lookup works for descendants", () => RunSync(SignalLookupWorksForDescendants)),
     ("Signal update fires for descendant updates", () => RunSync(SignalUpdateFiresForDescendantUpdates)),
     ("UI folder child source update preserves write property", () => RunSync(UiFolderChildSourceUpdatePreservesWriteProperty)),
+    ("UI folder coalesces runtime read updates to latest value", () => RunSync(UiFolderCoalescesRuntimeReadUpdatesToLatestValue)),
     ("UI folder initial publish preserves source runtime paths", () => RunSync(UiFolderInitialPublishPreservesSourceRuntimePaths)),
+    ("UI folder dispose is safe during reentrant registry remove", () => RunSync(UiFolderDisposeIsSafeDuringReentrantRegistryRemove)),
     ("Host UDL client creates flat channels", () => RunSync(HostUdlClientCreatesFlatChannels)),
+    ("Host UDL client queues non-state writeback", () => RunSync(HostUdlClientQueuesNonStateWriteback)),
+    ("Host UDL client acknowledges matching writeback channel", () => RunSync(HostUdlClientAcknowledgesMatchingWritebackChannel)),
     ("Python client registry paths normalize to snake_case", PythonClientRegistryPathsNormalizeToSnakeCase),
     ("Enhanced signal runtime publishes snake_case write paths", () => RunSync(EnhancedSignalRuntimePublishesSnakeCaseWritePaths)),
     ("Enhanced signal runtime publishes type metadata", () => RunSync(EnhancedSignalRuntimePublishesTypeMetadata)),
     ("Enhanced signal set write forwards inverse adjustment", () => RunSync(EnhancedSignalSetWriteForwardsInverseAdjustment)),
     ("Enhanced signal prefers child read over source container text", () => RunSync(EnhancedSignalPrefersChildReadOverSourceContainerText)),
     ("Enhanced signal ignores nonnumeric source text for numeric conversion", () => RunSync(EnhancedSignalIgnoresNonnumericSourceTextForNumericConversion)),
+    ("Enhanced signal manager keeps runtime when runtime definition mutates", () => RunSync(EnhancedSignalManagerKeepsRuntimeWhenRuntimeDefinitionMutates)),
     ("Registry direct update writes writable child channel", () => RunSync(RegistryDirectUpdateWritesWritableChildChannel)),
     ("PID controller runtime publishes stable paths", () => RunSync(PidControllerRuntimePublishesStablePaths)),
+    ("PID controller stopped runtime stays quiet", () => RunSync(PidControllerStoppedRuntimeStaysQuiet)),
+    ("PID controller stopped read mirrors available source", () => RunSync(PidControllerStoppedReadMirrorsAvailableSource)),
+    ("PID controller stopped read updates on source change", () => RunSync(PidControllerStoppedReadUpdatesOnSourceChange)),
     ("PID controller run value starts and stops", () => RunSync(PidControllerRunValueStartsAndStops)),
     ("PID controller legacy write property still starts and stops", () => RunSync(PidControllerRunWritePropertyStartsAndStops)),
     ("PID controller guards invalid numeric input", () => RunSync(PidControllerGuardsInvalidNumericInput)),
     ("PID controller rejects invalid owned setpoint", () => RunSync(PidControllerRejectsInvalidOwnedSetpoint)),
     ("PID controller owned setpoint write changes output", () => RunSync(PidControllerOwnedSetpointWriteChangesOutput)),
+    ("PID controller publishes percent and scaled output", () => RunSync(PidControllerPublishesPercentAndScaledOutput)),
+    ("PID controller publishes boolean alert state", () => RunSync(PidControllerPublishesBooleanAlertState)),
     ("PID controller does not bias output to setpoint", () => RunSync(PidControllerDoesNotBiasOutputToSetpoint)),
     ("PID controller clamps scaled output", () => RunSync(PidControllerClampsScaledOutput)),
     ("PID controller rejects invalid CHR parameters", () => RunSync(PidControllerRejectsInvalidChrParameters)),
@@ -351,6 +363,73 @@ static void PruneClearsStaleDescendants()
     AssertFalse(registry.TryResolve("runtime.device.read", out _));
 }
 
+static void ValueReferenceResolvesSourcePropertyWithoutMutatingPublicSnapshot()
+{
+    var registry = new DataRegistry();
+    var runtimeRead = ItemExtension.CreateWithPath("runtime.udl_client.client_a.m001.read");
+    runtimeRead.Properties["read"].Value = 5d;
+    registry.UpsertSnapshot(runtimeRead.Path!, runtimeRead);
+
+    var publicRead = ItemExtension.CreateWithPath("studio.default_layout.client_a.m001.read");
+    publicRead.Properties["read"].Value = 0d;
+    registry.UpsertSnapshot(publicRead.Path!, publicRead);
+
+    AssertTrue(registry.RegisterValueReference(new DataRegistryValueReference(
+        PublicItemPath: publicRead.Path!,
+        PublicParameterName: "read",
+        SourceItemPath: runtimeRead.Path!,
+        SourceParameterName: "read")));
+
+    AssertTrue(registry.TryResolve(publicRead.Path!, out var resolved));
+    AssertEqual(5d, Convert.ToDouble(resolved?.Properties["read"].Value ?? -1d));
+    AssertTrue(registry.TryGet(publicRead.Path!, out var stored));
+    AssertEqual(0d, Convert.ToDouble(stored?.Properties["read"].Value ?? -1d));
+}
+
+static void ValueReferenceNotificationPublishesPublicPath()
+{
+    var registry = new DataRegistry();
+    var runtimeRead = ItemExtension.CreateWithPath("runtime.udl_client.client_a.m002.read");
+    runtimeRead.Properties["read"].Value = 1d;
+    registry.UpsertSnapshot(runtimeRead.Path!, runtimeRead);
+
+    var publicRead = ItemExtension.CreateWithPath("studio.default_layout.client_a.m002.read");
+    publicRead.Properties["read"].Value = 0d;
+    registry.UpsertSnapshot(publicRead.Path!, publicRead);
+
+    AssertTrue(registry.RegisterValueReference(new DataRegistryValueReference(
+        PublicItemPath: publicRead.Path!,
+        PublicParameterName: "read",
+        SourceItemPath: runtimeRead.Path!,
+        SourceParameterName: "read")));
+
+    var changedKey = string.Empty;
+    var changedParameter = string.Empty;
+    var changedValue = double.NaN;
+    registry.ItemChanged += (_, e) =>
+    {
+        if (!string.Equals(e.Key, publicRead.Path, StringComparison.OrdinalIgnoreCase)
+            || e.ChangeKind != DataChangeKind.PropertyUpdated
+            || !string.Equals(e.ParameterName, "read", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        changedKey = e.Key;
+        changedParameter = e.ParameterName ?? string.Empty;
+        changedValue = Convert.ToDouble(e.ItemModel.Properties["read"].Value ?? double.NaN);
+    };
+
+    runtimeRead.Properties["read"].Value = 9d;
+
+    AssertTrue(registry.NotifyReferencedPropertyChanged(publicRead.Path!, "read"));
+    AssertEqual(publicRead.Path, changedKey);
+    AssertEqual("read", changedParameter);
+    AssertEqual(9d, changedValue);
+    AssertTrue(registry.TryGet(publicRead.Path!, out var stored));
+    AssertEqual(0d, Convert.ToDouble(stored?.Properties["read"].Value ?? -1d));
+}
+
 static void SignalLookupWorksForDescendants()
 {
     var registry = new DataRegistry();
@@ -393,6 +472,52 @@ static void UiFolderChildSourceUpdatePreservesWriteProperty()
     AssertEqual(42, set?.Properties["write"].Value);
 }
 
+static void UiFolderCoalescesRuntimeReadUpdatesToLatestValue()
+{
+    const string targetPath = "studio.mirror_test.m301.read";
+    HostRegistries.Data.Remove("studio.mirror_test.m301");
+
+    var source = ItemExtension.CreateWithPath("runtime.udl_client.runtime_projection.m301", 0);
+    source["read"].Properties["read"].Value = 0d;
+
+    using var context = new UiFolderContext("MirrorTest");
+    var attached = context.Attach(source, "m301");
+    HostRegistries.Data.UpsertSnapshot(attached.Path!, attached.Clone(), DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
+
+    var publishCount = 0;
+    void OnDataChanged(object? sender, DataChangedEventArgs e)
+    {
+        if (string.Equals(e.Key, targetPath, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(e.ParameterName, "read", StringComparison.OrdinalIgnoreCase)
+            && e.ChangeKind == DataChangeKind.PropertyUpdated)
+        {
+            Interlocked.Increment(ref publishCount);
+        }
+    }
+
+    HostRegistries.Data.ItemChanged += OnDataChanged;
+    try
+    {
+        source["read"].Properties["read"].Value = 1d;
+        source["read"].Properties["read"].Value = 2d;
+        source["read"].Properties["read"].Value = 3d;
+
+        AssertTrue(SpinWait.SpinUntil(
+            () => HostRegistries.Data.TryResolve(targetPath, out var resolved)
+                && Convert.ToDouble(resolved?.Properties["read"].Value ?? -1d) == 3d,
+            TimeSpan.FromSeconds(2)));
+        if (Volatile.Read(ref publishCount) >= 3)
+        {
+            throw new InvalidOperationException($"Expected coalesced publish count < 3 but was {publishCount}.");
+        }
+    }
+    finally
+    {
+        HostRegistries.Data.ItemChanged -= OnDataChanged;
+        HostRegistries.Data.Remove("studio.mirror_test.m301");
+    }
+}
+
 static void UiFolderInitialPublishPreservesSourceRuntimePaths()
 {
     var source = ItemExtension.CreateWithPath("runtime.ui_folder_mirror.m002", 0);
@@ -404,6 +529,41 @@ static void UiFolderInitialPublishPreservesSourceRuntimePaths()
 
     AssertEqual("runtime.ui_folder_mirror.m002", source.Path);
     AssertEqual("runtime.ui_folder_mirror.m002.read", source["read"].Path);
+}
+
+static void UiFolderDisposeIsSafeDuringReentrantRegistryRemove()
+{
+    for (var iteration = 0; iteration < 16; iteration++)
+    {
+        HostRegistries.Data.Remove("studio.mirror_test.m302");
+        HostRegistries.Data.Remove("studio.mirror_test.m303");
+
+        var sourceA = ItemExtension.CreateWithPath($"runtime.udl_client.dispose_test_{iteration}.m302", 0);
+        var sourceB = ItemExtension.CreateWithPath($"runtime.udl_client.dispose_test_{iteration}.m303", 0);
+        using var context = new UiFolderContext("MirrorTest");
+        var attachedA = context.Attach(sourceA, "m302");
+        var attachedB = context.Attach(sourceB, "m303");
+        HostRegistries.Data.UpsertSnapshot(attachedA.Path!, attachedA.Clone(), DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
+        HostRegistries.Data.UpsertSnapshot(attachedB.Path!, attachedB.Clone(), DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
+
+        using var start = new ManualResetEventSlim(false);
+        var disposeA = Task.Run(() =>
+        {
+            start.Wait();
+            context.Dispose();
+        });
+        var disposeB = Task.Run(() =>
+        {
+            start.Wait();
+            context.Dispose();
+        });
+
+        start.Set();
+        Task.WaitAll(disposeA, disposeB);
+
+        HostRegistries.Data.Remove("studio.mirror_test.m302");
+        HostRegistries.Data.Remove("studio.mirror_test.m303");
+    }
 }
 
 static void HostUdlClientCreatesFlatChannels()
@@ -428,6 +588,75 @@ static void HostUdlClientCreatesFlatChannels()
     AssertTrue(module.Has("alert"));
     AssertTrue(module["alert"].Properties.Has("read"));
     AssertFalse(module["alert"].Properties.Has("write"));
+}
+
+static void HostUdlClientQueuesNonStateWriteback()
+{
+    var client = new HostUdlClient("test", "127.0.0.1", 9001);
+    var module = CreateHostUdlModule(client, moduleId: 1u);
+    module["set"].Properties["read"].Value = 10f;
+    module["set"].Properties["write"].Value = 42f;
+
+    QueueHostUdlWrite(client, moduleId: 1u, module, module["set"]);
+
+    AssertEqual(1, GetHostUdlPendingWriteCount(client));
+
+    ProcessHostUdlFrame(client, moduleId: 1u, function: 3, value: 42f);
+
+    AssertEqual(1, GetHostUdlPendingWriteCount(client));
+}
+
+static void HostUdlClientAcknowledgesMatchingWritebackChannel()
+{
+    var client = new HostUdlClient("test", "127.0.0.1", 9001);
+    var module = CreateHostUdlModule(client, moduleId: 1u);
+    module["set"].Properties["read"].Value = 10f;
+    module["set"].Properties["write"].Value = 42f;
+
+    QueueHostUdlWrite(client, moduleId: 1u, module, module["set"]);
+    ProcessHostUdlFrame(client, moduleId: 1u, function: 4, value: 42f);
+
+    AssertEqual(0, GetHostUdlPendingWriteCount(client));
+    AssertEqual("ok", module.Properties["SendStatus"].Value);
+    AssertEqual(42f, module["set"].Properties["read"].Value);
+}
+
+static ItemModel CreateHostUdlModule(HostUdlClient client, uint moduleId)
+{
+    var createModuleMethod = typeof(HostUdlClient).GetMethod("GetOrCreateModule", BindingFlags.Instance | BindingFlags.NonPublic);
+    AssertTrue(createModuleMethod is not null);
+    return (ItemModel)createModuleMethod!.Invoke(client, [moduleId])!;
+}
+
+static void QueueHostUdlWrite(HostUdlClient client, uint moduleId, ItemModel module, ItemModel item)
+{
+    var processRequestWriteMethod = typeof(HostUdlClient).GetMethod("ProcessRequestWrite", BindingFlags.Instance | BindingFlags.NonPublic);
+    AssertTrue(processRequestWriteMethod is not null);
+    processRequestWriteMethod!.Invoke(client, [moduleId, module, item]);
+}
+
+static void ProcessHostUdlFrame(HostUdlClient client, uint moduleId, int function, float value)
+{
+    var processFrameMethod = typeof(HostUdlClient).GetMethod("ProcessFrame", BindingFlags.Instance | BindingFlags.NonPublic);
+    AssertTrue(processFrameMethod is not null);
+
+    var data = new byte[8];
+    Array.Copy(BitConverter.GetBytes(value), sourceIndex: 0, data, destinationIndex: 0, length: 4);
+    data[6] = (byte)function;
+    data[7] = (byte)(moduleId & 0x0F);
+    var id = 0x480u | ((moduleId >> 4) & 0x7Fu);
+
+    processFrameMethod!.Invoke(client, [id, (byte)data.Length, data]);
+}
+
+static int GetHostUdlPendingWriteCount(HostUdlClient client)
+{
+    var pendingWritesField = typeof(HostUdlClient).GetField("_pendingWrites", BindingFlags.Instance | BindingFlags.NonPublic);
+    AssertTrue(pendingWritesField is not null);
+    var pendingWrites = pendingWritesField!.GetValue(client);
+    var countProperty = pendingWrites?.GetType().GetProperty("Count");
+    AssertTrue(countProperty is not null);
+    return (int)countProperty!.GetValue(pendingWrites)!;
 }
 
 static async Task PythonClientRegistryPathsNormalizeToSnakeCase()
@@ -678,6 +907,38 @@ static void EnhancedSignalIgnoresNonnumericSourceTextForNumericConversion()
     AssertEqual(null, value);
 }
 
+static void EnhancedSignalManagerKeepsRuntimeWhenRuntimeDefinitionMutates()
+{
+    var suffix = $"id_{Guid.NewGuid():N}";
+    var folderName = $"enhanced_signal_manager_{suffix}";
+    var sourcePath = $"runtime.enhanced_signal_manager.{suffix}.source";
+    HostRegistries.Data.UpsertSnapshot(sourcePath, ItemExtension.CreateWithPath(sourcePath, 10d), pruneMissingMembers: true);
+
+    var definition = new ExtendedSignalDefinition
+    {
+        Name = "managed_signal",
+        SourcePath = sourcePath,
+        Adjustment = new ExtendedSignalAdjustmentDefinition
+        {
+            Gain = 1d
+        }
+    };
+    var rawDefinitions = ExtendedSignalDefinitionJsonCodec.SerializeDefinitions([definition]);
+    var runtimes = EnhancedSignalRuntimeManager.SyncDefinitions(folderName, rawDefinitions);
+    var runtime = runtimes.Single();
+    var registryPath = runtime.RegistryPath;
+
+    runtime.Definition.Adjustment.Gain = 2d;
+    var syncedRuntimes = EnhancedSignalRuntimeManager.SyncDefinitions(folderName, rawDefinitions);
+
+    AssertEqual(1, syncedRuntimes.Count);
+    AssertTrue(ReferenceEquals(runtime, syncedRuntimes[0]));
+    AssertTrue(EnhancedSignalRuntimeManager.TryGetRuntime(registryPath, out var found));
+    AssertTrue(ReferenceEquals(runtime, found));
+
+    EnhancedSignalRuntimeManager.ReleaseFolder(folderName);
+}
+
 static void PidControllerRuntimePublishesStablePaths()
 {
     var suffix = $"id_{Guid.NewGuid():N}";
@@ -689,7 +950,7 @@ static void PidControllerRuntimePublishesStablePaths()
 
     using var runtime = new PidControllerRuntime(folderName, CreatePidDefinition("loop_a", sourcePath, outputPath));
 
-    AssertEqual($"studio.{folderName}.controller_widget.loop_a", runtime.RegistryPath);
+    AssertEqual($"studio.{folderName}.controller.loop_a", runtime.RegistryPath);
     AssertTrue(HostRegistries.Data.TryResolve(runtime.RegistryPath, out var root));
     AssertEqual(runtime.RegistryPath, root?.Path);
     AssertTrue(HostRegistries.Data.TryResolve($"{runtime.RegistryPath}.run", out var runItem));
@@ -706,9 +967,92 @@ static void PidControllerRuntimePublishesStablePaths()
     AssertTrue(krItem?.Value is double);
 }
 
+static void PidControllerStoppedRuntimeStaysQuiet()
+{
+    var suffix = $"id_{Guid.NewGuid():N}";
+    var folderName = $"pid_quiet_test_folder_{suffix}";
+    var sourcePath = $"runtime.pid_quiet_test.{suffix}.source";
+    var outputPath = $"runtime.pid_quiet_test.{suffix}.output";
+    HostRegistries.Data.UpsertSnapshot(sourcePath, ItemExtension.CreateWithPath(sourcePath, 10d), pruneMissingMembers: true);
+    HostRegistries.Data.UpsertSnapshot(outputPath, ItemExtension.CreateWithPath(outputPath, 0d), pruneMissingMembers: true);
+
+    using var runtime = new PidControllerRuntime(folderName, CreatePidDefinition("loop_a", sourcePath, outputPath));
+    var changedCount = 0;
+    HostRegistries.Data.ItemChanged += OnItemChanged;
+    try
+    {
+        Thread.Sleep(350);
+    }
+    finally
+    {
+        HostRegistries.Data.ItemChanged -= OnItemChanged;
+    }
+
+    AssertEqual(0, changedCount);
+
+    void OnItemChanged(object? sender, DataChangedEventArgs e)
+    {
+        if (e.Key.StartsWith(runtime.RegistryPath, StringComparison.OrdinalIgnoreCase))
+        {
+            changedCount++;
+        }
+    }
+}
+
+static void PidControllerStoppedReadMirrorsAvailableSource()
+{
+    var suffix = $"id_{Guid.NewGuid():N}";
+    var folderName = $"pid_stop_read_{suffix}";
+    var sourcePath = $"runtime.pid_stop_read.{suffix}.source";
+    var outputPath = $"runtime.pid_stop_read.{suffix}.output";
+    HostRegistries.Data.UpsertSnapshot(sourcePath, ItemExtension.CreateWithPath(sourcePath, 42.5d), pruneMissingMembers: true);
+    HostRegistries.Data.UpsertSnapshot(outputPath, ItemExtension.CreateWithPath(outputPath, 0d), pruneMissingMembers: true);
+
+    using var runtime = new PidControllerRuntime(folderName, CreatePidDefinition("loop_stop_read", sourcePath, outputPath));
+
+    AssertFalse(runtime.IsRunning);
+
+    if (!runtime.CurrentSourceValue.HasValue || runtime.CurrentSourceValue.Value != 42.5d)
+    {
+        throw new InvalidOperationException($"Stopped PID CurrentSourceValue should be 42.5 but was '{runtime.CurrentSourceValue?.ToString() ?? "<null>"}'.");
+    }
+
+    if (!TryResolveNumericItemValue($"{runtime.RegistryPath}.read", out var publishedRead) || publishedRead != 42.5d)
+    {
+        throw new InvalidOperationException($"Stopped PID controller.read should mirror source 42.5 but registry value was '{publishedRead}'.");
+    }
+}
+
+static void PidControllerStoppedReadUpdatesOnSourceChange()
+{
+    var suffix = $"id_{Guid.NewGuid():N}";
+    var folderName = $"pid_stop_update_{suffix}";
+    var sourcePath = $"runtime.pid_stop_update.{suffix}.source";
+    var outputPath = $"runtime.pid_stop_update.{suffix}.output";
+    HostRegistries.Data.UpsertSnapshot(sourcePath, ItemExtension.CreateWithPath(sourcePath, 10d), pruneMissingMembers: true);
+    HostRegistries.Data.UpsertSnapshot(outputPath, ItemExtension.CreateWithPath(outputPath, 0d), pruneMissingMembers: true);
+
+    using var runtime = new PidControllerRuntime(folderName, CreatePidDefinition("loop_stop_update", sourcePath, outputPath));
+    AssertFalse(runtime.IsRunning);
+
+    HostRegistries.Data.UpdateValue(sourcePath, 75d);
+
+    if (!runtime.CurrentSourceValue.HasValue || runtime.CurrentSourceValue.Value != 75d)
+    {
+        throw new InvalidOperationException($"Stopped PID CurrentSourceValue should update to 75 after source change but was '{runtime.CurrentSourceValue?.ToString() ?? "<null>"}'.");
+    }
+
+    if (!TryResolveNumericItemValue($"{runtime.RegistryPath}.read", out var publishedRead) || publishedRead != 75d)
+    {
+        throw new InvalidOperationException($"Stopped PID controller.read should update to 75 after source change but registry value was '{publishedRead}'.");
+    }
+
+    AssertEqual("Stopped", runtime.CurrentStateValue);
+}
+
 static void RegistryDirectUpdateWritesWritableChildChannel()
 {
-    var path = $"studio.pid_registry_test_{Guid.NewGuid():N}.controller_widget.loop";
+    var path = $"studio.pid_registry_test_{Guid.NewGuid():N}.controller.loop";
     var snapshot = ItemExtension.CreateWithPath(path, false);
     snapshot["run"].Value = false;
     snapshot["run"].Properties["writable"].Value = true;
@@ -814,12 +1158,8 @@ static void PidControllerGuardsInvalidNumericInput()
     AssertTrue(HostRegistries.Data.UpdateValue($"{runtime.RegistryPath}.run", true));
     AssertPidRunState(runtime, expectedValue: true, context: "after invalid-input run update");
     InvokePidEvaluation(runtime);
-    if (!runtime.CurrentAlertValue.Contains("Source value must be numeric", StringComparison.Ordinal))
-    {
-        throw new InvalidOperationException($"PID controller published unexpected alert '{runtime.CurrentAlertValue}' with state '{runtime.CurrentStateValue}'. {DescribePidRunItem(runtime)}");
-    }
-
-    AssertEqual("Waiting for source", runtime.CurrentStateValue);
+    AssertTrue(runtime.CurrentAlertValue);
+    AssertEqual("Waiting for source: Source value must be numeric and readable.", runtime.CurrentStateValue);
 }
 
 static void PidControllerRejectsInvalidOwnedSetpoint()
@@ -840,12 +1180,8 @@ static void PidControllerRejectsInvalidOwnedSetpoint()
     AssertTrue(HostRegistries.Data.UpdateValue($"{runtime.RegistryPath}.run", true));
     InvokePidEvaluation(runtime);
 
-    if (!runtime.CurrentAlertValue.Contains("Setpoint value must be numeric.", StringComparison.Ordinal))
-    {
-        throw new InvalidOperationException($"PID controller published unexpected owned-setpoint alert '{runtime.CurrentAlertValue}' with state '{runtime.CurrentStateValue}'.");
-    }
-
-    AssertEqual("Waiting for setpoint", runtime.CurrentStateValue);
+    AssertTrue(runtime.CurrentAlertValue);
+    AssertEqual("Waiting for setpoint: Setpoint value must be numeric.", runtime.CurrentStateValue);
 }
 
 static void PidControllerOwnedSetpointWriteChangesOutput()
@@ -882,6 +1218,65 @@ static void PidControllerOwnedSetpointWriteChangesOutput()
     {
         throw new InvalidOperationException($"PID controller output should increase after owned setpoint write. Low='{lowOutput.Value}', High='{highOutput.Value}', State='{runtime.CurrentStateValue}', Alert='{runtime.CurrentAlertValue}'.");
     }
+}
+
+static void PidControllerPublishesPercentAndScaledOutput()
+{
+    var suffix = $"id_{Guid.NewGuid():N}";
+    var folderName = $"pid_percent_scaled_{suffix}";
+    var sourcePath = $"runtime.pid_percent_scaled.{suffix}.source";
+    var outputPath = $"runtime.pid_percent_scaled.{suffix}.output";
+    HostRegistries.Data.UpsertSnapshot(sourcePath, ItemExtension.CreateWithPath(sourcePath, 10d), pruneMissingMembers: true);
+    HostRegistries.Data.UpsertSnapshot(outputPath, ItemExtension.CreateWithPath(outputPath, 0d), pruneMissingMembers: true);
+
+    using var runtime = new PidControllerRuntime(folderName, CreatePidDefinition("loop_percent_scaled", sourcePath, outputPath));
+    StopPidTimer(runtime);
+
+    AssertTrue(HostRegistries.Data.UpdateValue($"{runtime.RegistryPath}.set", 90d));
+    AssertTrue(HostRegistries.Data.UpdateValue($"{runtime.RegistryPath}.run", true));
+    InvokePidEvaluation(runtime);
+
+    AssertFalse(runtime.CurrentAlertValue);
+    AssertEqual("Running", runtime.CurrentStateValue);
+    var currentScaledOutput = runtime.CurrentOutputValue;
+    AssertTrue(currentScaledOutput.HasValue);
+    AssertTrue(TryResolveNumericItemValue(outputPath, out var writtenOutput));
+    AssertTrue(TryResolveNumericItemValue($"{runtime.RegistryPath}.out", out var publishedPercent));
+    AssertTrue(TryResolveNumericItemValue($"{runtime.RegistryPath}.out.scaled", out var publishedScaledOutput));
+    AssertEqual(currentScaledOutput.GetValueOrDefault(), writtenOutput);
+    AssertEqual(writtenOutput, publishedScaledOutput);
+    AssertTrue(publishedPercent > 0d);
+    AssertTrue(publishedPercent <= 100d);
+}
+
+static void PidControllerPublishesBooleanAlertState()
+{
+    var suffix = $"id_{Guid.NewGuid():N}";
+    var folderName = $"pid_alert_bool_{suffix}";
+    var sourcePath = $"runtime.pid_alert_bool.{suffix}.source";
+    var outputPath = $"runtime.pid_alert_bool.{suffix}.output";
+    HostRegistries.Data.UpsertSnapshot(sourcePath, ItemExtension.CreateWithPath(sourcePath, "invalid"), pruneMissingMembers: true);
+    HostRegistries.Data.UpsertSnapshot(outputPath, ItemExtension.CreateWithPath(outputPath, 0d), pruneMissingMembers: true);
+
+    using var runtime = new PidControllerRuntime(folderName, CreatePidDefinition("loop_alert_bool", sourcePath, outputPath));
+    StopPidTimer(runtime);
+
+    AssertTrue(HostRegistries.Data.UpdateValue($"{runtime.RegistryPath}.set", 30d));
+    AssertTrue(HostRegistries.Data.UpdateValue($"{runtime.RegistryPath}.run", true));
+    InvokePidEvaluation(runtime);
+
+    AssertTrue(runtime.CurrentAlertValue);
+    AssertEqual("Waiting for source: Source value must be numeric and readable.", runtime.CurrentStateValue);
+    AssertTrue(HostRegistries.Data.TryResolve($"{runtime.RegistryPath}.alert", out var alertItem));
+    AssertEqual(true, alertItem?.Value);
+
+    AssertTrue(HostRegistries.Data.UpdateValue(sourcePath, 15d));
+    InvokePidEvaluation(runtime);
+
+    AssertFalse(runtime.CurrentAlertValue);
+    AssertEqual("Running", runtime.CurrentStateValue);
+    AssertTrue(HostRegistries.Data.TryResolve($"{runtime.RegistryPath}.alert", out alertItem));
+    AssertEqual(false, alertItem?.Value);
 }
 
 static void PidControllerDoesNotBiasOutputToSetpoint()
@@ -969,12 +1364,8 @@ static void PidControllerRejectsInvalidChrParameters()
     AssertTrue(HostRegistries.Data.UpdateValue($"{runtime.RegistryPath}.run", true));
     InvokePidEvaluation(runtime);
 
-    if (!runtime.CurrentAlertValue.Contains("Ks must be greater than zero.", StringComparison.Ordinal))
-    {
-        throw new InvalidOperationException($"PID controller published unexpected CHR parameter alert '{runtime.CurrentAlertValue}' with state '{runtime.CurrentStateValue}'.");
-    }
-
-    AssertEqual("Invalid parameters", runtime.CurrentStateValue);
+    AssertTrue(runtime.CurrentAlertValue);
+    AssertEqual("Invalid parameters: Ks must be greater than zero.", runtime.CurrentStateValue);
 }
 
 static void ProcessLogRuntimePublishesLevelInputItems()

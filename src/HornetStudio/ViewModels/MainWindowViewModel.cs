@@ -18,6 +18,8 @@ namespace HornetStudio.ViewModels;
 
 public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWindowViewModel
 {
+    private const string StartProjectCommandLineSwitch = "--start-project";
+    private const string StartLayoutCommandLineSwitch = "--start-layout";
     private const string ProjectEntryFileName = "project.aaep";
     private const string LegacyProjectEntryFileName = "project.udlb";
     private const string OlderLegacyProjectEntryFileName = "Book.udlb";
@@ -27,7 +29,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
     private const string LegacyFolderLayoutFileName = "Page.yaml";
     private const string FolderMetadataFileName = "Folder.meta.yaml";
     private const string LegacyFolderMetadataFileName = "Page.meta.yaml";
-    private const string StructuredLayoutWatcherFilter = "*.yaml";
+    private const string StructuredLayoutWatcherFilter = "Folder.yaml";
     private const string ScriptsDirectoryName = "Scripts";
     private const string AssetsDirectoryName = "Assets";
     private const string FolderTemplateRelativePath = "Templates\\Folder.yaml";
@@ -109,7 +111,11 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
     private bool _isDeleteFolderDropTargetActive;
     private bool _isStructuredBook;
 
-    public MainWindowViewModel()
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MainWindowViewModel"/> class.
+    /// </summary>
+    /// <param name="startupArgs">The optional command line arguments used to override startup behavior.</param>
+    public MainWindowViewModel(string[]? startupArgs = null)
         : base(true)
     {
         AutoSaveOnEditModeExit = false;
@@ -124,7 +130,13 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
         _config.DefaultTheme = "Dark";
         _config.Save(_configPath);
 
-        if (string.IsNullOrWhiteSpace(_config.StartLayout))
+        var startupOverridePath = GetStartupPathOverride(startupArgs);
+
+        if (!string.IsNullOrWhiteSpace(startupOverridePath))
+        {
+            _startupPagePath = startupOverridePath;
+        }
+        else if (string.IsNullOrWhiteSpace(_config.StartLayout))
         {
             _startupPagePath = _default_layoutPath;
         }
@@ -198,6 +210,62 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
         Dispatcher.UIThread.Post(LoadStartupPage, DispatcherPriority.Background);
     }
 
+    private string? GetStartupPathOverride(string[]? startupArgs)
+    {
+        var configuredPath = GetCommandLineOptionValue(startupArgs, StartProjectCommandLineSwitch)
+            ?? GetCommandLineOptionValue(startupArgs, StartLayoutCommandLineSwitch);
+
+        if (string.IsNullOrWhiteSpace(configuredPath))
+        {
+            return null;
+        }
+
+        string resolvedPath;
+        try
+        {
+            resolvedPath = Path.GetFullPath(configuredPath);
+        }
+        catch (Exception exception)
+        {
+            HostLogger.Log.Warning(exception, "Invalid startup project argument. Path={Path}", configuredPath);
+            return null;
+        }
+
+        if (Directory.Exists(resolvedPath) || File.Exists(resolvedPath))
+        {
+            HostLogger.Log.Information("Using command line startup project. Path={Path}", resolvedPath);
+            return resolvedPath;
+        }
+
+        HostLogger.Log.Warning("Command line startup project was not found. Path={Path}", resolvedPath);
+        return null;
+    }
+
+    private static string? GetCommandLineOptionValue(string[]? startupArgs, string optionName)
+    {
+        if (startupArgs is null || startupArgs.Length == 0)
+        {
+            return null;
+        }
+
+        for (var index = 0; index < startupArgs.Length; index++)
+        {
+            var argument = startupArgs[index];
+            if (string.Equals(argument, optionName, StringComparison.OrdinalIgnoreCase))
+            {
+                return index + 1 < startupArgs.Length ? startupArgs[index + 1] : null;
+            }
+
+            var prefix = optionName + "=";
+            if (argument.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return argument[prefix.Length..];
+            }
+        }
+
+        return null;
+    }
+
     private sealed class WatchedPage
     {
         public string FilePath { get; set; } = string.Empty;
@@ -206,6 +274,27 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
     }
 
     protected override string? CurrentProjectRootDirectory => ProjectPath;
+
+    /// <summary>
+    /// Resolves the workspace directory for a folder-backed resource set.
+    /// </summary>
+    /// <param name="page">The folder whose workspace directory should be resolved.</param>
+    /// <returns>The resolved folder workspace directory.</returns>
+    protected override string? ResolveFolderWorkspaceDirectory(FolderModel page)
+    {
+        ArgumentNullException.ThrowIfNull(page);
+        return ResolveFolderDirectory(page);
+    }
+
+    /// <summary>
+    /// Reports a non-fatal enhanced signal synchronization warning.
+    /// </summary>
+    /// <param name="message">The warning message.</param>
+    /// <param name="location">An optional related file or folder location.</param>
+    protected override void ReportEnhancedSignalWarning(string message, string? location = null)
+    {
+        AddMessage("EnhancedSignals", "Warning", message, location);
+    }
 
     public string ProjectPath
     {
@@ -2082,6 +2171,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
         var isCircleDisplay = kind == ControlKind.CircleDisplay;
         var isItemClient = kind == ControlKind.ItemClient;
         var isFunctions = kind == ControlKind.Functions;
+        var isMonitorView = kind == ControlKind.MonitorView;
         var item = new FolderItemModel
         {
             Kind = kind,
@@ -2091,8 +2181,8 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
             Footer = isButton ? "Action" : type,
             X = node.X ?? defaultX,
             Y = node.Y ?? defaultY,
-            Width = node.Width ?? (isButton ? 320 : (kind == ControlKind.LogControl ? 420 : (isChartControl ? 520 : (isItemClient ? 420 : (isFunctions ? 420 : (isCircleDisplay ? 280 : 260)))))),
-            Height = node.Height ?? (isButton ? 96 : (kind == ControlKind.LogControl ? 260 : (isChartControl ? 260 : (isWidgetList ? 220 : (isItemClient ? 190 : (isFunctions ? 220 : (isCircleDisplay ? 280 : 84))))))),
+            Width = node.Width ?? (isButton ? 320 : (kind == ControlKind.LogControl ? 420 : (isChartControl ? 520 : (isItemClient ? 420 : (isFunctions || isMonitorView ? 420 : (isCircleDisplay ? 280 : 260)))))),
+            Height = node.Height ?? (isButton ? 96 : (kind == ControlKind.LogControl ? 260 : (isChartControl ? 260 : (isWidgetList ? 220 : (isItemClient ? 190 : (isFunctions ? 220 : (isMonitorView ? 180 : (isCircleDisplay ? 280 : 84)))))))),
             IsAutoHeight = isWidgetList,
             UiNodeType = string.IsNullOrWhiteSpace(type) ? GetDefaultUiType(kind) : type,
             UiProperties = CloneJsonObject(node.Properties)
@@ -2214,6 +2304,11 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
         if (string.Equals(type, "Monitor", StringComparison.OrdinalIgnoreCase))
         {
             return ControlKind.Monitor;
+        }
+
+        if (string.Equals(type, "MonitorView", StringComparison.OrdinalIgnoreCase))
+        {
+            return ControlKind.MonitorView;
         }
 
         if (string.Equals(type, "Functions", StringComparison.OrdinalIgnoreCase)

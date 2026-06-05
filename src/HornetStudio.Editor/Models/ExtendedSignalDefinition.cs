@@ -217,6 +217,18 @@ public static class ExtendedSignalDefinitionCodec
             .ToList();
     }
 
+    /// <summary>
+    /// Converts one runtime definition into its persisted document representation.
+    /// </summary>
+    /// <param name="definition">The runtime definition to convert.</param>
+    /// <param name="folderName">The owning folder name used for persisted target path normalization.</param>
+    /// <returns>The persisted document representation.</returns>
+    public static ExtendedSignalDefinitionDocument ToDocument(ExtendedSignalDefinition definition, string? folderName)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        return CreateDocument(definition, folderName);
+    }
+
     public static string FromDocuments(IEnumerable<ExtendedSignalDefinitionDocument>? documents, string? folderName)
     {
         if (documents is null)
@@ -230,6 +242,18 @@ public static class ExtendedSignalDefinitionCodec
             .ToArray();
 
         return SerializeDefinitions(definitions);
+    }
+
+    /// <summary>
+    /// Converts one persisted document into its runtime definition representation.
+    /// </summary>
+    /// <param name="document">The persisted document to convert.</param>
+    /// <param name="folderName">The owning folder name used for target path normalization.</param>
+    /// <returns>The normalized runtime definition.</returns>
+    public static ExtendedSignalDefinition FromDocument(ExtendedSignalDefinitionDocument document, string? folderName)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        return CreateDefinition(document, folderName);
     }
 
     public static JsonArray ToJsonArray(string? rawDefinitions, string? folderName)
@@ -297,7 +321,7 @@ public static class ExtendedSignalDefinitionCodec
         }
     }
 
-    private static ExtendedSignalDefinitionDocument ToDocument(ExtendedSignalDefinition definition, string? folderName)
+    private static ExtendedSignalDefinitionDocument CreateDocument(ExtendedSignalDefinition definition, string? folderName)
     {
         return new ExtendedSignalDefinitionDocument
         {
@@ -376,7 +400,7 @@ public static class ExtendedSignalDefinitionCodec
         };
     }
 
-    private static ExtendedSignalDefinition FromDocument(ExtendedSignalDefinitionDocument document, string? folderName)
+    private static ExtendedSignalDefinition CreateDefinition(ExtendedSignalDefinitionDocument document, string? folderName)
     {
         return new ExtendedSignalDefinition
         {

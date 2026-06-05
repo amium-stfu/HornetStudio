@@ -1,0 +1,14 @@
+name: demo_custom_computed
+mode: Computed
+writePath: ''
+unit: ''
+format: 0
+valueText: ''
+formula: if({A}==true,10 ,0 )
+triggerIntervalSeconds: 1
+variables:
+- name: A
+  sourcePath: signals.custom.demo_custom_bool
+sourcePath: signals.custom.demo_custom_bool
+sourcePath2: ''
+sourcePath3: ''

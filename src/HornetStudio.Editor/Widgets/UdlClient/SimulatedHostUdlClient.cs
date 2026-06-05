@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,6 +8,7 @@ using HornetStudio.Host;
 using ItemModel = Amium.Items.Item;
 using Amium.Items;
 using HornetStudio.Editor.Helpers;
+using HornetStudio.Editor.Monitoring;
 using HornetStudio.Editor.Models;
 
 namespace HornetStudio.Editor.Widgets;
@@ -15,6 +17,8 @@ public sealed class SimulatedHostUdlClient : IHostUdlClient
 {
     private const string FloatTypeName = "float";
     private const string IntTypeName = "int";
+    private static readonly TimeSpan DemoTickInterval = TimeSpan.FromMilliseconds(100);
+    private static readonly double StopwatchTickToMilliseconds = 1000d / Stopwatch.Frequency;
 
     private sealed class ModuleRuntimeState
     {
@@ -213,20 +217,65 @@ public sealed class SimulatedHostUdlClient : IHostUdlClient
 
     private async Task SimulationLoopAsync(CancellationToken token)
     {
+        var nextTickUtc = DateTimeOffset.UtcNow;
+        var overrunCount = 0;
+        var resyncCount = 0;
+        var maxLagMilliseconds = 0d;
+
         try
         {
             while (!token.IsCancellationRequested)
             {
+                var loopStartTimestamp = Stopwatch.GetTimestamp();
                 var now = DateTimeOffset.UtcNow;
                 var elapsedSeconds = (now - _startedUtc).TotalSeconds;
 
                 foreach (var state in _moduleStates)
                 {
+                    var updateStartTimestamp = Stopwatch.GetTimestamp();
                     UpdateModuleState(state, now, elapsedSeconds);
+                    RecordStageDelay(
+                        stage: "DemoLoopUpdateModules",
+                        startTimestamp: updateStartTimestamp,
+                        path: state.Module.Path,
+                        module: state.Definition.Name);
+
+                    UiResponsivenessDiagnostics.RecordSignalPipelineEvent(
+                        stage: "DemoGenerate",
+                        path: state.Module.Path,
+                        module: state.Definition.Name);
+
+                    var frameReceivedStartTimestamp = Stopwatch.GetTimestamp();
                     FrameReceived?.Invoke(state.ModuleId, 0, Array.Empty<byte>());
+                    RecordStageDelay(
+                        stage: "DemoFrameReceived",
+                        startTimestamp: frameReceivedStartTimestamp,
+                        path: state.Module.Path,
+                        module: state.Definition.Name);
                 }
 
-                await Task.Delay(100, token).ConfigureAwait(false);
+                RecordStageDelay(stage: "DemoLoopTotal", startTimestamp: loopStartTimestamp);
+
+                nextTickUtc += DemoTickInterval;
+                var delay = nextTickUtc - DateTimeOffset.UtcNow;
+                if (delay > TimeSpan.Zero)
+                {
+                    await Task.Delay(delay, token).ConfigureAwait(false);
+                    continue;
+                }
+
+                overrunCount++;
+                var lagMilliseconds = -delay.TotalMilliseconds;
+                if (lagMilliseconds > maxLagMilliseconds)
+                {
+                    maxLagMilliseconds = lagMilliseconds;
+                }
+
+                if (-delay >= DemoTickInterval)
+                {
+                    resyncCount++;
+                    nextTickUtc = DateTimeOffset.UtcNow + DemoTickInterval;
+                }
             }
         }
         catch (OperationCanceledException)
@@ -236,15 +285,26 @@ public sealed class SimulatedHostUdlClient : IHostUdlClient
         {
             RaiseDiagnostic($"[SimulatedHostUdlClient:{Name}] simulation error={exception.GetType().Name}: {exception.Message}");
         }
+        finally
+        {
+            RaiseDiagnostic(
+                $"[SimulatedHostUdlClient:{Name}] simulation summary overruns={overrunCount} resyncs={resyncCount} max_lag_ms={maxLagMilliseconds:0.###}");
+        }
     }
 
     private void UpdateModuleState(ModuleRuntimeState state, DateTimeOffset now, double elapsedSeconds)
     {
+        var computeStartTimestamp = Stopwatch.GetTimestamp();
         var targetValue = state.Definition.Kind switch
         {
             UdlDemoModuleKind.SetDriven => ComputeSetDrivenValue(state, now),
             _ => ComputeDynamicValue(state.Definition, elapsedSeconds)
         };
+        RecordStageDelay(
+            stage: "DemoComputeTargetValue",
+            startTimestamp: computeStartTimestamp,
+            path: state.Module.Path,
+            module: state.Definition.Name);
 
         var alertParts = new List<string>();
         var stateCode = 1;
@@ -280,7 +340,14 @@ public sealed class SimulatedHostUdlClient : IHostUdlClient
         state.CurrentValue = value;
         state.StateCode = stateCode;
         state.AlertText = string.Join(" | ", alertParts.Where(static part => !string.IsNullOrWhiteSpace(part)));
+
+        var applySnapshotStartTimestamp = Stopwatch.GetTimestamp();
         ApplyModuleSnapshot(state, value, state.AlertText, stateCode);
+        RecordStageDelay(
+            stage: "DemoApplyModuleSnapshot",
+            startTimestamp: applySnapshotStartTimestamp,
+            path: state.Module.Path,
+            module: state.Definition.Name);
         state.LastUpdateUtc = now;
     }
 
@@ -375,16 +442,29 @@ public sealed class SimulatedHostUdlClient : IHostUdlClient
     private static void ApplyModuleSnapshot(ModuleRuntimeState state, double value, string alertText, int stateCode)
     {
         var read = GetChannel(state.Module, "read");
+        var readStartTimestamp = Stopwatch.GetTimestamp();
         SetReadValue(read, value);
+        RecordStageDelay(stage: "DemoSetRead", startTimestamp: readStartTimestamp, path: read.Path, module: state.Definition.Name);
 
         var set = GetChannel(state.Module, "set");
-        SetReadValue(set, set.Properties["write"].Value);
+        var setStartTimestamp = Stopwatch.GetTimestamp();
+        SetReadValueIfDifferent(set, set.Properties["write"].Value);
+        RecordStageDelay(stage: "DemoSetSet", startTimestamp: setStartTimestamp, path: set.Path, module: state.Definition.Name);
 
         var output = GetChannel(state.Module, "out");
+        var outputStartTimestamp = Stopwatch.GetTimestamp();
         SetReadValue(output, value);
+        RecordStageDelay(stage: "DemoSetOut", startTimestamp: outputStartTimestamp, path: output.Path, module: state.Definition.Name);
 
-        SetReadValue(GetChannel(state.Module, "state"), stateCode);
-        SetReadValue(GetChannel(state.Module, "alert"), alertText);
+        var stateChannel = GetChannel(state.Module, "state");
+        var stateStartTimestamp = Stopwatch.GetTimestamp();
+        SetReadValueIfDifferent(stateChannel, stateCode);
+        RecordStageDelay(stage: "DemoSetState", startTimestamp: stateStartTimestamp, path: stateChannel.Path, module: state.Definition.Name);
+
+        var alertChannel = GetChannel(state.Module, "alert");
+        var alertStartTimestamp = Stopwatch.GetTimestamp();
+        SetReadValueIfDifferent(alertChannel, alertText);
+        RecordStageDelay(stage: "DemoSetAlert", startTimestamp: alertStartTimestamp, path: alertChannel.Path, module: state.Definition.Name);
     }
 
     private void RaiseDiagnostic(string message)
@@ -436,6 +516,57 @@ public sealed class SimulatedHostUdlClient : IHostUdlClient
     private static void SetReadValue(ItemModel item, object? value)
     {
         item.Properties["read"].Value = value!;
+    }
+
+    private static void SetReadValueIfDifferent(ItemModel item, object? value)
+    {
+        var parameter = item.Properties["read"];
+        if (ValuesEqual(parameter.Value, value))
+        {
+            return;
+        }
+
+        parameter.Value = value!;
+    }
+
+    private static bool ValuesEqual(object? left, object? right)
+    {
+        if (ReferenceEquals(left, right))
+        {
+            return true;
+        }
+
+        if (left is null || right is null)
+        {
+            return false;
+        }
+
+        if (left is double leftDouble && right is double rightDouble)
+        {
+            return leftDouble.Equals(rightDouble) || (double.IsNaN(leftDouble) && double.IsNaN(rightDouble));
+        }
+
+        if (left is float leftFloat && right is float rightFloat)
+        {
+            return leftFloat.Equals(rightFloat) || (float.IsNaN(leftFloat) && float.IsNaN(rightFloat));
+        }
+
+        return Equals(left, right);
+    }
+
+    private static void RecordStageDelay(string stage, long startTimestamp, string? path = null, string? module = null)
+    {
+        if (!UiResponsivenessDiagnostics.IsEnabled)
+        {
+            return;
+        }
+
+        var elapsedMilliseconds = (Stopwatch.GetTimestamp() - startTimestamp) * StopwatchTickToMilliseconds;
+        UiResponsivenessDiagnostics.RecordSignalPipelineDelay(
+            stage: stage,
+            delay: TimeSpan.FromMilliseconds(elapsedMilliseconds),
+            path: path,
+            module: module);
     }
 
     private static double TryReadDouble(object? value, double fallback)

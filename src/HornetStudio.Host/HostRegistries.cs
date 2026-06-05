@@ -195,6 +195,74 @@ public sealed record DataRegistryItemMetadata(DataRegistryItemRole Role, DataReg
 }
 
 /// <summary>
+/// Describes a public data publication observed by the host data registry.
+/// </summary>
+/// <param name="Key">The published registry key.</param>
+/// <param name="ChangeKind">The change kind that was published.</param>
+/// <param name="ParameterName">The updated parameter name when available.</param>
+public sealed record DataRegistryPublicationEvent(string Key, DataChangeKind ChangeKind, string? ParameterName);
+
+/// <summary>
+/// Describes the elapsed time of a public data publication observed by the host data registry.
+/// </summary>
+/// <param name="Key">The published registry key.</param>
+/// <param name="ChangeKind">The published change kind.</param>
+/// <param name="ParameterName">The updated parameter name when available.</param>
+/// <param name="Elapsed">The synchronous publication duration.</param>
+public sealed record DataRegistryPublicationTimingEvent(string Key, DataChangeKind ChangeKind, string? ParameterName, TimeSpan Elapsed);
+
+/// <summary>
+/// Describes a public registry parameter whose effective value resolves from another registry item.
+/// </summary>
+/// <param name="PublicItemPath">The public registry item path.</param>
+/// <param name="PublicParameterName">The public parameter name.</param>
+/// <param name="SourceItemPath">The authoritative source item path.</param>
+/// <param name="SourceParameterName">The authoritative source parameter name.</param>
+public sealed record DataRegistryValueReference(
+    string PublicItemPath,
+    string PublicParameterName,
+    string SourceItemPath,
+    string SourceParameterName);
+
+/// <summary>
+/// Provides optional callbacks for lightweight registry publication diagnostics.
+/// </summary>
+public static class DataRegistryDiagnosticsHooks
+{
+    /// <summary>
+    /// Gets or sets the optional callback invoked when public data is published through the host registry.
+    /// </summary>
+    public static Action<DataRegistryPublicationEvent>? PublicDataPublished { get; set; }
+
+    /// <summary>
+    /// Gets or sets the optional callback invoked after a synchronous public data publication completes.
+    /// </summary>
+    public static Action<DataRegistryPublicationTimingEvent>? PublicDataPublishCompleted { get; set; }
+
+    internal static void NotifyPublicDataPublished(string key, DataChangeKind changeKind, string? parameterName = null)
+    {
+        var callback = PublicDataPublished;
+        if (callback is null)
+        {
+            return;
+        }
+
+        callback(new DataRegistryPublicationEvent(key, changeKind, parameterName));
+    }
+
+    internal static void NotifyPublicDataPublishCompleted(string key, DataChangeKind changeKind, string? parameterName, TimeSpan elapsed)
+    {
+        var callback = PublicDataPublishCompleted;
+        if (callback is null)
+        {
+            return;
+        }
+
+        callback(new DataRegistryPublicationTimingEvent(key, changeKind, parameterName, elapsed));
+    }
+}
+
+/// <summary>
 /// Provides the central policy for protected host registry parameters.
 /// </summary>
 public static class HostRegistryPropertyPolicy
@@ -210,6 +278,8 @@ public static class HostRegistryPropertyPolicy
         "is_writable",
         "writepath",
         "write_path",
+        "value_ref_path",
+        "value_ref_parameter",
         "broker_path",
         "local_path",
         "active",
@@ -329,6 +399,27 @@ public interface IDataRegistry
     /// <param name="forceChangeNotification">A value indicating whether a change notification should be raised even when the converted value equals the current value.</param>
     /// <returns><see langword="true"/> when the parameter was updated; otherwise, <see langword="false"/>.</returns>
     bool TryUpdateUserProperty(string key, string parameterName, object? value, ulong? timestamp = null, bool forceChangeNotification = false);
+    /// <summary>
+    /// Registers a parameter reference so a public item can resolve its effective value from an authoritative source item.
+    /// </summary>
+    /// <param name="reference">The reference definition.</param>
+    /// <returns><see langword="true"/> when the reference was registered; otherwise, <see langword="false"/>.</returns>
+    bool RegisterValueReference(DataRegistryValueReference reference);
+    /// <summary>
+    /// Removes a previously registered parameter reference.
+    /// </summary>
+    /// <param name="publicItemPath">The public item path.</param>
+    /// <param name="publicParameterName">The public parameter name.</param>
+    /// <returns><see langword="true"/> when a reference was removed; otherwise, <see langword="false"/>.</returns>
+    bool RemoveValueReference(string publicItemPath, string publicParameterName);
+    /// <summary>
+    /// Raises a public-path change notification for a registered parameter reference without mutating the stored public snapshot.
+    /// </summary>
+    /// <param name="publicItemPath">The public item path.</param>
+    /// <param name="publicParameterName">The public parameter name.</param>
+    /// <param name="timestamp">The optional update timestamp in Unix milliseconds.</param>
+    /// <returns><see langword="true"/> when the reference was valid and a notification was raised; otherwise, <see langword="false"/>.</returns>
+    bool NotifyReferencedPropertyChanged(string publicItemPath, string publicParameterName, ulong? timestamp = null);
     bool Remove(string key);
 }
 
@@ -343,6 +434,7 @@ public sealed class DataRegistry : IDataRegistry
     private readonly ConcurrentDictionary<string, DataRegistryItemMetadata> _metadata = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, IndexedItem> _pathIndex = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> _rootIndexPaths = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, IndexedValueReference> _valueReferences = new(StringComparer.OrdinalIgnoreCase);
 
     public event EventHandler<DataChangedEventArgs>? ItemChanged;
     public event EventHandler<DataChangedEventArgs>? RegistryChanged;
@@ -378,7 +470,93 @@ public sealed class DataRegistry : IDataRegistry
             .ToArray();
 
     /// <inheritdoc />
+    public bool RegisterValueReference(DataRegistryValueReference reference)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+
+        var comparablePublicItemPath = NormalizeComparablePath(reference.PublicItemPath);
+        var publicParameterName = HostPathSegmentNormalizer.Normalize(reference.PublicParameterName);
+        var comparableSourceItemPath = NormalizeComparablePath(reference.SourceItemPath);
+        var sourceParameterName = HostPathSegmentNormalizer.Normalize(reference.SourceParameterName);
+        if (string.IsNullOrWhiteSpace(comparablePublicItemPath)
+            || string.IsNullOrWhiteSpace(publicParameterName)
+            || string.IsNullOrWhiteSpace(comparableSourceItemPath)
+            || string.IsNullOrWhiteSpace(sourceParameterName))
+        {
+            return false;
+        }
+
+        var indexedReference = new IndexedValueReference(
+            PublicItemPath: reference.PublicItemPath,
+            PublicParameterName: publicParameterName,
+            SourceItemPath: reference.SourceItemPath,
+            SourceParameterName: sourceParameterName,
+            ComparablePublicItemPath: comparablePublicItemPath);
+        _valueReferences[BuildValueReferenceKey(comparablePublicItemPath, publicParameterName)] = indexedReference;
+        return true;
+    }
+
+    /// <inheritdoc />
+    public bool RemoveValueReference(string publicItemPath, string publicParameterName)
+    {
+        var comparablePublicItemPath = NormalizeComparablePath(publicItemPath);
+        var normalizedPublicParameterName = HostPathSegmentNormalizer.Normalize(publicParameterName);
+        if (string.IsNullOrWhiteSpace(comparablePublicItemPath) || string.IsNullOrWhiteSpace(normalizedPublicParameterName))
+        {
+            return false;
+        }
+
+        return _valueReferences.TryRemove(BuildValueReferenceKey(comparablePublicItemPath, normalizedPublicParameterName), out _);
+    }
+
+    /// <inheritdoc />
+    public bool NotifyReferencedPropertyChanged(string publicItemPath, string publicParameterName, ulong? timestamp = null)
+    {
+        var normalizedParameterName = HostPathSegmentNormalizer.Normalize(publicParameterName);
+        if (string.IsNullOrWhiteSpace(normalizedParameterName)
+            || !TryResolveStoredItem(publicItemPath, out var storedItem)
+            || storedItem is null
+            || !TryCreateEffectiveReferencedItem(publicItemPath, storedItem, out var effectiveItem)
+            || !effectiveItem.Properties.Has(normalizedParameterName))
+        {
+            return false;
+        }
+
+        if (TryGetResolvedMetadata(publicItemPath, storedItem, out var metadata) && metadata.Role == DataRegistryItemRole.Data)
+        {
+            DataRegistryDiagnosticsHooks.NotifyPublicDataPublished(
+                key: GetEventKey(publicItemPath, effectiveItem),
+                changeKind: DataChangeKind.PropertyUpdated,
+                parameterName: normalizedParameterName);
+        }
+
+        ProcessLogRuntime.TryWriteInputEntry(
+            GetEventKey(publicItemPath, effectiveItem),
+            effectiveItem,
+            DataChangeKind.PropertyUpdated,
+            normalizedParameterName,
+            effectiveItem.Properties[normalizedParameterName].Value);
+        RaiseItemChanged(GetEventKey(publicItemPath, effectiveItem), effectiveItem, DataChangeKind.PropertyUpdated, normalizedParameterName, timestamp);
+        return true;
+    }
+
+    /// <inheritdoc />
     public bool TryResolve(string path, out ItemModel? item)
+    {
+        if (!TryResolveStoredItem(path, out item) || item is null)
+        {
+            return false;
+        }
+
+        if (TryCreateEffectiveReferencedItem(path, item, out var effectiveItem))
+        {
+            item = effectiveItem;
+        }
+
+        return true;
+    }
+
+    private bool TryResolveStoredItem(string path, out ItemModel? item)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -432,6 +610,7 @@ public sealed class DataRegistry : IDataRegistry
     /// <inheritdoc />
     public ItemModel UpsertSnapshot(string key, ItemModel snapshot, DataRegistryItemMetadata metadata, bool pruneMissingMembers = false)
     {
+        var effectiveMetadata = metadata ?? DataRegistryItemMetadata.Default;
         var added = false;
         var item = _items.AddOrUpdate(
             key,
@@ -445,7 +624,7 @@ public sealed class DataRegistry : IDataRegistry
                 MergeItem(existing, snapshot, pruneMissingMembers);
                 return existing;
             });
-        _metadata[key] = metadata ?? DataRegistryItemMetadata.Default;
+        _metadata[key] = effectiveMetadata;
 
         if (added)
         {
@@ -455,6 +634,11 @@ public sealed class DataRegistry : IDataRegistry
         }
 
         ReindexRoot(key, item);
+
+        if (effectiveMetadata.Role == DataRegistryItemRole.Data)
+        {
+            DataRegistryDiagnosticsHooks.NotifyPublicDataPublished(key: GetEventKey(key, item), changeKind: DataChangeKind.SnapshotUpserted);
+        }
 
         RaiseItemChanged(GetEventKey(key, item), item, DataChangeKind.SnapshotUpserted);
 
@@ -468,7 +652,7 @@ public sealed class DataRegistry : IDataRegistry
 
     public bool UpdateValue(string key, object? value, ulong? timestamp = null)
     {
-        if (!TryResolve(key, out var item) || item is null)
+        if (!TryResolveStoredItem(key, out var item) || item is null)
         {
             return false;
         }
@@ -500,6 +684,11 @@ public sealed class DataRegistry : IDataRegistry
             SetItemEpoch(item, timestamp.Value);
         }
 
+        if (TryGetResolvedMetadata(key, item, out var metadata) && metadata.Role == DataRegistryItemRole.Data)
+        {
+            DataRegistryDiagnosticsHooks.NotifyPublicDataPublished(key: GetEventKey(key, item), changeKind: DataChangeKind.ValueUpdated);
+        }
+
         ProcessLogRuntime.TryWriteInputEntry(GetEventKey(key, item), item, DataChangeKind.ValueUpdated, null, convertedValue);
         RaiseItemChanged(GetEventKey(key, item), item, DataChangeKind.ValueUpdated, timestamp: timestamp);
         return true;
@@ -508,7 +697,7 @@ public sealed class DataRegistry : IDataRegistry
     public bool UpdateProperty(string key, string parameterName, object? value, ulong? timestamp = null, bool forceChangeNotification = false)
     {
         var normalizedParameterName = HostPathSegmentNormalizer.Normalize(parameterName);
-        if (!TryResolve(key, out var item) || item is null || !item.Properties.Has(normalizedParameterName))
+        if (!TryResolveStoredItem(key, out var item) || item is null || !item.Properties.Has(normalizedParameterName))
         {
             return false;
         }
@@ -547,6 +736,14 @@ public sealed class DataRegistry : IDataRegistry
             SetItemEpoch(item, timestamp.Value);
         }
 
+        if (TryGetResolvedMetadata(key, item, out var metadata) && metadata.Role == DataRegistryItemRole.Data)
+        {
+            DataRegistryDiagnosticsHooks.NotifyPublicDataPublished(
+                key: GetEventKey(key, item),
+                changeKind: DataChangeKind.PropertyUpdated,
+                parameterName: normalizedParameterName);
+        }
+
         ProcessLogRuntime.TryWriteInputEntry(GetEventKey(key, item), item, DataChangeKind.PropertyUpdated, normalizedParameterName, convertedValue);
         RaiseItemChanged(GetEventKey(key, item), item, DataChangeKind.PropertyUpdated, normalizedParameterName, timestamp);
         return true;
@@ -571,6 +768,7 @@ public sealed class DataRegistry : IDataRegistry
         }
 
         var rootKey = TryGetStoredRootKey(key, out var storedRootKey) ? storedRootKey : key;
+        RemoveValueReferencesForRoot(rootKey);
         var removed = _items.TryRemove(rootKey, out _);
         if (removed)
         {
@@ -583,6 +781,113 @@ public sealed class DataRegistry : IDataRegistry
 
     private bool HasCapability(string key, DataRegistryItemCapabilities capability)
         => TryGetMetadata(key, out var metadata) && metadata.Capabilities.HasFlag(capability);
+
+    private bool TryGetResolvedMetadata(string key, ItemModel item, out DataRegistryItemMetadata metadata)
+    {
+        if (TryGetMetadata(key, out metadata))
+        {
+            return true;
+        }
+
+        var itemPath = NormalizeComparablePath(item.Path);
+        if (!string.IsNullOrWhiteSpace(itemPath)
+            && _pathIndex.TryGetValue(itemPath, out var indexed)
+            && _metadata.TryGetValue(indexed.RootKey, out metadata!))
+        {
+            return true;
+        }
+
+        metadata = DataRegistryItemMetadata.Default;
+        return false;
+    }
+
+    private bool TryCreateEffectiveReferencedItem(string requestedPath, ItemModel storedItem, out ItemModel effectiveItem)
+    {
+        effectiveItem = storedItem;
+
+        var comparableRequestedPath = NormalizeComparablePath(string.IsNullOrWhiteSpace(requestedPath) ? storedItem.Path : requestedPath);
+        if (string.IsNullOrWhiteSpace(comparableRequestedPath))
+        {
+            return false;
+        }
+
+        var matchingReferences = _valueReferences.Values
+            .Where(reference => string.Equals(reference.ComparablePublicItemPath, comparableRequestedPath, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (matchingReferences.Length == 0)
+        {
+            return false;
+        }
+
+        ItemModel? clone = null;
+        foreach (var reference in matchingReferences)
+        {
+            if (!TryResolveReferencedParameterValue(reference, out var referencedValue, out var sourceItem))
+            {
+                continue;
+            }
+
+            if (clone is null)
+            {
+                var clonedItem = storedItem.Clone();
+                if (clonedItem is null)
+                {
+                    continue;
+                }
+
+                clone = clonedItem;
+            }
+
+            clone.Properties[reference.PublicParameterName].Value = referencedValue!;
+            if (sourceItem.Properties.Has("epoch"))
+            {
+                clone.Properties["epoch"].Value = sourceItem.Properties["epoch"].Value!;
+            }
+        }
+
+        if (clone is null)
+        {
+            return false;
+        }
+
+        effectiveItem = clone;
+        return true;
+    }
+
+    private bool TryResolveReferencedParameterValue(IndexedValueReference reference, out object? referencedValue, out ItemModel sourceItem)
+    {
+        referencedValue = null;
+        sourceItem = null!;
+
+        if (!TryResolveStoredItem(reference.SourceItemPath, out var resolvedSourceItem)
+            || resolvedSourceItem is null
+            || !resolvedSourceItem.Properties.Has(reference.SourceParameterName))
+        {
+            return false;
+        }
+
+        sourceItem = resolvedSourceItem;
+        referencedValue = resolvedSourceItem.Properties[reference.SourceParameterName].Value;
+        return true;
+    }
+
+    private void RemoveValueReferencesForRoot(string rootKey)
+    {
+        var comparableRootKey = NormalizeComparablePath(rootKey);
+        if (string.IsNullOrWhiteSpace(comparableRootKey))
+        {
+            return;
+        }
+
+        foreach (var entry in _valueReferences)
+        {
+            if (string.Equals(entry.Value.ComparablePublicItemPath, comparableRootKey, StringComparison.OrdinalIgnoreCase)
+                || entry.Value.ComparablePublicItemPath.StartsWith(comparableRootKey + ".", StringComparison.OrdinalIgnoreCase))
+            {
+                _valueReferences.TryRemove(entry.Key, out _);
+            }
+        }
+    }
 
     private void RaiseItemChanged(string key, ItemModel item, DataChangeKind changeKind, string? parameterName = null, ulong? timestamp = null)
     {
@@ -764,6 +1069,9 @@ public sealed class DataRegistry : IDataRegistry
     private static string GetEventKey(string requestedKey, ItemModel item)
         => string.IsNullOrWhiteSpace(item.Path) ? requestedKey : item.Path!;
 
+    private static string BuildValueReferenceKey(string comparablePublicItemPath, string publicParameterName)
+        => string.Concat(comparablePublicItemPath, "|", publicParameterName);
+
     private static bool TryGetRelativePath(string path, string prefix, out string relativePath)
     {
         relativePath = string.Empty;
@@ -850,6 +1158,13 @@ public sealed class DataRegistry : IDataRegistry
     }
 
     private sealed record IndexedItem(string Path, string RootKey, ItemModel ItemModel);
+
+    private sealed record IndexedValueReference(
+        string PublicItemPath,
+        string PublicParameterName,
+        string SourceItemPath,
+        string SourceParameterName,
+        string ComparablePublicItemPath);
 
     private static void MergeItem(ItemModel target, ItemModel source, bool pruneMissingMembers)
     {

@@ -176,7 +176,7 @@ public static class ControllerDefinitionCodec
         return node?.GetValue<string>() ?? string.Empty;
     }
 
-    private static ControllerDefinitionDocument ToDocument(ControllerDefinition definition)
+    public static ControllerDefinitionDocument ToDocument(ControllerDefinition definition)
     {
         var normalized = definition.Normalize();
         return new ControllerDefinitionDocument
@@ -203,7 +203,7 @@ public static class ControllerDefinitionCodec
         };
     }
 
-    private static ControllerDefinition FromDocument(ControllerDefinitionDocument document)
+    public static ControllerDefinition FromDocument(ControllerDefinitionDocument document)
     {
         return new ControllerDefinition
         {

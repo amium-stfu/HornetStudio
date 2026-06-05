@@ -26,7 +26,7 @@
               BorderThickness="1"
               CornerRadius="8">
         <StackPanel Spacing="8">
-          <Grid ColumnDefinitions="120,280,34,88,140,120,*,34,Auto,Auto,Auto">
+          <Grid ColumnDefinitions="120,280,34,88,*,Auto,Auto,Auto" RowDefinitions="Auto,Auto">
             <ComboBox Classes="dialog-field"
                       HorizontalAlignment="Stretch"
                       IsVisible="{Binding !IsPreserved}"
@@ -65,46 +65,43 @@
                 </DataTemplate>
               </ComboBox.ItemTemplate>
             </ComboBox>
-            <TextBox Grid.Column="4" Margin="8,0,0,0"
-                     Classes="dialog-field"
-                     IsVisible="{Binding ShowsSetValueLiteralEditor}"
-                     Text="{Binding SetValueLiteralArgument, Mode=TwoWay}"
-                     Watermark="{Binding SetValueLiteralWatermark}" />
-            <TextBox Grid.Column="5" Margin="8,0,0,0"
-                     Classes="dialog-field"
-                     IsVisible="{Binding ShowsSetValueSeparatorEditor}"
-                     Text="{Binding SetValueSeparator, Mode=TwoWay}"
-                     Watermark="Separator" />
-            <ComboBox Grid.Column="6" Margin="8,0,0,0"
-                      Classes="dialog-field"
-                      IsVisible="{Binding ShowsSetValueSourceEditor}"
-                      ItemsSource="{Binding SetValueSourceOptions}"
-                      SelectedItem="{Binding SetValueSourcePath, Mode=TwoWay}" />
-            <Button Grid.Column="7" Margin="4,0,0,0"
-                    Classes="icon-button"
-                     IsVisible="{Binding ShowsSetValueSourceEditor}"
-                    VerticalAlignment="Center"
-                    CommandParameter="{Binding}"
-                    ToolTip.Tip="Browse source item"
-                    Click="OnBrowseStepValueFromClicked">
-              <controls:ThemeSvgIcon Width="14" Height="14"
-                                     IconPath="avares://HornetStudio.Editor/EditorIcons/list.svg"
-                                     TintColor="{Binding ButtonForeground, RelativeSource={RelativeSource AncestorType=widgets:FunctionEditorDialogWindow}}" />
-            </Button>
-            <StackPanel Grid.Column="6" Margin="8,0,0,0"
-                        IsVisible="{Binding ShowsSetValueFields}"
-                        Orientation="Vertical"
-                        Spacing="2">
-              <TextBlock FontSize="12"
-                         Foreground="{Binding SecondaryTextBrush, RelativeSource={RelativeSource AncestorType=widgets:FunctionEditorDialogWindow}}"
-                         Text="{Binding SetValueSummary}"
-                         TextWrapping="Wrap" />
-              <TextBlock FontSize="11"
-                         Foreground="#B91C1C"
-                         IsVisible="{Binding HasSetValueValidationError}"
-                         Text="{Binding SetValueValidationMessage}"
-                         TextWrapping="Wrap" />
-            </StackPanel>
+            <Grid Grid.Column="4" Margin="8,0,0,0"
+                  ColumnDefinitions="*,140"
+                  IsVisible="{Binding ShowsSetValueLiteralEditor}">
+              <TextBox Classes="dialog-field"
+                       Text="{Binding SetValueLiteralArgument, Mode=TwoWay}"
+                       Watermark="{Binding SetValueLiteralWatermark}" />
+              <TextBox Grid.Column="1" Margin="8,0,0,0"
+                       Classes="dialog-field"
+                       IsVisible="{Binding ShowsSetValueSeparatorEditor}"
+                       Text="{Binding SetValueSeparator, Mode=TwoWay}"
+                       Watermark="Separator" />
+            </Grid>
+            <Grid Grid.Column="4" Margin="8,0,0,0"
+                  ColumnDefinitions="*,Auto"
+                  IsVisible="{Binding ShowsSetValueSourceEditor}">
+              <TextBox Classes="dialog-field"
+                       IsReadOnly="True"
+                       Text="{Binding SetValueSourcePath, Mode=OneWay}"
+                       Watermark="Source item"
+                       ToolTip.Tip="{Binding SetValueValidationMessage}" />
+              <Button Grid.Column="1" Margin="8,0,0,0"
+                      Classes="icon-button"
+                      VerticalAlignment="Center"
+                      CommandParameter="{Binding}"
+                      ToolTip.Tip="Browse source item"
+                      Click="OnBrowseStepValueFromClicked">
+                <controls:ThemeSvgIcon Width="14" Height="14"
+                                       IconPath="avares://HornetStudio.Editor/EditorIcons/list.svg"
+                                       TintColor="{Binding ButtonForeground, RelativeSource={RelativeSource AncestorType=widgets:FunctionEditorDialogWindow}}" />
+              </Button>
+            </Grid>
+            <TextBlock Grid.Row="1" Grid.Column="4" Margin="8,4,0,0"
+                       FontSize="11"
+                       Foreground="#FCA5A5"
+                       IsVisible="{Binding HasSetValueValidationError}"
+                       Text="{Binding SetValueValidationMessage}"
+                       TextWrapping="Wrap" />
 
             <Grid Grid.Column="1" Margin="10,0,0,0"
                   HorizontalAlignment="Left"
@@ -182,13 +179,13 @@
                          Text="{Binding WhileSummary}" />
             </WrapPanel>
 
-            <Button Grid.Column="8" Margin="8,0,0,0" Classes="icon-button" CommandParameter="{Binding}" ToolTip.Tip="Move step up" Click="OnMoveUpStepClicked">
+            <Button Grid.Column="5" Margin="8,0,0,0" Classes="icon-button" CommandParameter="{Binding}" ToolTip.Tip="Move step up" Click="OnMoveUpStepClicked">
               <controls:ThemeSvgIcon Width="14" Height="14" IconPath="avares://HornetStudio.Editor/EditorIcons/caret-up.svg" TintColor="{Binding ButtonForeground, RelativeSource={RelativeSource AncestorType=widgets:FunctionEditorDialogWindow}}" />
             </Button>
-            <Button Grid.Column="9" Margin="8,0,0,0" Classes="icon-button" CommandParameter="{Binding}" ToolTip.Tip="Move step down" Click="OnMoveDownStepClicked">
+            <Button Grid.Column="6" Margin="8,0,0,0" Classes="icon-button" CommandParameter="{Binding}" ToolTip.Tip="Move step down" Click="OnMoveDownStepClicked">
               <controls:ThemeSvgIcon Width="14" Height="14" IconPath="avares://HornetStudio.Editor/EditorIcons/caret-down.svg" TintColor="{Binding ButtonForeground, RelativeSource={RelativeSource AncestorType=widgets:FunctionEditorDialogWindow}}" />
             </Button>
-            <Button Grid.Column="10" Margin="8,0,0,0" Classes="icon-button" CommandParameter="{Binding}" ToolTip.Tip="Remove step" Click="OnRemoveStepClicked">
+            <Button Grid.Column="7" Margin="8,0,0,0" Classes="icon-button" CommandParameter="{Binding}" ToolTip.Tip="Remove step" Click="OnRemoveStepClicked">
               <controls:ThemeSvgIcon Width="14" Height="14" IconPath="avares://HornetStudio.Editor/EditorIcons/trash.svg" TintColor="{Binding ButtonForeground, RelativeSource={RelativeSource AncestorType=widgets:FunctionEditorDialogWindow}}" />
             </Button>
           </Grid>

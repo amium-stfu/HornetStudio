@@ -521,6 +521,7 @@ public sealed partial class WidgetSelectionDialogWindow : Window, INotifyPropert
                 ControlKind.EnhancedSignals => CreatePlaceholderPreview(item, "Enhanced signals preview"),
                 ControlKind.ControllerWidget => CreatePlaceholderPreview(item, "PID controller preview"),
                 ControlKind.Monitor => CreatePlaceholderPreview(item, "Monitor preview"),
+                ControlKind.MonitorView => CreatePlaceholderPreview(item, "Monitor view preview"),
                 ControlKind.DialogWidget => CreatePlaceholderPreview(item, "Dialog widget preview"),
                 _ => new EditorSignalControl()
             };

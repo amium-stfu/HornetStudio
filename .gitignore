@@ -27,6 +27,9 @@ Release/
 *.log
 **/logs/
 TestResults/
+samples/HornetStudioDemo/Logs/
+samples/HornetStudioDemo/**/__pycache__/
+samples/HornetStudioDemo/**/*.pyc
 
 # Local backup content
 dev/Testbook.backup/

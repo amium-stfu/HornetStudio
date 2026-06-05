@@ -1,0 +1,4 @@
+name: demo_number
+mode: Input
+dataType: Number
+isWritable: true

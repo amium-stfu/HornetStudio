@@ -204,20 +204,25 @@ Ergebnis:
 
 ### 5.3. Monitor Widget Runtime-Pfade
 
-Das `Monitor`-Widget veröffentlicht regelbasierte Zustände in einem eigenen Runtime-Zweig:
+Das folder-lokale Monitor-System veröffentlicht regelbasierte Zustände in einem eigenen Runtime-Zweig:
 
-- Format: `studio.<page>.monitor.<monitor_widget>.<rule>`
-- Aggregatpfade am Widget-Root: `studio.<page>.monitor.<monitor_widget>.fatal_active`, `error_active`, `warning_active`, `info_active`, `debug_active`
+- Format: `studio.<page>.monitor.<rule>`
+- Aggregatpfade am Folder-Root: `studio.<page>.monitor.fatal_active`, `error_active`, `warning_active`, `info_active`, `debug_active`
 - Jeder Aggregatpfad behaelt seinen `Value` als komma-separierte Liste aktiver `EventId`-Werte in stabiler Regelreihenfolge.
 - Dasselbe Aggregat-Item schreibt zusaetzlich `meta` als JSON in die Item-Metadaten, z.B. `{"events":[{"event_id":123,"text":"RangeError"},{"event_id":124,"text":"DI5 high"}]}`. Ohne aktive Events wird `{"events":[]}` geschrieben.
 - Jede Regel kann Timeout-, Grenzwert- und Ausdrucksbedingungen auswerten.
-- `EventId` ist pro Regel verpflichtend, muss > `0` sein und innerhalb desselben Monitor-Widgets eindeutig bleiben.
+- `EventId` ist pro Regel verpflichtend, muss > `0` sein und innerhalb derselben Folder-Monitor-Registry eindeutig bleiben.
 - Aktionen werden nur bei Zustandsübergängen (`OnActivated`, `OnCleared`) ausgeführt.
 - `WriteLog` verwendet die Event-Metadaten der Regel und schreibt optional in ein konfiguriertes `ProcessLog`.
+- Die Definitionen kommen autoritativ aus `Monitoring/Monitor.yaml`. Ein platziertes `Monitor`-Widget ist nur noch Browser/Editor; ohne Widget bleibt die Folder-Runtime aktiv.
 
-## 6. RealtimeChart – Zuordnung und Datenfluss
+## 6. RealtimeChart und Signal-History – Zuordnung und Datenfluss
 
-Der RealtimeChart arbeitet aktuell noch **Item-basiert**, nutzt aber dieselben TargetPath-/Auflösungsregeln wie andere Controls.
+RealtimeChart und Signal-Widgets teilen sich weiterhin dieselben TargetPath-/Aufloesungsregeln wie andere Controls. Die Besitzverhaeltnisse fuer History wurden aber getrennt:
+
+- Signal-Widgets definieren, **ob** ein Source-Pfad aufgezeichnet wird und in welchem Intervall.
+- Die folder-scoped Signal-History-Runtime zeichnet nur explizit konfigurierte Signal-Widget-Quellen auf.
+- ChartControl zeigt nur vorhandene History im aktuellen Sichtfenster an.
 
 ### 6.1. Konfiguration der Serien
 
@@ -230,30 +235,46 @@ Der RealtimeChart arbeitet aktuell noch **Item-basiert**, nutzt aber dieselben T
   - `AxisIndex` – 1..4 (Y1..Y4).
   - `ConnectStyle` – `Line`, `Step`, `StepVertical`.
 
-### 6.2. Auflösung zum Item
+### 6.2. Signal-Widget als Recording-Owner
 
-Für jede Serie wird in `TryResolveSeriesItem(targetPath, pageName, out Item? item)` derselbe Mechanismus wie oben verwendet:
+Signal-Widgets koennen zusaetzlich zu ihrer Anzeige eine Recording-Policy konfigurieren:
+
+- `HistorySeconds`
+- `RefreshRateMs`
+
+Nur wenn `HistorySeconds > 0` und `RefreshRateMs > 0` sind, wird der konfigurierte `TargetPath` in der zentralen Signal-History-Runtime registriert.
+Die Runtime arbeitet folder-scoped und fuehrt gemeinsame History-Puffer pro Source-Pfad. Wenn mehrere Signal-Widgets dieselbe Quelle referenzieren, gilt deterministisch:
+
+- laengste angeforderte Retention gewinnt
+- kleinste angeforderte Refresh-Rate gewinnt
+
+### 6.3. Folder-scoped Signal-History-Runtime
+
+Die Runtime synchronisiert ihre Definitionen aus den Signal-Widgets eines Folders. Fuer jede registrierte Quelle gilt:
 
 1. `TargetPathHelper.EnumerateResolutionCandidates(targetPath, pageName)` erzeugt Kandidatenpfade.
-2. `HostRegistries.Data.TryResolve(...)` löst den ersten passenden Kandidaten zentral auf.
+2. `HostRegistries.Data.TryResolve(...)` loest die Quelle zentral auf.
+3. Im durch `RefreshRateMs` bestimmten Aufnahmeintervall wird der aktuelle numerische Wert in einen In-Memory-Puffer geschrieben.
+4. Der Puffer wird pro Quelle auf `HistorySeconds` zugeschnitten.
 
-Ergebnis: Ein `Item`, dessen `Value` im Chart verwendet wird.
+Quellen mit `HistorySeconds = 0` oder `RefreshRateMs = 0` werden nicht registriert und erzeugen keinerlei Aufnahme-Overhead.
 
-### 6.3. Abtastung und History
+### 6.4. ChartControl als reiner Consumer
 
-- `ChartRuntimeState` verwaltet die Samples:
-  - Pro Serie: Liste von `(Timestamp, Value)`-Punkten.
-  - `HistorySeconds` bestimmt, wie lange Daten vorgehalten werden.
-- Timer-basiertes Sampling:
-  - `_sampleTimer` ruft periodisch `SampleCurrentValues()` auf.
-  - Für jede Serie:
-    - `TryResolveSeriesItem(...)` → `Item`.
-    - `TryResolveNumericValue(item, out double value)` – konvertiert `Item.Value` auf `double`.
-    - Fügt `(now, value)` in die Timeserie ein.
-  - Ältere Punkte werden über `TrimSeriesLocked(now)` verworfen.
-- Die Visualisierung (`RenderPlot`) liest Snapshots dieser Punkte und stellt sie im ScottPlot dar.
+ChartControl besitzt nur Anzeigezustand:
 
-> Hinweis: Der RealtimeChart verwendet aktuell noch direkt `Item` und `Item.Value`. Die neue Signalschicht ermöglicht es später, hier ebenfalls auf `ISignal` umzubauen, ohne die TargetPath-Logik zu ändern.
+- `ChartSeriesDefinitions`
+- `ViewSeconds`
+- Render-Takt und Achsen-/Darstellungszustand
+
+Der Chart zeichnet keine Werte selbst auf. Stattdessen fordert ein `ChartDataProvider` renderfertige Snapshots fuer das aktuelle Sichtfenster an:
+
+1. `visibleFrom` / `visibleTo` werden aus `ViewSeconds` berechnet.
+2. Der Provider liest nur aus der zentralen Signal-History-Runtime.
+3. Bereichsprojektion und Downsampling passieren ausserhalb des UI-Threads.
+4. Das Control rendert direkt `double[] timestamps` und `double[] values`.
+
+Wenn eine Chart-Serie auf eine Quelle ohne aktivierte Signal-History verweist, bleibt diese Serie leer. Der Chart startet in diesem Fall keine implizite Aufnahme.
 
 ## 7. CsvLogger – Zuordnung und Datenfluss
 

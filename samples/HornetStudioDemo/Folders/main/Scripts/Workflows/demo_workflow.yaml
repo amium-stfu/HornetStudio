@@ -1,0 +1,60 @@
+name: demo_workflow
+steps:
+- type: SetValue
+  target: enhanced_signals.filtered_1.set
+  value: 10
+- type: Log
+  targetLog: studio.main.logs.my_log
+  level: Warning
+  text: Start
+- type: Delay
+  milliseconds: 3000
+- type: Log
+  targetLog: studio.main.logs.my_log
+  level: Error
+  text: DEF
+- type: SetValue
+  target: enhanced_signals.filtered_1.set
+  valueFrom: custom_signals.demo_number
+- type: IfThenElse
+  condition: '{A} > 100'
+  then:
+  - type: Log
+    targetLog: studio.main.logs.my_log
+    level: Info
+    text: Greater than 100
+  variables:
+  - name: A
+    sourcePath: enhanced_signals.filtered_1.read
+  else:
+  - type: Log
+    targetLog: studio.main.logs.my_log
+    level: Info
+    text: lower than 100
+- type: While
+  condition: '{A}==false'
+  steps:
+  - type: Delay
+    milliseconds: 1000
+  - type: Log
+    targetLog: studio.main.logs.my_log
+    level: Info
+    text: Test
+  - type: IfThenElse
+    condition: '{A} > 100'
+    then:
+    - type: Log
+      targetLog: studio.main.logs.my_log
+      level: Info
+      text: higher
+    variables:
+    - name: A
+      sourcePath: enhanced_signals.filtered_1.read
+    else:
+    - type: Log
+      targetLog: studio.main.logs.my_log
+      level: Info
+      text: lower
+  variables:
+  - name: A
+    sourcePath: custom_signals.demo_trigger

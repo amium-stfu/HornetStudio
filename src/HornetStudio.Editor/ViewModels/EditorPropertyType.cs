@@ -9,6 +9,7 @@ public enum EditorPropertyType
     Choice,
     TargetTree,
     MultilineText,
+    MonitorSelectionList,
     ChartSeriesList,
     AttachItemList,
     InteractionRuleList,

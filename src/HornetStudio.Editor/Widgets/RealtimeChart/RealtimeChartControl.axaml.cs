@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
-using System.Threading;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -12,13 +11,13 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using HornetStudio.Editor.Controls;
 using HornetStudio.Host;
-using ItemModel = Amium.Items.Item;
-using Amium.Items;
 using HornetStudio.Editor.Helpers;
 using HornetStudio.Editor.Models;
+using HornetStudio.Editor.Monitoring;
 using HornetStudio.Editor.ViewModels;
 using ScottPlot;
 using ScottPlot.Avalonia;
+using ChartSeriesConfiguration = HornetStudio.Editor.Widgets.RealtimeChartRuntimeManager.ChartSeriesConfiguration;
 
 namespace HornetStudio.Editor.Widgets;
 
@@ -42,12 +41,9 @@ public partial class RealtimeChartControl : EditorTemplateWidget
         Colors.Tomato
     ];
 
-    private static readonly object ChartStatesLock = new();
-    private static readonly Dictionary<string, ChartRuntimeState> ChartStates = new(StringComparer.Ordinal);
-
     private DispatcherTimer? _renderTimer;
     private FolderItemModel? _chartItem;
-    private ChartRuntimeState? _chartState;
+    private RealtimeChartRuntimeManager.RealtimeChartRuntimeState? _chartState;
     private AvaPlot? _avaPlot;
     private Grid? _plotHost;
     private Canvas? _crosshairOverlay;
@@ -61,6 +57,7 @@ public partial class RealtimeChartControl : EditorTemplateWidget
     private IYAxis? _yAxis3;
     private IYAxis? _yAxis4;
     private bool _hasConfiguredAxes;
+    private bool _isAttachedToVisualTree;
     private readonly Dictionary<int, AxisScaleOverride> _axisOverrides = new();
 
     private MainWindowViewModel? ViewModel
@@ -90,6 +87,7 @@ public partial class RealtimeChartControl : EditorTemplateWidget
 
     private void OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
+        _isAttachedToVisualTree = true;
         _avaPlot = this.FindControl<AvaPlot>("ChartPlot");
         _plotHost = this.FindControl<Grid>("PlotHost");
         _crosshairOverlay = this.FindControl<Canvas>("CrosshairOverlay");
@@ -105,12 +103,14 @@ public partial class RealtimeChartControl : EditorTemplateWidget
         UpdateRenderActivity();
         if (PageIsActive && IsVisible)
         {
+            RequestSnapshotRefresh();
             RenderPlot();
         }
     }
 
     private void OnDetachedFromVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
+        _isAttachedToVisualTree = false;
         StopRenderTimer();
         HookChartItem(null);
         _avaPlot = null;
@@ -147,6 +147,7 @@ public partial class RealtimeChartControl : EditorTemplateWidget
             UpdateRenderActivity();
             if (PageIsActive && IsVisible)
             {
+                RequestSnapshotRefresh();
                 RenderPlot();
             }
             else
@@ -172,8 +173,7 @@ public partial class RealtimeChartControl : EditorTemplateWidget
         {
             if (_chartItem is not null)
             {
-                _chartState = GetOrCreateChartState(_chartItem);
-                _chartState.UpdateConfiguration(CreateChartStateConfiguration(_chartItem));
+                RebindChartState(reason: "RefreshCurrentChartItem");
             }
 
             return;
@@ -185,34 +185,87 @@ public partial class RealtimeChartControl : EditorTemplateWidget
         }
 
         _chartItem = nextItem;
-        _chartState = null;
 
         if (_chartItem is not null)
         {
             _chartItem.PropertyChanged += OnChartItemPropertyChanged;
-            _chartState = GetOrCreateChartState(_chartItem);
-            _chartState.UpdateConfiguration(CreateChartStateConfiguration(_chartItem));
         }
 
+        RebindChartState(reason: "HookChartItem");
+
         UpdateStatusText();
+    }
+
+    private void RebindChartState(string reason)
+    {
+        var previousState = _chartState;
+        var nextState = RealtimeChartRuntimeManager.GetOrCreate(_chartItem);
+
+        if (!ReferenceEquals(previousState, nextState) && previousState is not null)
+        {
+            previousState.SnapshotUpdated -= OnChartSnapshotUpdated;
+        }
+
+        _chartState = nextState;
+        if (!ReferenceEquals(previousState, nextState) && nextState is not null)
+        {
+            nextState.SnapshotUpdated += OnChartSnapshotUpdated;
+        }
+
+        if (PageIsActive && IsVisible)
+        {
+            RequestSnapshotRefresh();
+        }
+    }
+
+    private void OnChartSnapshotUpdated(object? sender, EventArgs e)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (PageIsActive && IsVisible)
+            {
+                RenderPlot();
+            }
+        }, DispatcherPriority.Background);
+    }
+
+    private void RequestSnapshotRefresh()
+    {
+        if (!PageIsActive || !IsVisible || _chartItem is null || _chartState is null)
+        {
+            return;
+        }
+
+        var plotWidth = _plotHost?.Bounds.Width ?? Bounds.Width;
+        var maxRenderPoints = Math.Max(128, (int)Math.Ceiling(Math.Max(1d, plotWidth) * 2d));
+        _chartState.RequestSnapshotRefresh(
+            viewSeconds: Math.Max(1, _chartItem.ViewSeconds),
+            maxRenderPoints: maxRenderPoints);
     }
 
     private void OnChartItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(FolderItemModel.TargetPath)
             or nameof(FolderItemModel.ChartSeriesDefinitions)
-            or nameof(FolderItemModel.HistorySeconds)
-            or nameof(FolderItemModel.ViewSeconds)
             or nameof(FolderItemModel.Id))
         {
             if (_chartItem is not null)
             {
-                _chartState = GetOrCreateChartState(_chartItem);
-                _chartState.UpdateConfiguration(CreateChartStateConfiguration(_chartItem));
+                RebindChartState(reason: $"ChartItemPropertyChanged:{e.PropertyName}");
             }
 
             UpdateStatusText();
             HideCrosshair();
+            if (PageIsActive && IsVisible)
+            {
+                RequestSnapshotRefresh();
+                RenderPlot();
+            }
+        }
+
+        if (e.PropertyName is nameof(FolderItemModel.ViewSeconds))
+        {
+            RequestSnapshotRefresh();
             if (PageIsActive && IsVisible)
             {
                 RenderPlot();
@@ -221,12 +274,6 @@ public partial class RealtimeChartControl : EditorTemplateWidget
 
         if (e.PropertyName is nameof(FolderItemModel.RefreshRateMs))
         {
-            if (_chartItem is not null)
-            {
-                _chartState = GetOrCreateChartState(_chartItem);
-                _chartState.UpdateConfiguration(CreateChartStateConfiguration(_chartItem));
-            }
-
             StartRenderTimer();
         }
 
@@ -289,6 +336,7 @@ public partial class RealtimeChartControl : EditorTemplateWidget
             return;
         }
 
+        RequestSnapshotRefresh();
         RenderPlot();
     }
 
@@ -409,11 +457,16 @@ public partial class RealtimeChartControl : EditorTemplateWidget
             return;
         }
 
-        var seriesSnapshots = _chartState?.GetSeriesSnapshots() ?? [];
+        var chartSnapshot = _chartState?.GetRenderSnapshot() ?? ChartRenderSnapshot.Empty;
+        var seriesSnapshots = chartSnapshot.SeriesSnapshots;
+        using var diagnosticsScope = UiResponsivenessDiagnostics.TrackChartRender(
+            owner: this.GetVisualRoot() as Window,
+            chartName: _chartItem?.Name ?? _chartItem?.Id ?? nameof(RealtimeChartControl),
+            seriesCount: seriesSnapshots.Count);
         var hasSeries = seriesSnapshots.Count > 0;
         var hasData = false;
         var activeAxisIndexes = seriesSnapshots
-            .Where(snapshot => snapshot.Points.Length > 0)
+            .Where(snapshot => snapshot.Values.Length > 0)
             .Select(snapshot => snapshot.Configuration.AxisIndex)
             .Distinct()
             .OrderBy(index => index)
@@ -427,20 +480,16 @@ public partial class RealtimeChartControl : EditorTemplateWidget
             ApplyPlotTheme();
 
             var axisMap = CreateAxisMap(plot, activeAxisIndexes);
-            var now = DateTime.Now;
-
             for (var i = 0; i < seriesSnapshots.Count; i++)
             {
                 var snapshot = seriesSnapshots[i];
-                if (snapshot.Points.Length == 0)
+                if (snapshot.Values.Length == 0)
                 {
                     continue;
                 }
 
                 hasData = true;
-                var xs = snapshot.Points.Select(point => point.Timestamp.ToOADate()).ToArray();
-                var ys = snapshot.Points.Select(point => point.Value).ToArray();
-                var scatter = plot.Add.Scatter(xs, ys);
+                var scatter = plot.Add.Scatter(snapshot.Timestamps, snapshot.Values);
                 scatter.LegendText = GetSeriesLabel(snapshot.Configuration);
                 scatter.LineWidth = 2;
                 scatter.MarkerSize = 0;
@@ -449,8 +498,7 @@ public partial class RealtimeChartControl : EditorTemplateWidget
                 scatter.Axes.YAxis = axisMap[snapshot.Configuration.AxisIndex];
             }
 
-            var viewSeconds = Math.Max(1, _chartItem?.ViewSeconds ?? 30);
-            plot.Axes.SetLimitsX(now.AddSeconds(-viewSeconds).ToOADate(), now.ToOADate());
+            plot.Axes.SetLimitsX(chartSnapshot.VisibleFrom.ToOADate(), chartSnapshot.VisibleTo.ToOADate());
 
             if (hasData)
             {
@@ -528,80 +576,7 @@ public partial class RealtimeChartControl : EditorTemplateWidget
 
     private List<ChartSeriesConfiguration> GetSeriesConfigurations()
     {
-        return _chartItem is null
-            ? []
-            : CreateChartStateConfiguration(_chartItem).SeriesConfigurations;
-    }
-
-    private static List<ChartSeriesConfiguration> ParseSeriesDefinitions(string? raw, string? pageName)
-    {
-        var result = new List<ChartSeriesConfiguration>();
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            return result;
-        }
-
-        var lines = raw.Replace("\r", string.Empty).Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        foreach (var line in lines)
-        {
-            var parts = line.Split('|', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length == 0 || string.IsNullOrWhiteSpace(parts[0]))
-            {
-                continue;
-            }
-
-            var axisIndex = 1;
-            if (parts.Length > 1)
-            {
-                var axisText = parts[1].StartsWith("Y", StringComparison.OrdinalIgnoreCase) ? parts[1][1..] : parts[1];
-                if (!int.TryParse(axisText, NumberStyles.Integer, CultureInfo.InvariantCulture, out axisIndex))
-                {
-                    axisIndex = 1;
-                }
-            }
-
-            var connectStyle = parts.Length > 2 ? ParseConnectStyle(parts[2]) : ConnectStyle.Straight;
-            result.Add(CreateSeriesConfiguration(TargetPathHelper.NormalizeConfiguredTargetPath(parts[0]), pageName, axisIndex, connectStyle));
-        }
-
-        return result;
-    }
-
-    private static ChartSeriesConfiguration CreateSeriesConfiguration(string targetPath, string? pageName, int axisIndex, ConnectStyle connectStyle = ConnectStyle.Straight)
-    {
-        targetPath = TargetPathHelper.NormalizeConfiguredTargetPath(targetPath);
-        var normalizedAxis = Math.Clamp(axisIndex, 1, 4);
-        var styleKey = connectStyle switch
-        {
-            ConnectStyle.StepHorizontal => "Step",
-            ConnectStyle.StepVertical => "StepVertical",
-            _ => "Line"
-        };
-        return new ChartSeriesConfiguration(
-            targetPath,
-            pageName ?? string.Empty,
-            normalizedAxis,
-            connectStyle,
-            $"{targetPath}|Y{normalizedAxis}|{styleKey}",
-            targetPath);
-    }
-
-    private static ConnectStyle ParseConnectStyle(string? style)
-    {
-        if (string.IsNullOrWhiteSpace(style))
-        {
-            return ConnectStyle.Straight;
-        }
-
-        return style.Trim().ToLowerInvariant() switch
-        {
-            "step" => ConnectStyle.StepHorizontal,
-            "stephorizontal" => ConnectStyle.StepHorizontal,
-            "stepvertical" => ConnectStyle.StepVertical,
-            "line" => ConnectStyle.Straight,
-            "straight" => ConnectStyle.Straight,
-            _ => ConnectStyle.Straight
-        };
+        return RealtimeChartRuntimeManager.GetSeriesConfigurations(_chartItem);
     }
 
     private void UpdateStatusText()
@@ -724,7 +699,7 @@ public partial class RealtimeChartControl : EditorTemplateWidget
         return true;
     }
 
-    private bool TryGetNearestPoint(string key, double xPosition, out ChartPoint point)
+    private bool TryGetNearestPoint(string key, double xPosition, out ChartNearestPoint point)
     {
         if (_chartState is null)
         {
@@ -761,78 +736,6 @@ public partial class RealtimeChartControl : EditorTemplateWidget
     private static string FormatValue(double value)
     {
         return value.ToString("0.###", CultureInfo.InvariantCulture);
-    }
-
-    private static bool TryResolveNumericValue(ItemModel item, out double value)
-    {
-        value = 0;
-        var rawValue = item.Value;
-        if (rawValue is null)
-        {
-            return false;
-        }
-
-        switch (rawValue)
-        {
-            case byte byteValue:
-                value = byteValue;
-                break;
-            case sbyte sbyteValue:
-                value = sbyteValue;
-                break;
-            case short shortValue:
-                value = shortValue;
-                break;
-            case ushort ushortValue:
-                value = ushortValue;
-                break;
-            case int intValue:
-                value = intValue;
-                break;
-            case uint uintValue:
-                value = uintValue;
-                break;
-            case long longValue:
-                value = longValue;
-                break;
-            case ulong ulongValue:
-                value = ulongValue;
-                break;
-            case float floatValue:
-                value = floatValue;
-                break;
-            case double doubleValue:
-                value = doubleValue;
-                break;
-            case decimal decimalValue:
-                value = (double)decimalValue;
-                break;
-            case string textValue:
-                if (!double.TryParse(textValue, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out value)
-                    && !double.TryParse(textValue, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.CurrentCulture, out value))
-                {
-                    return false;
-                }
-
-                break;
-            default:
-                if (rawValue is IConvertible convertible)
-                {
-                    try
-                    {
-                        value = convertible.ToDouble(CultureInfo.InvariantCulture);
-                        break;
-                    }
-                    catch
-                    {
-                        return false;
-                    }
-                }
-
-                return false;
-        }
-
-        return !double.IsNaN(value) && !double.IsInfinity(value);
     }
 
     private static bool IsDarkColor(string? colorText)
@@ -875,7 +778,7 @@ public partial class RealtimeChartControl : EditorTemplateWidget
     private void OnClearClicked(object? sender, RoutedEventArgs e)
     {
         _chartState?.Clear();
-        _chartState?.SampleCurrentValues();
+        RequestSnapshotRefresh();
         HideCrosshair();
         RenderPlot();
         e.Handled = true;
@@ -968,24 +871,6 @@ public partial class RealtimeChartControl : EditorTemplateWidget
         }
 
         _chartItem.RefreshRateMs = (int)Math.Max(1, Math.Round(result.Value));
-        e.Handled = true;
-    }
-
-    private async void OnXHistorySecondsClicked(object? sender, RoutedEventArgs e)
-    {
-        if (_chartItem is null || this.GetVisualRoot() is not Window owner)
-        {
-            return;
-        }
-
-        var current = _chartItem.HistorySeconds;
-        var result = await EditorInputDialogs.EditNumericAsync(owner, "History", "Historie in Sekunden", "0", current);
-        if (result is null)
-        {
-            return;
-        }
-
-        _chartItem.HistorySeconds = (int)Math.Max(1, Math.Round(result.Value));
         e.Handled = true;
     }
 
@@ -1085,229 +970,6 @@ public partial class RealtimeChartControl : EditorTemplateWidget
         }
     }
 
-    private readonly record struct ChartPoint(DateTime Timestamp, double Value);
-
     private sealed record AxisScaleOverride(double? Min, double? Max);
-
-    private sealed record ChartSeriesConfiguration(string TargetPath, string PageName, int AxisIndex, ConnectStyle ConnectStyle, string Key, string DisplayName);
-
-    private sealed record ChartSeriesSnapshot(ChartSeriesConfiguration Configuration, ChartPoint[] Points);
-
-    private sealed record ChartStateConfiguration(int HistorySeconds, int RefreshRateMs, List<ChartSeriesConfiguration> SeriesConfigurations);
-
-    private static ChartRuntimeState GetOrCreateChartState(FolderItemModel item)
-    {
-        lock (ChartStatesLock)
-        {
-            if (!ChartStates.TryGetValue(item.Id, out var state))
-            {
-                state = new ChartRuntimeState(item);
-                ChartStates[item.Id] = state;
-            }
-            else
-            {
-                state.Attach(item);
-            }
-
-            return state;
-        }
-    }
-
-    private static ChartStateConfiguration CreateChartStateConfiguration(FolderItemModel item)
-    {
-        var seriesConfigurations = ParseSeriesDefinitions(item.ChartSeriesDefinitions, item.FolderName);
-        if (seriesConfigurations.Count == 0 && !string.IsNullOrWhiteSpace(item.TargetPath))
-        {
-            seriesConfigurations = [CreateSeriesConfiguration(item.TargetPath, item.FolderName, 1)];
-        }
-
-        return new ChartStateConfiguration(
-            Math.Max(1, item.HistorySeconds),
-            Math.Max(30, item.RefreshRateMs <= 0 ? 30 : item.RefreshRateMs),
-            seriesConfigurations);
-    }
-
-    private static bool TryResolveSeriesItem(string targetPath, string? pageName, out ItemModel? item)
-    {
-        foreach (var candidatePath in TargetPathHelper.EnumerateResolutionCandidates(targetPath, pageName))
-        {
-            if (HostRegistries.Data.TryResolve(candidatePath, out item) && item is not null)
-            {
-                return true;
-            }
-        }
-
-        item = null;
-        return false;
-    }
-
-    private sealed class ChartRuntimeState
-    {
-        private readonly object _syncRoot = new();
-        private System.Threading.Timer? _sampleTimer;
-        private Dictionary<string, List<ChartPoint>> _seriesPoints = new(StringComparer.Ordinal);
-        private List<ChartSeriesConfiguration> _seriesConfigurations = [];
-        private int _historySeconds;
-        private int _refreshRateMs;
-
-        public ChartRuntimeState(FolderItemModel item)
-        {
-            UpdateConfiguration(CreateChartStateConfiguration(item));
-            SampleCurrentValues();
-        }
-
-        public void Attach(FolderItemModel item)
-        {
-            UpdateConfiguration(CreateChartStateConfiguration(item));
-        }
-
-        public void UpdateConfiguration(ChartStateConfiguration configuration)
-        {
-            lock (_syncRoot)
-            {
-                _historySeconds = configuration.HistorySeconds;
-                _refreshRateMs = configuration.RefreshRateMs;
-                _seriesConfigurations = configuration.SeriesConfigurations;
-
-                var nextSeriesPoints = new Dictionary<string, List<ChartPoint>>(StringComparer.Ordinal);
-                foreach (var configurationEntry in _seriesConfigurations)
-                {
-                    nextSeriesPoints[configurationEntry.Key] = _seriesPoints.TryGetValue(configurationEntry.Key, out var existing)
-                        ? existing
-                        : [];
-                }
-
-                _seriesPoints = nextSeriesPoints;
-                TrimSeriesLocked(DateTime.Now);
-
-                _sampleTimer ??= new System.Threading.Timer(OnSampleTimerTick, null, Timeout.Infinite, Timeout.Infinite);
-                _sampleTimer.Change(_refreshRateMs, _refreshRateMs);
-            }
-        }
-
-        public void SampleCurrentValues()
-        {
-            List<ChartSeriesConfiguration> configurations;
-            lock (_syncRoot)
-            {
-                configurations = [.. _seriesConfigurations];
-            }
-
-            if (configurations.Count == 0)
-            {
-                return;
-            }
-
-            var sampledAt = DateTime.Now;
-            var samples = new List<(ChartSeriesConfiguration Configuration, double Value)>();
-            foreach (var configuration in configurations)
-            {
-                if (!TryResolveSeriesItem(configuration.TargetPath, configuration.PageName, out var item) || item is null)
-                {
-                    continue;
-                }
-
-                if (!TryResolveNumericValue(item, out var value))
-                {
-                    continue;
-                }
-
-                samples.Add((configuration, value));
-            }
-
-            if (samples.Count == 0)
-            {
-                return;
-            }
-
-            lock (_syncRoot)
-            {
-                foreach (var sample in samples)
-                {
-                    if (!_seriesPoints.TryGetValue(sample.Configuration.Key, out var points))
-                    {
-                        points = [];
-                        _seriesPoints[sample.Configuration.Key] = points;
-                    }
-
-                    points.Add(new ChartPoint(sampledAt, sample.Value));
-                }
-
-                TrimSeriesLocked(sampledAt);
-            }
-        }
-
-        public List<ChartSeriesSnapshot> GetSeriesSnapshots()
-        {
-            lock (_syncRoot)
-            {
-                TrimSeriesLocked(DateTime.Now);
-                return _seriesConfigurations
-                    .Select(configuration => new ChartSeriesSnapshot(
-                        configuration,
-                        _seriesPoints.TryGetValue(configuration.Key, out var points) ? [.. points] : []))
-                    .ToList();
-            }
-        }
-
-        public bool TryGetNearestPoint(string key, double xPosition, out ChartPoint point)
-        {
-            lock (_syncRoot)
-            {
-                if (!_seriesPoints.TryGetValue(key, out var points) || points.Count == 0)
-                {
-                    point = default;
-                    return false;
-                }
-
-                var low = 0;
-                var high = points.Count - 1;
-                while (low < high)
-                {
-                    var mid = (low + high) / 2;
-                    if (points[mid].Timestamp.ToOADate() < xPosition)
-                    {
-                        low = mid + 1;
-                    }
-                    else
-                    {
-                        high = mid;
-                    }
-                }
-
-                var upperIndex = low;
-                var lowerIndex = Math.Max(0, upperIndex - 1);
-                var upperDistance = Math.Abs(points[upperIndex].Timestamp.ToOADate() - xPosition);
-                var lowerDistance = Math.Abs(points[lowerIndex].Timestamp.ToOADate() - xPosition);
-                point = lowerDistance <= upperDistance ? points[lowerIndex] : points[upperIndex];
-                return true;
-            }
-        }
-
-        public void Clear()
-        {
-            lock (_syncRoot)
-            {
-                foreach (var points in _seriesPoints.Values)
-                {
-                    points.Clear();
-                }
-            }
-        }
-
-        private void OnSampleTimerTick(object? state)
-        {
-            SampleCurrentValues();
-        }
-
-        private void TrimSeriesLocked(DateTime now)
-        {
-            var cutoff = now.AddSeconds(-_historySeconds);
-            foreach (var series in _seriesPoints.Values)
-            {
-                series.RemoveAll(point => point.Timestamp < cutoff);
-            }
-        }
-    }
 }
 

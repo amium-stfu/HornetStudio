@@ -1,0 +1,3 @@
+queue:
+  - workitem: docs/workitems/2026.06.04.2310-live_value_update_architecture/
+    handoff: docs/workitems/2026.06.04.2310-live_value_update_architecture/handoffs/2026.06.05.0745-implementation-handoff.md

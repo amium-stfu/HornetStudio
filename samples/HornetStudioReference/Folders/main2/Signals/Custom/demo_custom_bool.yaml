@@ -1,0 +1,13 @@
+name: demo_custom_bool
+dataType: Boolean
+isWritable: true
+writePath: ''
+unit: ''
+format: ''
+valueText: ''
+formula: ''
+triggerIntervalSeconds: 1
+variables: []
+sourcePath: ''
+sourcePath2: ''
+sourcePath3: ''

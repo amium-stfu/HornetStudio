@@ -2,14 +2,19 @@ using ItemModel = Amium.Items.Item;
 using Amium.Items;
 using Amium.Item.Client;
 using Avalonia.Media;
+using HornetStudio.Editor.Controls;
 using HornetStudio.Editor.Functions;
+using HornetStudio.Editor.Monitoring;
 using HornetStudio.Editor.Models;
 using HornetStudio.Editor.Persistence;
+using HornetStudio.Editor.UdlClients;
 using HornetStudio.Editor.ViewModels;
 using HornetStudio.Editor.Widgets;
 using HornetStudio.Editor.Widgets.Workflow;
 using HornetStudio.Host;
 using HornetStudio.Host.Python.Client;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Reflection;
 using System.Text.Json;
@@ -17,6 +22,39 @@ using System.Text.Json.Nodes;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("Demo sample keeps UDL definition file backed", DemoSampleKeepsUdlDefinitionFileBacked),
+    ("UDL client file codec derives id from file name", UdlClientFileCodecDerivesIdFromFileName),
+    ("Clients browser enumerates UDL files from folder local Clients/Udl", ClientsBrowserEnumeratesUdlFilesFromFolderLocalClientsDirectory),
+    ("Clients browser entry maps UDL list fields", ClientsBrowserEntryMapsUdlListFields),
+    ("UDL client file codec roundtrips and renames", UdlClientFileCodecRoundtripsAndRenames),
+    ("UDL client file codec roundtrips module exposures", UdlClientFileCodecRoundtripsModuleExposures),
+    ("UDL client file codec roundtrips route-only module exposure", UdlClientFileCodecRoundtripsRouteOnlyModuleExposure),
+    ("UDL module exposure dialog adds fallback bitmask rows for module scope", UdlModuleExposureDialogAddsFallbackBitmaskRowsForModuleScope),
+    ("UDL module exposure dialog saves fallback publish bits without manual count edit", UdlModuleExposureDialogSavesFallbackPublishBitsWithoutManualCountEdit),
+    ("UDL module exposure dialog saves route-only read helper setting", UdlModuleExposureDialogSavesRouteOnlyReadHelperSetting),
+    ("UDL module exposure dialog reopens saved route-only read helper setting", UdlModuleExposureDialogReopensSavedRouteOnlyReadHelperSetting),
+    ("UDL module exposure dialog preserves saved fallback bit settings", UdlModuleExposureDialogPreservesSavedFallbackBitSettings),
+    ("UDL module exposure dialog keeps runtime bit format precedence", UdlModuleExposureDialogKeepsRuntimeBitFormatPrecedence),
+    ("UDL file save and sync updates folder runtime definitions", UdlFileSaveAndSyncUpdatesFolderRuntimeDefinitions),
+    ("UDL runtime manager connects simulated client", UdlRuntimeManagerConnectsSimulatedClient),
+    ("UDL runtime manager projects status without widget", UdlRuntimeManagerProjectsStatusWithoutWidget),
+    ("UDL runtime manager publishes attached items without widget", UdlRuntimeManagerPublishesAttachedItemsWithoutWidget),
+    ("UDL runtime manager pendingconnect duplicate sync does not recreate attached roots", UdlRuntimeManagerDuplicateAutoConnectSyncDoesNotRecreateAttachedRoots),
+    ("UDL runtime manager refresh does not recreate attached roots", UdlRuntimeManagerRefreshDoesNotRecreateAttachedRoots),
+    ("UDL runtime manager removes legacy exposure root", UdlRuntimeManagerRemovesLegacyExposureRoot),
+    ("UDL runtime manager publishes exposed bits without widget", UdlRuntimeManagerPublishesExposedBitsWithoutWidget),
+    ("UDL runtime manager writes exposed set bits without widget", UdlRuntimeManagerWritesExposedSetBitsWithoutWidget),
+    ("UDL runtime manager updates exposed set bits from numeric mask without widget", UdlRuntimeManagerUpdatesExposedSetBitsFromNumericMaskWithoutWidget),
+    ("UDL runtime manager routes read bit writes to set without widget", UdlRuntimeManagerRoutesReadBitWritesToSetWithoutWidget),
+    ("UDL runtime manager routed read bits follow set mask without widget", UdlRuntimeManagerRoutedReadBitsFollowSetMaskWithoutWidget),
+    ("UDL runtime manager publishes bit exposure parity across channels without widget", UdlRuntimeManagerPublishesBitExposureParityAcrossChannelsWithoutWidget),
+    ("UDL exposure projection detects active bit exposures", UdlExposureProjectionDetectsActiveBitExposures),
+    ("UDL simulated demo scheduler keeps periodic cadence under handler load", UdlSimulatedDemoSchedulerKeepsPeriodicCadenceUnderHandlerLoad),
+    ("UDL simulated demo low value reads skip unchanged assignments", UdlSimulatedDemoLowValueReadsSkipUnchangedAssignments),
+    ("UDL runtime manager removes attached projection after detach update", UdlRuntimeManagerRemovesAttachedProjectionAfterDetachUpdate),
+    ("UDL runtime manager keeps raw items private without attach", UdlRuntimeManagerKeepsRawItemsPrivateWithoutAttach),
+    ("UDL runtime manager release clears projection state", UdlRuntimeManagerReleaseClearsProjectionState),
+    ("UDL runtime manager release folder clears connected runtimes", UdlRuntimeManagerReleaseFolderClearsConnectedRuntimes),
     ("Custom signal codec parses YAML style nodes", CustomSignalCodecParsesYamlStyleNodes),
     ("Path identity validation accepts only snake_case", PathIdentityValidationAcceptsOnlySnakeCase),
     ("Folder identity validation accepts only snake_case", FolderIdentityValidationAcceptsOnlySnakeCase),
@@ -26,10 +64,36 @@ var tests = new (string Name, Action Run)[]
     ("Custom signal manual trigger path uses lowercase suffix", CustomSignalManualTriggerPathUsesLowercaseSuffix),
     ("Custom signal publish snapshot adds type metadata", CustomSignalPublishSnapshotAddsTypeMetadata),
     ("Custom signal manual trigger publishes bool type metadata", CustomSignalManualTriggerPublishesBoolTypeMetadata),
+    ("Custom signal source change filter accepts matching source path", CustomSignalSourceChangeFilterAcceptsMatchingSourcePath),
+    ("Custom signal source change filter rejects unrelated path", CustomSignalSourceChangeFilterRejectsUnrelatedPath),
+    ("Custom signal enumerate source paths yields all configured sources", CustomSignalEnumerateSourcePathsYieldsAllConfiguredSources),
+    ("Scoped registry filter matches descendant path without sibling bleed", ScopedRegistryFilterMatchesDescendantPathWithoutSiblingBleed),
+    ("Scoped registry filter can reject ancestor paths", ScopedRegistryFilterCanRejectAncestorPaths),
+    ("Scoped registry filter collapses redundant prefixes", ScopedRegistryFilterCollapsesRedundantPrefixes),
     ("Monitor codec preserves multiple actions per trigger", MonitorCodecPreservesMultipleActionsPerTrigger),
+    ("Monitor editor accepts 100 ms refresh rate", MonitorEditorAccepts100MsRefreshRate),
     ("Monitor codec preserves action specific fields", MonitorCodecPreservesActionSpecificFields),
     ("Monitor editor accepts multiple actions per trigger", MonitorEditorAcceptsMultipleActionsPerTrigger),
     ("Monitor editor rejects WriteLog actions without target", MonitorEditorRejectsWriteLogActionWithoutTarget),
+    ("Monitor file codec roundtrips central Monitor.yaml", MonitorFileCodecRoundtripsCentralYaml),
+    ("Monitor file codec loads custom rule without source", MonitorFileCodecLoadsCustomRuleWithoutSource),
+    ("Monitor registry prefers central file definitions", MonitorRegistryPrefersCentralFileDefinitions),
+    ("Monitor runtime manager publishes without widget", MonitorRuntimeManagerPublishesWithoutWidget),
+    ("Monitor runtime manager updates changed definition with same name", MonitorRuntimeManagerUpdatesChangedDefinitionWithSameName),
+    ("Main window monitor sync keeps background runtime with monitor browser", MainWindowMonitorSyncKeepsBackgroundRuntimeWithMonitorBrowser),
+    ("Main window monitor sync loads central definitions", MainWindowMonitorSyncLoadsCentralDefinitions),
+    ("Signal history runtime skips zero history", SignalHistoryRuntimeSkipsZeroHistory),
+    ("Signal history runtime records configured source", SignalHistoryRuntimeRecordsConfiguredSource),
+    ("Chart data provider returns empty series without history", ChartDataProviderReturnsEmptySeriesWithoutHistory),
+    ("Monitor browser resolves central definitions", MonitorBrowserResolvesCentralDefinitions),
+    ("Monitor browser resolves central definitions without view model", MonitorBrowserResolvesCentralDefinitionsWithoutViewModel),
+    ("Monitor control detach keeps runtime aggregate", MonitorControlDetachKeepsRuntimeAggregate),
+    ("Monitor view selection normalizes ids", MonitorViewSelectionNormalizesIds),
+    ("Monitor view selection rejects duplicate ids", MonitorViewSelectionRejectsDuplicateIds),
+    ("Monitor picker uses stable rule labels", MonitorPickerUsesStableRuleLabels),
+    ("Monitor view resolves only selected rules", MonitorViewResolvesOnlySelectedRules),
+    ("Monitor view rebuilds selected rules after project runtime ready", MonitorViewRebuildsSelectedRulesAfterProjectRuntimeReady),
+    ("Monitor view runtime generation advances for repeated project load", MonitorViewRuntimeGenerationAdvancesForRepeatedProjectLoad),
     ("Monitor YAML control definition writes monitor definitions", MonitorYamlControlDefinitionWritesMonitorDefinitions),
     ("Project UI YAML loader imports monitor definitions", ProjectUiYamlLoaderImportsMonitorDefinitions),
     ("Workflow codec parses YAML steps", WorkflowCodecParsesYamlSteps),
@@ -93,6 +157,22 @@ var tests = new (string Name, Action Run)[]
     ("Workflow executor fails missing explicit log target", WorkflowExecutorFailsMissingExplicitLogTarget),
     ("Runtime YAML loader maps workflow widget controls", RuntimeYamlLoaderMapsWorkflowWidgetControls),
     ("CreateItem applies workflow widget defaults", CreateItemAppliesWorkflowWidgetDefaults),
+    ("Runtime YAML loader maps monitor view controls", RuntimeYamlLoaderMapsMonitorViewControls),
+    ("Browser diagnostics source includes folder scope", BrowserDiagnosticsSourceIncludesFolderScope),
+    ("Browser diagnostics source falls back to item name", BrowserDiagnosticsSourceFallsBackToItemName),
+    ("UI diagnostics backlog counters stay non-negative", UiDiagnosticsBacklogCountersStayNonNegative),
+    ("UI diagnostics benchmark snapshot captures warmup backlog", UiDiagnosticsBenchmarkSnapshotCapturesWarmupBacklog),
+    ("Monitor view row ignores unchanged aggregate updates", MonitorViewRowIgnoresUnchangedAggregateUpdates),
+    ("Monitor view row ignores aggregate active changes", MonitorViewRowIgnoresAggregateActiveChanges),
+    ("Monitor view row accepts rule root changes", MonitorViewRowAcceptsRuleRootChanges),
+    ("Monitor view row accepts active changes", MonitorViewRowAcceptsActiveChanges),
+    ("Monitor view row updates after delayed runtime publish", MonitorViewRowUpdatesAfterDelayedRuntimePublish),
+    ("Monitor view row ignores unselected rule changes", MonitorViewRowIgnoresUnselectedRuleChanges),
+    ("Monitor view row accepts message changes", MonitorViewRowAcceptsMessageChanges),
+    ("Monitor view row ignores redundant message updates", MonitorViewRowIgnoresRedundantMessageUpdates),
+    ("Monitor view row uses configured active color", MonitorViewRowUsesConfiguredActiveColor),
+    ("Canvas widget picker excludes Functions", CanvasWidgetPickerExcludesFunctions),
+    ("Admin browser visibility follows current user level", AdminBrowserVisibilityFollowsCurrentUserLevel),
     ("VisualRule codec roundtrip", VisualRuleCodecRoundtrip),
     ("VisualRule source path display hides technical monitor prefix", VisualRuleSourcePathDisplayHidesTechnicalMonitorPrefix),
     ("VisualRule layout document roundtrip", VisualRuleLayoutDocumentRoundtrip),
@@ -118,6 +198,7 @@ var tests = new (string Name, Action Run)[]
     ("Monitor row visuals highlight active severity", MonitorRowVisualsHighlightActiveSeverity),
     ("Monitor editor auto assigns next free EventId", MonitorEditorAutoAssignsNextFreeEventId),
     ("Monitor editor rejects duplicate EventId", MonitorEditorRejectsDuplicateEventId),
+    ("Monitor editor rejects duplicate EventId from central file with duplicate names", MonitorEditorRejectsDuplicateEventIdFromCentralFileWithDuplicateNames),
     ("Monitor editor rejects blank and zero EventId", MonitorEditorRejectsBlankAndZeroEventId),
     ("Monitor editor allows unchanged EventId when editing", MonitorEditorAllowsUnchangedEventIdWhenEditing),
     ("Enhanced signal editor defaults to snake_case name", EnhancedSignalEditorDefaultsToSnakeCaseName),
@@ -162,6 +243,12 @@ var tests = new (string Name, Action Run)[]
     ("UDL attach remove clears selected path", UdlAttachRemoveClearsSelectedPath),
     ("UDL received rows stay visible when attached", UdlReceivedRowsStayVisibleWhenAttached),
     ("UDL attached items resolve via runtime registry", UdlAttachedItemsResolveViaRuntimeRegistry),
+    ("UDL runtime received items stay out of registry until attach", UdlRuntimeReceivedItemsStayOutOfRegistryUntilAttach),
+    ("UDL read attachment publishes value reference metadata", UdlReadAttachmentPublishesValueReferenceMetadata),
+    ("UDL read attachment keeps value reference metadata after snapshot refresh", UdlReadAttachmentKeepsValueReferenceMetadataAfterSnapshotRefresh),
+    ("UDL value reference warmup resync adds only new public roots", UdlValueReferenceWarmupResyncAddsOnlyNewPublicRoots),
+    ("UDL projection clears detached public items", UdlProjectionClearsDetachedPublicItems),
+    ("UDL runtime isolates attached paths per client", UdlRuntimeIsolatesAttachedPathsPerClient),
     ("UDL set-driven demo writes feedback to read only", UdlSetDrivenDemoWritesFeedbackToReadOnly),
     ("UDL simulated demo publishes channel type metadata", UdlSimulatedDemoPublishesChannelTypeMetadata),
     ("UDL runtime channels include registry items", UdlRuntimeChannelsIncludeRegistryItems),
@@ -207,11 +294,26 @@ var tests = new (string Name, Action Run)[]
     ("Target property protected fallback uses value", TargetPropertyProtectedFallbackUsesValue),
     ("Signal write emits registry value update", SignalWriteEmitsRegistryValueUpdate),
     ("Signal write updates write property when present", SignalWriteUpdatesWritePropertyWhenPresent),
+    ("Signal target property resolves value reference runtime value", SignalTargetPropertyResolvesValueReferenceRuntimeValue),
+    ("Signal public read update preserves value reference resolution", SignalPublicReadUpdatePreservesValueReferenceResolution),
+    ("Signal target property falls back when value reference is invalid", SignalTargetPropertyFallsBackWhenValueReferenceIsInvalid),
+    ("Signal write keeps public writeback with value reference", SignalWriteKeepsPublicWritebackWithValueReference),
+    ("Signal live value store resolves UDL value reference", SignalLiveValueStoreResolvesUdlValueReference),
+    ("Signal live value scheduler applies latest wins", SignalLiveValueSchedulerAppliesLatestWins),
+    ("Signal ancestor read property change uses value-only refresh", SignalAncestorReadPropertyChangeUsesValueOnlyRefresh),
+    ("Signal ancestor read property queue stores child target", SignalAncestorReadPropertyQueueStoresChildTarget),
     ("Signal source options include descendants and skip status roots", SignalSourceOptionsIncludeDescendantsAndSkipStatusRoots),
 };
 
 var failures = new List<string>();
-foreach (var test in tests)
+var testFilter = Environment.GetEnvironmentVariable("HORNET_EDITOR_TEST_FILTER");
+var selectedTests = string.IsNullOrWhiteSpace(testFilter)
+    ? tests
+    : tests
+        .Where(test => test.Name.Contains(testFilter, StringComparison.OrdinalIgnoreCase))
+        .ToArray();
+
+foreach (var test in selectedTests)
 {
     try
     {
@@ -234,7 +336,7 @@ if (failures.Count > 0)
     return 1;
 }
 
-Console.WriteLine($"Editor tests passed: {tests.Length}");
+Console.WriteLine($"Editor tests passed: {selectedTests.Length}");
 return 0;
 
 static void CustomSignalCodecParsesYamlStyleNodes()
@@ -2062,7 +2164,7 @@ static void CustomSignalManualTriggerPathUsesLowercaseSuffix()
         throw new InvalidOperationException("BuildManualTriggerPath was not found.");
     }
 
-    AssertEqual("studio.default_layout.custom_signals.signal_1.trigger", method.Invoke(null, ["studio.default_layout.custom_signals.signal_1"]));
+    AssertEqual("studio.default_layout.signals.custom.signal_1.trigger", method.Invoke(null, ["studio.default_layout.signals.custom.signal_1"]));
 }
 
 static void CustomSignalPublishSnapshotAddsTypeMetadata()
@@ -2176,6 +2278,168 @@ static T InvokeCustomSignalsStaticMethod<T>(string methodName, params object?[] 
     return (T)method.Invoke(null, arguments)!;
 }
 
+static CustomSignalsControl CreateCustomSignalsControlWithSignals(FolderItemModel ownerItem, IEnumerable<CustomSignalRow> rows)
+{
+    var control = (CustomSignalsControl)RuntimeHelpers.GetUninitializedObject(typeof(CustomSignalsControl));
+
+    var signalsBackingField = typeof(CustomSignalsControl)
+        .GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
+        .FirstOrDefault(static field => field.Name.Contains("Signals") && field.FieldType == typeof(ObservableCollection<CustomSignalRow>));
+    if (signalsBackingField is null)
+    {
+        throw new InvalidOperationException("Signals backing field was not found.");
+    }
+
+    var collection = new ObservableCollection<CustomSignalRow>(rows);
+    signalsBackingField.SetValue(control, collection);
+
+    var observedItemField = typeof(CustomSignalsControl)
+        .GetField("_observedItem", BindingFlags.Instance | BindingFlags.NonPublic);
+    if (observedItemField is null)
+    {
+        throw new InvalidOperationException("_observedItem field was not found.");
+    }
+
+    observedItemField.SetValue(control, ownerItem);
+    return control;
+}
+
+static bool InvokeIsRelevantSourceChange(CustomSignalsControl control, string registryPath)
+{
+    var method = typeof(CustomSignalsControl).GetMethod(
+        "IsRelevantSourceChange",
+        BindingFlags.Instance | BindingFlags.NonPublic,
+        binder: null,
+        types: [typeof(string)],
+        modifiers: null);
+    if (method is null)
+    {
+        throw new InvalidOperationException("IsRelevantSourceChange was not found.");
+    }
+
+    return (bool)method.Invoke(control, [registryPath])!;
+}
+
+static void CustomSignalSourceChangeFilterAcceptsMatchingSourcePath()
+{
+    var ownerItem = CreateCustomSignalOwnerItem();
+    var definition = new CustomSignalDefinition
+    {
+        Name = "demo_computed",
+        Mode = CustomSignalMode.Computed,
+        Trigger = CustomSignalComputationTrigger.OnSourceChange,
+        SourcePath = "studio.default_layout.signals.custom.demo_custom_bool"
+    };
+    var registryPath = InvokeCustomSignalsStaticMethod<string>("BuildRegistryPath", ownerItem, definition);
+    var row = new CustomSignalRow(ownerItem, definition, registryPath);
+    var control = CreateCustomSignalsControlWithSignals(ownerItem, [row]);
+
+    AssertTrue(InvokeIsRelevantSourceChange(control, "studio.default_layout.signals.custom.demo_custom_bool"));
+}
+
+static void CustomSignalSourceChangeFilterRejectsUnrelatedPath()
+{
+    var ownerItem = CreateCustomSignalOwnerItem();
+    var definition = new CustomSignalDefinition
+    {
+        Name = "demo_computed",
+        Mode = CustomSignalMode.Computed,
+        Trigger = CustomSignalComputationTrigger.OnSourceChange,
+        SourcePath = "studio.default_layout.signals.custom.demo_custom_bool"
+    };
+    var registryPath = InvokeCustomSignalsStaticMethod<string>("BuildRegistryPath", ownerItem, definition);
+    var row = new CustomSignalRow(ownerItem, definition, registryPath);
+    var control = CreateCustomSignalsControlWithSignals(ownerItem, [row]);
+
+    AssertTrue(!InvokeIsRelevantSourceChange(control, "udl_project.demo_module.some_unrelated_value"));
+}
+
+static void CustomSignalEnumerateSourcePathsYieldsAllConfiguredSources()
+{
+    var definition = new CustomSignalDefinition
+    {
+        Name = "multi_source",
+        Mode = CustomSignalMode.Computed,
+        Trigger = CustomSignalComputationTrigger.OnSourceChange,
+        SourcePath = "studio.default_layout.signals.custom.a",
+        SourcePath2 = "studio.default_layout.signals.custom.b",
+        SourcePath3 = "studio.default_layout.signals.custom.c",
+        Variables =
+        [
+            new CustomSignalVariableDefinition { Name = "x", SourcePath = "studio.default_layout.signals.custom.d" }
+        ]
+    };
+
+    var method = typeof(CustomSignalsControl).GetMethod(
+        "EnumerateSourcePaths",
+        BindingFlags.Static | BindingFlags.NonPublic,
+        binder: null,
+        types: [typeof(CustomSignalDefinition)],
+        modifiers: null);
+    if (method is null)
+    {
+        throw new InvalidOperationException("EnumerateSourcePaths was not found.");
+    }
+
+    var result = ((IEnumerable<string>)method.Invoke(null, [definition])!).ToArray();
+
+    AssertEqual(4, result.Length);
+    AssertTrue(result.Contains("studio.default_layout.signals.custom.d", StringComparer.OrdinalIgnoreCase));
+    AssertTrue(result.Contains("studio.default_layout.signals.custom.a", StringComparer.OrdinalIgnoreCase));
+    AssertTrue(result.Contains("studio.default_layout.signals.custom.b", StringComparer.OrdinalIgnoreCase));
+    AssertTrue(result.Contains("studio.default_layout.signals.custom.c", StringComparer.OrdinalIgnoreCase));
+}
+
+static void ScopedRegistryFilterMatchesDescendantPathWithoutSiblingBleed()
+{
+    var prefixes = ScopedRegistryEventFilter.NormalizePrefixes([
+        "studio.default_layout.controller.demo_controller"
+    ]);
+
+    AssertTrue(ScopedRegistryEventFilter.TryMatchPrefix(
+        key: "studio.default_layout.controller.demo_controller.state",
+        prefixes: prefixes,
+        matchedPrefix: out var matchedPrefix));
+    AssertEqual("studio.default_layout.controller.demo_controller", matchedPrefix);
+
+    AssertTrue(!ScopedRegistryEventFilter.TryMatchPrefix(
+        key: "studio.default_layout.controller.demo_controller_2.state",
+        prefixes: prefixes,
+        matchedPrefix: out _));
+}
+
+static void ScopedRegistryFilterCanRejectAncestorPaths()
+{
+    var prefixes = ScopedRegistryEventFilter.NormalizePrefixes([
+        "studio.default_layout.monitor.rule_a"
+    ]);
+
+    AssertTrue(ScopedRegistryEventFilter.TryMatchPrefix(
+        key: "studio.default_layout.monitor.rule_a.active",
+        prefixes: prefixes,
+        matchedPrefix: out var matchedPrefix,
+        includeAncestorMatches: false));
+    AssertEqual("studio.default_layout.monitor.rule_a", matchedPrefix);
+
+    AssertFalse(ScopedRegistryEventFilter.TryMatchPrefix(
+        key: "studio.default_layout.monitor",
+        prefixes: prefixes,
+        matchedPrefix: out _,
+        includeAncestorMatches: false));
+}
+
+static void ScopedRegistryFilterCollapsesRedundantPrefixes()
+{
+    var prefixes = ScopedRegistryEventFilter.NormalizePrefixes([
+        "studio.default_layout.monitor",
+        "studio.default_layout.monitor.rule_a",
+        "studio.default_layout.monitor.rule_a.active"
+    ]);
+
+    AssertEqual(1, prefixes.Length);
+    AssertEqual("studio.default_layout.monitor", prefixes[0]);
+}
+
 static void MonitorCodecPreservesMultipleActionsPerTrigger()
 {
     var raw = MonitorDefinitionCodec.SerializeDefinitions(
@@ -2241,6 +2505,19 @@ static void MonitorEditorAcceptsMultipleActionsPerTrigger()
     AssertEqual(MonitorActionTrigger.OnActivated, definition.Actions[1].Trigger);
     AssertEqual("logs.process", definition.Actions[0].TargetLog);
     AssertEqual("logs.audit", definition.Actions[1].TargetLog);
+}
+
+static void MonitorEditorAccepts100MsRefreshRate()
+{
+    var viewModel = new MonitorEditorDialogViewModel(mainWindowViewModel: null, new FolderItemModel(), definition: null, targetLogOptions: [])
+    {
+        SourcePath = "Logs.source",
+        RefreshRateMsText = "100"
+    };
+
+    AssertTrue(viewModel.TryBuildDefinition(out var definition, out var errorMessage));
+    AssertEqual(string.Empty, errorMessage);
+    AssertEqual(100, definition.RefreshRateMs);
 }
 
 static void MonitorEditorRejectsWriteLogActionWithoutTarget()
@@ -2337,6 +2614,859 @@ static void MonitorYamlControlDefinitionWritesMonitorDefinitions()
     AssertTrue(monitorDefinitions is not null);
     AssertEqual(1, monitorDefinitions!.Count);
     AssertEqual("pressure_low", monitorDefinitions[0]?["Name"]?.GetValue<string>());
+}
+
+static void MonitorFileCodecRoundtripsCentralYaml()
+{
+    var rootDirectory = CreateTempDirectory();
+    var codec = new MonitorDefinitionFileCodec();
+
+    var filePath = codec.SaveDefinitions(
+        folderDirectory: rootDirectory,
+        folderName: "main",
+        definitions:
+        [
+            new MonitorDefinition
+            {
+                Name = "pressure_low",
+                SourcePath = "studio.main.sensors.pressure",
+                RefreshRateMs = 500,
+                LowerLimit = "2.5",
+                EventId = 1001,
+                EventText = "Pressure below lower limit",
+                LogLevel = MonitorLogLevel.Warning,
+                Actions =
+                [
+                    new MonitorActionDefinition
+                    {
+                        Trigger = MonitorActionTrigger.OnActivated,
+                        ActionType = MonitorActionType.WriteLog,
+                        TargetLog = "Logs.process"
+                    }
+                ]
+            }
+        ]);
+
+    AssertTrue(File.Exists(filePath));
+    AssertEqual(Path.Combine(rootDirectory, "Monitoring", "Monitor.yaml"), filePath);
+
+    var raw = File.ReadAllText(filePath);
+    AssertTrue(raw.Contains("rules:", StringComparison.OrdinalIgnoreCase));
+    AssertTrue(raw.Contains("name: pressure_low", StringComparison.OrdinalIgnoreCase));
+
+    var definitions = codec.LoadDefinitions(rootDirectory, "main");
+    AssertEqual(1, definitions.Count);
+    AssertEqual("pressure_low", definitions[0].Name);
+    AssertEqual("studio.main.sensors.pressure", definitions[0].SourcePath);
+    AssertEqual(500, definitions[0].RefreshRateMs);
+    AssertEqual("2.5", definitions[0].LowerLimit);
+    AssertEqual(1001, definitions[0].EventId);
+    AssertEqual(1, definitions[0].Actions.Count);
+    AssertEqual(MonitorActionType.WriteLog, definitions[0].Actions[0].ActionType);
+    AssertEqual("logs.process", definitions[0].Actions[0].TargetLog);
+}
+
+static void MonitorFileCodecLoadsCustomRuleWithoutSource()
+{
+    var rootDirectory = CreateTempDirectory();
+    var monitoringDirectory = MonitorDefinitionFileCodec.GetMonitoringDirectory(rootDirectory);
+    Directory.CreateDirectory(monitoringDirectory);
+    File.WriteAllText(
+        MonitorDefinitionFileCodec.GetMonitorFilePath(rootDirectory),
+        """
+        rules:
+        - name: monitor_rule_1
+          sourcePath: ''
+          refreshRateMs: 1000
+          mode: Custom
+          lowerLimit: ''
+          upperLimit: ''
+          inhibitMs: 100
+          customFormula: '{A} > 10'
+          customVariables:
+          - name: A
+            sourcePath: enhanced_signals.enhanced_signal_1.read
+          condition: ''
+          eventId: 1
+          eventText: '>10'
+          actions: []
+          targetLog: ''
+          logLevel: Info
+        """);
+
+    var definitions = new MonitorDefinitionFileCodec().LoadDefinitions(rootDirectory, "main");
+
+    AssertEqual(1, definitions.Count);
+    AssertEqual("monitor_rule_1", definitions[0].Name);
+    AssertEqual(MonitorRuleMode.Custom, definitions[0].Mode);
+    AssertEqual(string.Empty, definitions[0].SourcePath);
+    AssertEqual("{A} > 10", definitions[0].CustomFormula);
+    AssertEqual(1, definitions[0].CustomVariables.Count);
+    AssertEqual("A", definitions[0].CustomVariables[0].Name);
+    AssertEqual("enhanced_signals.enhanced_signal_1.read", definitions[0].CustomVariables[0].SourcePath);
+    AssertEqual(1, definitions[0].EventId);
+    AssertEqual(MonitorLogLevel.Info, definitions[0].LogLevel);
+}
+
+static void MonitorRegistryPrefersCentralFileDefinitions()
+{
+    var rootDirectory = CreateTempDirectory();
+    var fileCodec = new MonitorDefinitionFileCodec();
+    fileCodec.SaveDefinitions(
+        folderDirectory: rootDirectory,
+        folderName: "main",
+        definitions:
+        [
+            new MonitorDefinition
+            {
+                Name = "pressure_low",
+                SourcePath = "studio.main.sensors.pressure",
+                EventId = 2001
+            },
+            new MonitorDefinition
+            {
+                Name = "temperature_high",
+                SourcePath = "studio.main.sensors.temperature",
+                EventId = 2002
+            }
+        ]);
+
+    var legacyMonitorItem = new FolderItemModel
+    {
+        Kind = ControlKind.Monitor,
+        Name = "monitor_1",
+        MonitorDefinitions = MonitorDefinitionCodec.SerializeDefinitions(
+        [
+            new MonitorDefinition
+            {
+                Name = "pressure_low",
+                SourcePath = "studio.main.legacy.pressure",
+                EventId = 1001
+            },
+            new MonitorDefinition
+            {
+                Name = "legacy_only",
+                SourcePath = "studio.main.legacy.other",
+                EventId = 1002
+            }
+        ])
+    };
+
+    var entries = MonitorRegistry.EnumerateEntries(rootDirectory, "main", [legacyMonitorItem]);
+
+    AssertEqual(2, entries.Count);
+    AssertEqual(MonitorRegistrySource.CentralFile, entries[0].Source);
+    AssertEqual(MonitorRegistrySource.CentralFile, entries[1].Source);
+    AssertTrue(entries.Any(entry => string.Equals(entry.Name, "pressure_low", StringComparison.OrdinalIgnoreCase)));
+    AssertTrue(entries.Any(entry => string.Equals(entry.Name, "temperature_high", StringComparison.OrdinalIgnoreCase)));
+    AssertFalse(entries.Any(entry => string.Equals(entry.Name, "legacy_only", StringComparison.OrdinalIgnoreCase)));
+    AssertEqual("studio.main.monitor.pressure_low", MonitorRegistry.BuildRulePath("main", "pressure_low"));
+    AssertEqual("studio.main.monitor", MonitorRegistry.BuildAggregatePath("main"));
+}
+
+static void MonitorRuntimeManagerPublishesWithoutWidget()
+{
+    var definition = new MonitorDefinition
+    {
+        Name = "pressure_low",
+        SourcePath = "studio.main.sensors.pressure",
+        RefreshRateMs = 250,
+        EventId = 1001,
+        EventText = "Pressure below lower limit"
+    };
+
+    try
+    {
+        var rows = MonitorRuntimeManager.SyncDefinitions("main", [definition], forceRecreate: true);
+
+        AssertEqual(1, rows.Count);
+        AssertTrue(WaitForRegistryPath(MonitorRegistry.BuildRulePath("main", "pressure_low"), out var ruleItem));
+        AssertTrue(ruleItem is not null);
+        AssertTrue(HostRegistries.Data.TryGet(MonitorRegistry.BuildAggregatePath("main"), out var aggregateItem));
+        AssertTrue(aggregateItem is not null);
+    }
+    finally
+    {
+        MonitorRuntimeManager.ReleaseFolder("main");
+    }
+}
+
+static void MonitorRuntimeManagerUpdatesChangedDefinitionWithSameName()
+{
+    var sourcePath = "studio.editor_tests.monitor.signature.source";
+    HostRegistries.Data.UpsertSnapshot(sourcePath, ItemExtension.CreateWithPath(sourcePath, 1d));
+
+    try
+    {
+        var firstDefinition = new MonitorDefinition
+        {
+            Name = "pressure_low",
+            SourcePath = sourcePath,
+            RefreshRateMs = 250,
+            LowerLimit = "5",
+            EventId = 1001,
+            EventText = "Initial"
+        };
+
+        var initialRuntimes = MonitorRuntimeManager.SyncDefinitions("main", [firstDefinition], forceRecreate: true);
+        AssertEqual(1, initialRuntimes.Count);
+        var firstRuntime = initialRuntimes[0];
+
+        var updatedDefinition = firstDefinition.Clone();
+        updatedDefinition.LowerLimit = "0.5";
+        updatedDefinition.EventText = "Updated";
+
+        var updatedRuntimes = MonitorRuntimeManager.SyncDefinitions("main", [updatedDefinition], forceRecreate: false);
+        AssertEqual(1, updatedRuntimes.Count);
+        AssertFalse(ReferenceEquals(firstRuntime, updatedRuntimes[0]));
+        AssertEqual("Updated", updatedRuntimes[0].Definition.EventText);
+    }
+    finally
+    {
+        MonitorRuntimeManager.ReleaseFolder("main");
+        HostRegistries.Data.Remove(sourcePath);
+    }
+}
+
+static void MainWindowMonitorSyncKeepsBackgroundRuntimeWithMonitorBrowser()
+{
+    var sourcePath = "studio.editor_tests.monitor.background.source";
+    HostRegistries.Data.UpsertSnapshot(sourcePath, ItemExtension.CreateWithPath(sourcePath, 1d));
+
+    var viewModel = new MainWindowViewModel();
+    var page = viewModel.SelectedFolder;
+    var monitorItem = new FolderItemModel
+    {
+        Kind = ControlKind.Monitor,
+        Name = "monitor_browser",
+        MonitorDefinitions = MonitorDefinitionCodec.SerializeDefinitions(
+        [
+            new MonitorDefinition
+            {
+                Name = "pressure_low",
+                SourcePath = sourcePath,
+                LowerLimit = "5",
+                RefreshRateMs = 250,
+                EventId = 1001,
+                EventText = "Pressure below lower limit"
+            }
+        ])
+    };
+    monitorItem.SetHierarchy(page.Name, parentItem: null);
+    page.Items.Add(monitorItem);
+
+    try
+    {
+        var method = typeof(MainWindowViewModel).GetMethod("SyncMonitors", BindingFlags.NonPublic | BindingFlags.Instance);
+        if (method is null)
+        {
+            throw new InvalidOperationException("SyncMonitors was not found.");
+        }
+
+        method.Invoke(viewModel, [page, false]);
+
+        AssertTrue(WaitForRegistryPath(MonitorRegistry.BuildRulePath(page.Name, "pressure_low"), out var ruleItem));
+        AssertTrue(ruleItem is not null);
+        AssertTrue(HostRegistries.Data.TryGet(MonitorRegistry.BuildAggregatePath(page.Name), out var aggregateItem));
+        AssertTrue(aggregateItem is not null);
+    }
+    finally
+    {
+        MonitorRuntimeManager.ReleaseFolder(page.Name);
+        HostRegistries.Data.Remove(sourcePath);
+        page.Items.Clear();
+    }
+}
+
+static void MainWindowMonitorSyncLoadsCentralDefinitions()
+{
+    var folderDirectory = CreateTemporaryDirectory();
+    var folderYamlPath = Path.Combine(folderDirectory, "Folder.yaml");
+    File.WriteAllText(folderYamlPath, "Caption: 'main'");
+
+    var page = new FolderModel
+    {
+        Name = "main",
+        DisplayText = "main",
+        UiFilePath = folderYamlPath
+    };
+
+    var definition = new MonitorDefinition
+    {
+        Name = "pressure_low",
+        SourcePath = "studio.main.sensors.pressure",
+        LowerLimit = "5",
+        RefreshRateMs = 250,
+        EventId = 1001,
+        EventText = "Pressure below lower limit"
+    };
+    new MonitorDefinitionFileCodec().SaveDefinitions(folderDirectory, page.Name, [definition]);
+
+    var viewModel = new MainWindowViewModel();
+    viewModel.Folders.Clear();
+    viewModel.Folders.Add(page);
+    viewModel.SelectedFolder = page;
+
+    try
+    {
+        InvokeMainWindowMonitorSync(viewModel, page, forceRecreate: false);
+
+        AssertTrue(WaitForRegistryPath(MonitorRegistry.BuildRulePath(page.Name, "pressure_low"), out var ruleItem));
+        AssertTrue(ruleItem is not null);
+        AssertTrue(HostRegistries.Data.TryGet(MonitorRegistry.BuildAggregatePath(page.Name), out var aggregateItem));
+        AssertTrue(aggregateItem is not null);
+    }
+    finally
+    {
+        MonitorRuntimeManager.ReleaseFolder(page.Name);
+    }
+}
+
+static void SignalHistoryRuntimeSkipsZeroHistory()
+{
+    try
+    {
+        SignalHistoryRuntimeManager.SyncDefinitions(
+            "main",
+            [
+                SignalHistoryRuntimeManager.SignalHistorySourceDefinition.Create(
+                    targetPath: "studio.main.signals.temperature",
+                    pageName: "main",
+                    displayName: "temperature",
+                    historySeconds: 0,
+                    refreshRateMs: 100)
+            ]);
+
+        AssertFalse(SignalHistoryRuntimeManager.TryGetRuntime("main", out _));
+    }
+    finally
+    {
+        SignalHistoryRuntimeManager.ReleaseFolder("main");
+    }
+}
+
+static void SignalHistoryRuntimeRecordsConfiguredSource()
+{
+    var sourcePath = "studio.editor_tests.chart.history_signal";
+    HostRegistries.Data.UpsertSnapshot(sourcePath, ItemExtension.CreateWithPath(sourcePath, 10d));
+
+    try
+    {
+        SignalHistoryRuntimeManager.SyncDefinitions(
+            "main",
+            [
+                SignalHistoryRuntimeManager.SignalHistorySourceDefinition.Create(
+                    targetPath: sourcePath,
+                    pageName: "main",
+                    displayName: "HistorySignal",
+                    historySeconds: 30,
+                    refreshRateMs: 50)
+            ]);
+
+        AssertTrue(SignalHistoryRuntimeManager.TryGetRuntime("main", out var runtime));
+        AssertTrue(runtime is not null);
+        AssertTrue(SpinWait.SpinUntil(
+            () => runtime!.GetPoints(sourcePath, "main", DateTime.Now.AddSeconds(-30), DateTime.Now.AddSeconds(1)).Length > 0,
+            millisecondsTimeout: 2000));
+
+        HostRegistries.Data.UpsertSnapshot(sourcePath, ItemExtension.CreateWithPath(sourcePath, 21d));
+        AssertTrue(SpinWait.SpinUntil(
+            () => runtime!.GetPoints(sourcePath, "main", DateTime.Now.AddSeconds(-30), DateTime.Now.AddSeconds(1)).Any(point => Math.Abs(point.Value - 21d) < 0.0001),
+            millisecondsTimeout: 2000));
+
+        var snapshot = runtime!.GetPoints(sourcePath, "main", DateTime.Now.AddSeconds(-30), DateTime.Now.AddSeconds(1));
+        AssertTrue(snapshot.Length > 0);
+        AssertTrue(snapshot.All(point => point.Timestamp >= DateTime.Now.AddSeconds(-31)));
+    }
+    finally
+    {
+        SignalHistoryRuntimeManager.ReleaseFolder("main");
+        HostRegistries.Data.Remove(sourcePath);
+    }
+}
+
+static void ChartDataProviderReturnsEmptySeriesWithoutHistory()
+{
+    using var provider = new ChartDataProvider("main");
+    var configuration = new RealtimeChartRuntimeManager.ChartSeriesConfiguration(
+        TargetPath: "studio.main.signals.missing_history",
+        PageName: "main",
+        AxisIndex: 1,
+        ConnectStyle: ScottPlot.ConnectStyle.Straight,
+        Key: "studio.main.signals.missing_history|Y1|Line",
+        DisplayName: "missing_history");
+
+    provider.UpdateSeriesConfigurations([configuration]);
+    provider.RequestSnapshotRefresh(viewSeconds: 30, maxRenderPoints: 256);
+
+    AssertTrue(SpinWait.SpinUntil(
+        () => provider.GetSnapshot().SeriesSnapshots.Count == 1,
+        millisecondsTimeout: 2000));
+
+    var snapshot = provider.GetSnapshot();
+    AssertEqual(1, snapshot.SeriesSnapshots.Count);
+    AssertEqual(0, snapshot.SeriesSnapshots[0].Values.Length);
+    AssertEqual(0, snapshot.SeriesSnapshots[0].Timestamps.Length);
+}
+
+static void MonitorBrowserResolvesCentralDefinitions()
+{
+    var folderDirectory = CreateTemporaryDirectory();
+    var folderYamlPath = Path.Combine(folderDirectory, "Folder.yaml");
+    File.WriteAllText(folderYamlPath, "Caption: 'main'");
+
+    var viewModel = new MainWindowViewModel();
+    var page = new FolderModel
+    {
+        Name = "main",
+        DisplayText = "main",
+        UiFilePath = folderYamlPath
+    };
+    viewModel.Folders.Clear();
+    viewModel.Folders.Add(page);
+    viewModel.SelectedFolder = page;
+
+    var definition = new MonitorDefinition
+    {
+        Name = "pressure_low",
+        SourcePath = "studio.main.sensors.pressure",
+        LowerLimit = "5",
+        RefreshRateMs = 250,
+        EventId = 1001,
+        EventText = "Pressure below lower limit"
+    };
+    new MonitorDefinitionFileCodec().SaveDefinitions(folderDirectory, page.Name, [definition]);
+
+    var browserItem = new FolderItemModel
+    {
+        Kind = ControlKind.Monitor,
+        Name = "MonitorBrowser"
+    };
+    browserItem.SetHierarchy(page.Name, parentItem: null);
+    browserItem.SetLayoutFilePath(folderYamlPath);
+
+    var resolvedDefinitions = InvokeMonitorControlResolveDefinitions(browserItem, viewModel);
+
+    AssertEqual(1, resolvedDefinitions.Count);
+    AssertEqual("pressure_low", resolvedDefinitions[0].Name);
+}
+
+static void MonitorBrowserResolvesCentralDefinitionsWithoutViewModel()
+{
+    var folderDirectory = CreateTemporaryDirectory();
+    var folderYamlPath = Path.Combine(folderDirectory, "Folder.yaml");
+    File.WriteAllText(folderYamlPath, "Caption: 'main'");
+
+    var definition = new MonitorDefinition
+    {
+        Name = "pressure_low",
+        SourcePath = "studio.main.sensors.pressure",
+        LowerLimit = "5",
+        RefreshRateMs = 250,
+        EventId = 1001,
+        EventText = "Pressure below lower limit"
+    };
+    new MonitorDefinitionFileCodec().SaveDefinitions(folderDirectory, "main", [definition]);
+
+    var browserItem = new FolderItemModel
+    {
+        Kind = ControlKind.Monitor,
+        Name = "MonitorBrowser"
+    };
+    browserItem.SetHierarchy("main", parentItem: null);
+    browserItem.SetLayoutFilePath(folderYamlPath);
+
+    var resolvedDefinitions = InvokeMonitorControlResolveDefinitions(browserItem, viewModel: null);
+
+    AssertEqual(1, resolvedDefinitions.Count);
+    AssertEqual("pressure_low", resolvedDefinitions[0].Name);
+}
+
+static void InvokeMainWindowMonitorSync(MainWindowViewModel viewModel, FolderModel page, bool forceRecreate)
+{
+    var method = typeof(MainWindowViewModel).GetMethod("SyncMonitors", BindingFlags.NonPublic | BindingFlags.Instance);
+    if (method is null)
+    {
+        throw new InvalidOperationException("SyncMonitors was not found.");
+    }
+
+    method.Invoke(viewModel, [page, forceRecreate]);
+}
+
+static void InvokeMainWindowSetFolders(MainWindowViewModel viewModel, IReadOnlyList<FolderModel> pages)
+{
+    var method = typeof(MainWindowViewModel).GetMethod("SetFolders", BindingFlags.NonPublic | BindingFlags.Instance);
+    if (method is null)
+    {
+        throw new InvalidOperationException("SetFolders was not found.");
+    }
+
+    method.Invoke(viewModel, [pages]);
+}
+
+static IReadOnlyList<MonitorRegistryEntry> InvokeMainWindowGetMonitorRegistryEntries(MainWindowViewModel viewModel, FolderItemModel item)
+{
+    var method = typeof(MainWindowViewModel).GetMethod("GetMonitorRegistryEntries", BindingFlags.NonPublic | BindingFlags.Instance);
+    if (method is null)
+    {
+        throw new InvalidOperationException("GetMonitorRegistryEntries was not found.");
+    }
+
+    return (IReadOnlyList<MonitorRegistryEntry>)method.Invoke(viewModel, [item])!;
+}
+
+static bool WaitForRegistryPath(string path, out ItemModel? item)
+{
+    ItemModel? capturedItem = null;
+    var resolved = SpinWait.SpinUntil(
+        () =>
+        {
+            if (!HostRegistries.Data.TryGet(path, out var currentItem) || currentItem is null)
+            {
+                return false;
+            }
+
+            capturedItem = currentItem;
+            return true;
+        },
+        TimeSpan.FromSeconds(2));
+
+    item = capturedItem;
+    return resolved;
+}
+
+static IReadOnlyList<MonitorDefinition> InvokeMonitorControlResolveDefinitions(FolderItemModel item, MainWindowViewModel? viewModel)
+{
+    var method = typeof(MonitorControl).GetMethod(
+        "ResolveDefinitions",
+        BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic,
+        binder: null,
+        types: [typeof(FolderItemModel), typeof(MainWindowViewModel)],
+        modifiers: null);
+    if (method is null)
+    {
+        throw new InvalidOperationException("MonitorControl.ResolveDefinitions was not found.");
+    }
+
+    return (IReadOnlyList<MonitorDefinition>)method.Invoke(null, [item, viewModel])!;
+}
+
+static void MonitorControlDetachKeepsRuntimeAggregate()
+{
+    var sourcePath = "studio.editor_tests.monitor.detach.source";
+    HostRegistries.Data.UpsertSnapshot(sourcePath, ItemExtension.CreateWithPath(sourcePath, 1d));
+
+    try
+    {
+        MonitorRuntimeManager.SyncDefinitions(
+            "main",
+            [
+                new MonitorDefinition
+                {
+                    Name = "pressure_low",
+                    SourcePath = sourcePath,
+                    LowerLimit = "5",
+                    RefreshRateMs = 250,
+                    EventId = 1001,
+                    EventText = "Pressure below lower limit"
+                }
+            ],
+            forceRecreate: true);
+
+        var aggregatePath = MonitorRegistry.BuildAggregatePath("main");
+        AssertTrue(HostRegistries.Data.TryGet(aggregatePath, out var initialAggregate));
+        AssertTrue(initialAggregate is not null);
+
+        var item = new FolderItemModel
+        {
+            Kind = ControlKind.Monitor,
+            Name = "monitor_browser"
+        };
+        item.SetHierarchy("main", parentItem: null);
+
+        var control = (MonitorControl)RuntimeHelpers.GetUninitializedObject(typeof(MonitorControl));
+        var rulesBackingField = typeof(MonitorControl)
+            .GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
+            .FirstOrDefault(static field => field.Name.Contains("Rules") && field.FieldType == typeof(ObservableCollection<MonitorRuleRow>));
+        if (rulesBackingField is null)
+        {
+            throw new InvalidOperationException("Monitor rules backing field was not found.");
+        }
+
+        rulesBackingField.SetValue(control, new ObservableCollection<MonitorRuleRow>());
+
+        var displayRulesBackingField = typeof(MonitorControl)
+            .GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
+            .FirstOrDefault(static field => field.Name.Contains("DisplayRules") && field.FieldType == typeof(ObservableCollection<MonitorRuleRow>));
+        if (displayRulesBackingField is null)
+        {
+            throw new InvalidOperationException("Monitor display rules backing field was not found.");
+        }
+
+        displayRulesBackingField.SetValue(control, new ObservableCollection<MonitorRuleRow>());
+
+        var observedItemField = typeof(MonitorControl).GetField("_observedItem", BindingFlags.Instance | BindingFlags.NonPublic);
+        if (observedItemField is null)
+        {
+            throw new InvalidOperationException("_observedItem field was not found.");
+        }
+
+        observedItemField.SetValue(control, item);
+
+        var detachMethod = typeof(MonitorControl).GetMethod(
+            "OnDetachedFromVisualTree",
+            BindingFlags.NonPublic | BindingFlags.Instance,
+            binder: null,
+            types: [typeof(object), typeof(Avalonia.VisualTreeAttachmentEventArgs)],
+            modifiers: null);
+        if (detachMethod is null)
+        {
+            throw new InvalidOperationException("MonitorControl detach helper method was not found.");
+        }
+
+        detachMethod.Invoke(control, [null, null]);
+
+        AssertTrue(HostRegistries.Data.TryGet(aggregatePath, out var aggregateAfterDetach));
+        AssertTrue(aggregateAfterDetach is not null);
+    }
+    finally
+    {
+        MonitorRuntimeManager.ReleaseFolder("main");
+        HostRegistries.Data.Remove(sourcePath);
+    }
+}
+
+static void MonitorViewSelectionNormalizesIds()
+{
+    var raw = "Pressure_Low, temperature_high\npressure_low ; custom alarm";
+    var parsed = MonitorRegistry.ParseSelectedIds(raw);
+
+    AssertEqual(3, parsed.Count);
+    AssertEqual("pressure_low", parsed[0]);
+    AssertEqual("temperature_high", parsed[1]);
+    AssertEqual("custom_alarm", parsed[2]);
+
+    var array = MonitorRegistry.ToJsonArray(raw);
+    AssertEqual(3, array.Count);
+    AssertEqual("pressure_low", array[0]?.GetValue<string>());
+
+    var roundtrip = MonitorRegistry.FromJsonNode(array);
+    AssertEqual("pressure_low, temperature_high, custom_alarm", roundtrip);
+}
+
+static void MonitorViewSelectionRejectsDuplicateIds()
+{
+    var parsed = MonitorRegistry.ParseSelectedIds("Pressure_Low, pressure_low; PRESSURE_LOW");
+
+    AssertEqual(1, parsed.Count);
+    AssertEqual("pressure_low", parsed[0]);
+
+    var serialized = MonitorRegistry.SerializeSelectedIds(["Pressure_Low", "pressure_low", "PRESSURE_LOW"]);
+    AssertEqual("pressure_low", serialized);
+}
+
+static void MonitorPickerUsesStableRuleLabels()
+{
+    var entries = new[]
+    {
+        new MonitorRegistryEntry(
+            Name: "monitor_rule_1",
+            Definition: new MonitorDefinition
+            {
+                Name = "monitor_rule_1",
+                EventId = 1,
+                EventText = "Pressure high",
+                LogLevel = MonitorLogLevel.Warning,
+                SourcePath = "signals.pressure.read"
+            },
+            Source: MonitorRegistrySource.CentralFile,
+            SourceIdentifier: "Monitoring/Monitor.yaml")
+    };
+
+    var option = MonitorRegistry.CreateSelectionOptions(entries).Single();
+    AssertEqual("monitor_rule_1", option.Name);
+    AssertEqual("1 - Pressure high (monitor_rule_1)", option.Label);
+    AssertTrue(option.Description.Contains("LogLevel: Warning", StringComparison.Ordinal));
+
+    var serialized = MonitorRegistry.SerializeSelectionOption(option);
+    AssertTrue(MonitorRegistry.TryParseSelectionOption(serialized, out var parsed));
+    AssertEqual(option.Name, parsed.Name);
+    AssertEqual(option.Label, parsed.Label);
+}
+
+static void MonitorViewResolvesOnlySelectedRules()
+{
+    var entries = new[]
+    {
+        CreateMonitorRegistryEntry("monitor_rule_1", eventId: 1, eventText: "Pressure high"),
+        CreateMonitorRegistryEntry("monitor_rule_2", eventId: 2, eventText: "Temperature high"),
+        CreateMonitorRegistryEntry("monitor_rule_3", eventId: 3, eventText: "Flow low")
+    };
+
+    var selectedEntries = InvokeMonitorViewSelectedEntryResolution("monitor_rule_3, monitor_rule_1, monitor_rule_3", entries);
+
+    AssertEqual(2, selectedEntries.Count);
+    AssertEqual("monitor_rule_3", selectedEntries[0].Name);
+    AssertEqual("monitor_rule_1", selectedEntries[1].Name);
+    AssertFalse(selectedEntries.Any(static entry => string.Equals(entry.Name, "monitor_rule_2", StringComparison.OrdinalIgnoreCase)));
+}
+
+static void MonitorViewRebuildsSelectedRulesAfterProjectRuntimeReady()
+{
+    var folderDirectory = CreateTemporaryDirectory();
+    var folderYamlPath = Path.Combine(folderDirectory, "Folder.yaml");
+    File.WriteAllText(folderYamlPath, "Caption: 'main'");
+
+    var monitorViewItem = new FolderItemModel
+    {
+        Kind = ControlKind.MonitorView,
+        Name = "monitor_view_1",
+        SelectedMonitorIds = "pressure_low"
+    };
+    monitorViewItem.SetHierarchy("main", parentItem: null);
+    monitorViewItem.SetLayoutFilePath(folderYamlPath);
+
+    var earlySelectedEntries = InvokeMonitorViewSelectedEntryResolution(monitorViewItem.SelectedMonitorIds, []);
+    AssertEqual(0, earlySelectedEntries.Count);
+
+    var page = new FolderModel
+    {
+        Name = "main",
+        DisplayText = "main",
+        UiFilePath = folderYamlPath
+    };
+    page.Items.Add(monitorViewItem);
+
+    var definition = new MonitorDefinition
+    {
+        Name = "pressure_low",
+        SourcePath = "studio.main.sensors.pressure",
+        LowerLimit = "5",
+        RefreshRateMs = 250,
+        EventId = 1001,
+        EventText = "Pressure below lower limit"
+    };
+    new MonitorDefinitionFileCodec().SaveDefinitions(folderDirectory, page.Name, [definition]);
+
+    var viewModel = new MainWindowViewModel();
+    try
+    {
+        InvokeMainWindowSetFolders(viewModel, [page]);
+
+        var readySelectedEntries = InvokeMonitorViewSelectedEntryResolution(
+            monitorViewItem.SelectedMonitorIds,
+            InvokeMainWindowGetMonitorRegistryEntries(viewModel, monitorViewItem));
+
+        AssertTrue(viewModel.ProjectRuntimeGeneration > 0);
+        AssertEqual(1, readySelectedEntries.Count);
+        AssertEqual("pressure_low", readySelectedEntries[0].Name);
+    }
+    finally
+    {
+        MonitorRuntimeManager.ReleaseFolder(page.Name);
+    }
+}
+
+static void MonitorViewRuntimeGenerationAdvancesForRepeatedProjectLoad()
+{
+    var firstDirectory = CreateTemporaryDirectory();
+    var secondDirectory = CreateTemporaryDirectory();
+    var firstYamlPath = Path.Combine(firstDirectory, "Folder.yaml");
+    var secondYamlPath = Path.Combine(secondDirectory, "Folder.yaml");
+    File.WriteAllText(firstYamlPath, "Caption: 'main'");
+    File.WriteAllText(secondYamlPath, "Caption: 'main'");
+
+    var firstDefinition = new MonitorDefinition
+    {
+        Name = "pressure_low",
+        SourcePath = "studio.main.sensors.pressure",
+        LowerLimit = "5",
+        RefreshRateMs = 250,
+        EventId = 1001,
+        EventText = "Pressure below lower limit"
+    };
+    var secondDefinition = new MonitorDefinition
+    {
+        Name = "temperature_high",
+        SourcePath = "studio.main.sensors.temperature",
+        UpperLimit = "80",
+        RefreshRateMs = 250,
+        EventId = 1002,
+        EventText = "Temperature above upper limit"
+    };
+    new MonitorDefinitionFileCodec().SaveDefinitions(firstDirectory, "main", [firstDefinition]);
+    new MonitorDefinitionFileCodec().SaveDefinitions(secondDirectory, "main", [secondDefinition]);
+
+    var viewModel = new MainWindowViewModel();
+    try
+    {
+        var firstItem = CreateMonitorViewTestItem("main", firstYamlPath, "pressure_low");
+        var firstPage = new FolderModel { Name = "main", DisplayText = "main", UiFilePath = firstYamlPath };
+        firstPage.Items.Add(firstItem);
+        InvokeMainWindowSetFolders(viewModel, [firstPage]);
+        var firstGeneration = viewModel.ProjectRuntimeGeneration;
+
+        var secondItem = CreateMonitorViewTestItem("main", secondYamlPath, "temperature_high");
+        var secondPage = new FolderModel { Name = "main", DisplayText = "main", UiFilePath = secondYamlPath };
+        secondPage.Items.Add(secondItem);
+        InvokeMainWindowSetFolders(viewModel, [secondPage]);
+
+        var secondSelectedEntries = InvokeMonitorViewSelectedEntryResolution(
+            secondItem.SelectedMonitorIds,
+            InvokeMainWindowGetMonitorRegistryEntries(viewModel, secondItem));
+
+        AssertTrue(viewModel.ProjectRuntimeGeneration > firstGeneration);
+        AssertEqual(1, secondSelectedEntries.Count);
+        AssertEqual("temperature_high", secondSelectedEntries[0].Name);
+        AssertFalse(secondSelectedEntries.Any(static entry => string.Equals(entry.Name, "pressure_low", StringComparison.OrdinalIgnoreCase)));
+    }
+    finally
+    {
+        MonitorRuntimeManager.ReleaseFolder("main");
+    }
+}
+
+static FolderItemModel CreateMonitorViewTestItem(string folderName, string yamlPath, string selectedMonitorIds)
+{
+    var item = new FolderItemModel
+    {
+        Kind = ControlKind.MonitorView,
+        Name = "monitor_view_1",
+        SelectedMonitorIds = selectedMonitorIds
+    };
+    item.SetHierarchy(folderName, parentItem: null);
+    item.SetLayoutFilePath(yamlPath);
+    return item;
+}
+
+static MonitorRegistryEntry CreateMonitorRegistryEntry(string name, int eventId, string eventText)
+    => new(
+        Name: name,
+        Definition: new MonitorDefinition
+        {
+            Name = name,
+            EventId = eventId,
+            EventText = eventText,
+            LogLevel = MonitorLogLevel.Warning,
+            SourcePath = $"signals.{name}.read"
+        },
+        Source: MonitorRegistrySource.CentralFile,
+        SourceIdentifier: "Monitoring/Monitor.yaml");
+
+static IReadOnlyList<MonitorRegistryEntry> InvokeMonitorViewSelectedEntryResolution(string selectedMonitorIds, IEnumerable<MonitorRegistryEntry> entries)
+{
+    var method = typeof(MonitorViewControl).GetMethod(
+        "ResolveSelectedEntries",
+        BindingFlags.NonPublic | BindingFlags.Static,
+        binder: null,
+        types: [typeof(string), typeof(IEnumerable<MonitorRegistryEntry>)],
+        modifiers: null);
+    if (method is null)
+    {
+        throw new InvalidOperationException("MonitorView selected entry resolver was not found.");
+    }
+
+    return (IReadOnlyList<MonitorRegistryEntry>)method.Invoke(null, [selectedMonitorIds, entries])!;
 }
 
 static void ProjectUiYamlLoaderImportsMonitorDefinitions()
@@ -2647,6 +3777,213 @@ Controls:
     AssertEqual("workflow-widget-1", item.Id);
 }
 
+static void RuntimeYamlLoaderMapsMonitorViewControls()
+{
+        var yamlPath = Path.Combine(AppContext.BaseDirectory, "monitor_view_import_test.yaml");
+        File.WriteAllText(
+                yamlPath,
+                """
+Caption: 'main'
+Controls:
+    -
+        Type: 'MonitorView'
+        Screen: '1'
+        Enabled: true
+        Identity:
+            Name: 'monitor_view_1'
+            Text: 'monitor_view_1'
+            Path: 'monitor_view_1'
+            Id: 'monitor-view-1'
+        Bounds:
+            X: 16
+            Y: 20
+        Properties:
+            SelectedMonitorIds:
+                - 'monitor_rule_1'
+            OnActiveColor: '#22C55E'
+""");
+
+        var layout = ProjectUiLayoutLoader.LoadYaml(yamlPath, "main");
+        var monitorViewNode = layout.Layout.Children.Single(child => string.Equals(child.Type, "MonitorView", StringComparison.OrdinalIgnoreCase));
+
+        var method = typeof(HornetStudio.ViewModels.MainWindowViewModel).GetMethod("GetControlKindFromUiType", BindingFlags.NonPublic | BindingFlags.Static);
+        if (method is null)
+        {
+                throw new InvalidOperationException("GetControlKindFromUiType was not found.");
+        }
+
+        AssertEqual(ControlKind.MonitorView, method.Invoke(null, ["MonitorView"]));
+
+        var applyMethod = typeof(MainWindowViewModel).GetMethod("ApplyKnownUiProperties", BindingFlags.NonPublic | BindingFlags.Static);
+        if (applyMethod is null)
+        {
+                throw new InvalidOperationException("ApplyKnownUiProperties was not found.");
+        }
+
+        var item = new FolderItemModel { Kind = ControlKind.MonitorView };
+        applyMethod.Invoke(null, [item, monitorViewNode.Properties, "main", "MonitorView"]);
+        AssertEqual("monitor-view-1", item.Id);
+        AssertEqual("monitor_rule_1", item.SelectedMonitorIds);
+        AssertEqual("#22C55E", item.OnActiveColor);
+}
+
+static void BrowserDiagnosticsSourceIncludesFolderScope()
+{
+    var method = typeof(EditorTemplateControl).GetMethod(
+        "BuildBrowserDiagnosticsSource",
+        BindingFlags.NonPublic | BindingFlags.Static);
+    if (method is null)
+    {
+        throw new InvalidOperationException("BuildBrowserDiagnosticsSource was not found.");
+    }
+
+    var item = new FolderItemModel
+    {
+        Name = "EnhancedSignalsBrowser"
+    };
+    item.SetHierarchy("main2", parentItem: null);
+
+    AssertEqual("EnhancedSignalsControl[main2]", method.Invoke(null, ["EnhancedSignalsControl", item]));
+}
+
+static void BrowserDiagnosticsSourceFallsBackToItemName()
+{
+    var method = typeof(EditorTemplateControl).GetMethod(
+        "BuildBrowserDiagnosticsSource",
+        BindingFlags.NonPublic | BindingFlags.Static);
+    if (method is null)
+    {
+        throw new InvalidOperationException("BuildBrowserDiagnosticsSource was not found.");
+    }
+
+    var item = new FolderItemModel
+    {
+        Name = "MonitorBrowser"
+    };
+
+    AssertEqual("MonitorControl[MonitorBrowser]", method.Invoke(null, ["MonitorControl", item]));
+}
+
+static void UiDiagnosticsBacklogCountersStayNonNegative()
+{
+    SetUiDiagnosticsEnabledForTest(enabled: true);
+    ResetUiDiagnosticsBacklogCounters();
+
+    try
+    {
+        UiResponsivenessDiagnostics.AdjustSignalRefreshBacklog(
+            targetRefreshQueuedDelta: 2,
+            targetRefreshFollowUpDelta: 1,
+            targetValueRefreshQueuedDelta: 3,
+            unresolvedTargetGateDelta: 4);
+        UiResponsivenessDiagnostics.AdjustSignalRefreshBacklog(
+            targetRefreshQueuedDelta: -10,
+            targetRefreshFollowUpDelta: -10,
+            targetValueRefreshQueuedDelta: -10,
+            unresolvedTargetGateDelta: -10);
+
+        var snapshot = CaptureUiDiagnosticsBacklogSnapshot();
+        AssertEqual(0, GetInstanceProperty<int>(snapshot, "TargetRefreshQueued"));
+        AssertEqual(0, GetInstanceProperty<int>(snapshot, "TargetRefreshFollowUpQueued"));
+        AssertEqual(0, GetInstanceProperty<int>(snapshot, "TargetValueRefreshQueued"));
+        AssertEqual(0, GetInstanceProperty<int>(snapshot, "UnresolvedTargetGateCount"));
+    }
+    finally
+    {
+        ResetUiDiagnosticsBacklogCounters();
+        SetUiDiagnosticsEnabledForTest(enabled: false);
+    }
+}
+
+static void UiDiagnosticsBenchmarkSnapshotCapturesWarmupBacklog()
+{
+    var session = CreateUiBenchmarkSession(
+        scenario: "EditorTests",
+        configuredDuration: TimeSpan.FromSeconds(30),
+        warmupDuration: TimeSpan.FromSeconds(5));
+    var warmupQueuedAtUtc = DateTimeOffset.UtcNow.AddSeconds(1);
+    var warmupExecutedAtUtc = warmupQueuedAtUtc.AddMilliseconds(25);
+
+    InvokeUiBenchmarkSessionMethod(
+        session,
+        "RecordSignalPipelineEvent",
+        "TargetRefreshExecuted",
+        "studio.editor_tests.signal.m001.read",
+        "m001",
+        TimeSpan.FromMilliseconds(25),
+        warmupQueuedAtUtc,
+        warmupExecutedAtUtc);
+    InvokeUiBenchmarkSessionMethod(
+        session,
+        "RecordSignalPipelineEvent",
+        "TargetRefreshCoalesced",
+        "studio.editor_tests.signal.m001.read",
+        "m001",
+        null,
+        null,
+        null);
+    InvokeUiBenchmarkSessionMethod(
+        session,
+        "RecordSignalPipelineEvent",
+        "SignalTargetUnresolved",
+        "studio.editor_tests.signal.m002.read",
+        "m002",
+        null,
+        null,
+        null);
+
+    var backlogSnapshot = CreateUiDiagnosticsBacklogSnapshot(
+        targetRefreshQueued: 2,
+        targetRefreshFollowUpQueued: 1,
+        targetValueRefreshQueued: 3,
+        unresolvedTargetGateCount: 4);
+    var observedAtUtc = DateTimeOffset.UtcNow.AddSeconds(6);
+
+    InvokeUiBenchmarkSessionMethod(
+        session,
+        "RecordUiDelay",
+        TimeSpan.FromMilliseconds(12),
+        observedAtUtc,
+        backlogSnapshot);
+    InvokeUiBenchmarkSessionMethod(
+        session,
+        "RecordUiDelay",
+        TimeSpan.FromMilliseconds(10),
+        observedAtUtc.AddMilliseconds(50),
+        backlogSnapshot);
+
+    var summary = InvokeUiBenchmarkSessionMethod(
+        session,
+        "CreateSummary",
+        "EditorTests",
+        observedAtUtc.AddMilliseconds(100));
+    if (summary is null)
+    {
+        throw new InvalidOperationException("Benchmark summary was not created.");
+    }
+
+    var correlationSnapshots = (Array)GetInstanceProperty<object>(summary, "CorrelationSnapshots");
+    AssertEqual(1, correlationSnapshots.Length);
+
+    var snapshot = correlationSnapshots.GetValue(0);
+    if (snapshot is null)
+    {
+        throw new InvalidOperationException("Correlation snapshot entry was null.");
+    }
+
+    AssertEqual("WarmupSteadyStateTransition", GetInstanceProperty<string>(snapshot, "Event"));
+    AssertEqual("SteadyState", GetInstanceProperty<string>(snapshot, "Phase"));
+    AssertEqual(2, GetInstanceProperty<int>(snapshot, "TargetRefreshQueued"));
+    AssertEqual(1, GetInstanceProperty<int>(snapshot, "TargetRefreshFollowUpQueued"));
+    AssertEqual(3, GetInstanceProperty<int>(snapshot, "TargetValueRefreshQueued"));
+    AssertEqual(4, GetInstanceProperty<int>(snapshot, "UnresolvedTargetGateCount"));
+    AssertTrue(GetInstanceProperty<string>(snapshot, "TargetRefreshExecuted").Contains("TargetRefreshExecuted[Warmup->Warmup]=1", StringComparison.Ordinal));
+    AssertTrue(GetInstanceProperty<string>(snapshot, "TargetRefreshCoalesced").Contains("TargetRefreshCoalesced=1", StringComparison.Ordinal));
+    AssertTrue(GetInstanceProperty<string>(snapshot, "SignalTargetUnresolved").Contains("SignalTargetUnresolved=1", StringComparison.Ordinal));
+    AssertTrue(GetInstanceProperty<string>(snapshot, "TargetRefreshTopModules").Contains("m001", StringComparison.Ordinal));
+    AssertTrue(GetInstanceProperty<string>(snapshot, "SignalTargetTopModules").Contains("m002", StringComparison.Ordinal));
+}
+
 static void CreateItemAppliesWorkflowWidgetDefaults()
 {
     var viewModel = new MainWindowViewModel();
@@ -2657,6 +3994,347 @@ static void CreateItemAppliesWorkflowWidgetDefaults()
     AssertEqual("No functions discovered", item.Footer);
     AssertTrue(item.Width >= 420);
     AssertTrue(item.Height >= 220);
+}
+
+static void MonitorViewRowUsesConfiguredActiveColor()
+{
+    var ruleName = $"monitor_rule_{Guid.NewGuid():N}";
+    var folderName = "main";
+    var activePath = $"{MonitorRegistry.BuildRulePath(folderName, ruleName)}.active";
+    var messagePath = $"{MonitorRegistry.BuildRulePath(folderName, ruleName)}.message";
+
+    HostRegistries.Data.UpsertSnapshot(activePath, ItemExtension.CreateWithPath(activePath, true));
+    HostRegistries.Data.UpsertSnapshot(messagePath, ItemExtension.CreateWithPath(messagePath, "Active"));
+
+    var ownerItem = new FolderItemModel
+    {
+        Kind = ControlKind.MonitorView,
+        OnActiveColor = "#22C55E"
+    };
+    ownerItem.SetHierarchy(folderName, parentItem: null);
+
+    var row = new MonitorViewRow(
+        ownerItem,
+        new MonitorDefinition
+        {
+            Name = ruleName,
+            EventId = 1,
+            EventText = "Pressure high",
+            LogLevel = MonitorLogLevel.Warning
+        });
+
+    AssertTrue(row.IsActive);
+    AssertEqual("#22C55E", row.RowBackground);
+}
+
+static void MonitorViewRowIgnoresUnchangedAggregateUpdates()
+{
+    var folderName = $"main_{Guid.NewGuid():N}";
+    var ruleName = $"monitor_rule_{Guid.NewGuid():N}";
+    var runtimePath = MonitorRegistry.BuildRulePath(folderName, ruleName);
+    var activePath = $"{runtimePath}.active";
+    var messagePath = $"{runtimePath}.message";
+
+    try
+    {
+        HostRegistries.Data.UpsertSnapshot(activePath, ItemExtension.CreateWithPath(activePath, false));
+        HostRegistries.Data.UpsertSnapshot(messagePath, ItemExtension.CreateWithPath(messagePath, "Inactive"));
+
+        var row = CreateMonitorViewRow(folderName, ruleName);
+        var changed = row.TryApplyRuntimeChange(MonitorRegistry.BuildAggregatePath(folderName));
+
+        AssertFalse(changed);
+        AssertFalse(row.IsActive);
+        AssertTrue(row.RowTooltip.Contains("Inactive", StringComparison.Ordinal));
+    }
+    finally
+    {
+        HostRegistries.Data.Remove(runtimePath);
+        HostRegistries.Data.Remove(activePath);
+        HostRegistries.Data.Remove(messagePath);
+        HostRegistries.Data.Remove(MonitorRegistry.BuildAggregatePath(folderName));
+    }
+}
+
+static void MonitorViewRowIgnoresAggregateActiveChanges()
+{
+    var folderName = $"main_{Guid.NewGuid():N}";
+    var ruleName = $"monitor_rule_{Guid.NewGuid():N}";
+    var runtimePath = MonitorRegistry.BuildRulePath(folderName, ruleName);
+    var activePath = $"{runtimePath}.active";
+    var messagePath = $"{runtimePath}.message";
+    var aggregatePath = MonitorRegistry.BuildAggregatePath(folderName);
+    var aggregateActivePath = $"{aggregatePath}.active";
+
+    try
+    {
+        HostRegistries.Data.UpsertSnapshot(activePath, ItemExtension.CreateWithPath(activePath, false));
+        HostRegistries.Data.UpsertSnapshot(messagePath, ItemExtension.CreateWithPath(messagePath, "Inactive"));
+        var row = CreateMonitorViewRow(folderName, ruleName);
+
+        HostRegistries.Data.UpsertSnapshot(aggregateActivePath, ItemExtension.CreateWithPath(aggregateActivePath, true));
+
+        var changed = row.TryApplyRuntimeChange(aggregateActivePath);
+
+        AssertFalse(changed);
+        AssertFalse(row.IsActive);
+        AssertTrue(row.RowTooltip.Contains("Inactive", StringComparison.Ordinal));
+    }
+    finally
+    {
+        HostRegistries.Data.Remove(runtimePath);
+        HostRegistries.Data.Remove(activePath);
+        HostRegistries.Data.Remove(messagePath);
+        HostRegistries.Data.Remove(aggregatePath);
+        HostRegistries.Data.Remove(aggregateActivePath);
+    }
+}
+
+static void MonitorViewRowAcceptsRuleRootChanges()
+{
+    var folderName = $"main_{Guid.NewGuid():N}";
+    var ruleName = $"monitor_rule_{Guid.NewGuid():N}";
+    var runtimePath = MonitorRegistry.BuildRulePath(folderName, ruleName);
+    var activePath = $"{runtimePath}.active";
+    var messagePath = $"{runtimePath}.message";
+
+    try
+    {
+        HostRegistries.Data.UpsertSnapshot(activePath, ItemExtension.CreateWithPath(activePath, false));
+        HostRegistries.Data.UpsertSnapshot(messagePath, ItemExtension.CreateWithPath(messagePath, "Inactive"));
+        var row = CreateMonitorViewRow(folderName, ruleName);
+
+        HostRegistries.Data.UpsertSnapshot(activePath, ItemExtension.CreateWithPath(activePath, true));
+        HostRegistries.Data.UpsertSnapshot(messagePath, ItemExtension.CreateWithPath(messagePath, "Active: root update"));
+
+        var changed = row.TryApplyRuntimeChange(runtimePath);
+
+        AssertTrue(changed);
+        AssertTrue(row.IsActive);
+        AssertTrue(row.RowTooltip.Contains("Active: root update", StringComparison.Ordinal));
+    }
+    finally
+    {
+        HostRegistries.Data.Remove(runtimePath);
+        HostRegistries.Data.Remove(activePath);
+        HostRegistries.Data.Remove(messagePath);
+    }
+}
+
+static void MonitorViewRowAcceptsActiveChanges()
+{
+    var folderName = $"main_{Guid.NewGuid():N}";
+    var ruleName = $"monitor_rule_{Guid.NewGuid():N}";
+    var runtimePath = MonitorRegistry.BuildRulePath(folderName, ruleName);
+    var activePath = $"{runtimePath}.active";
+    var messagePath = $"{runtimePath}.message";
+
+    try
+    {
+        HostRegistries.Data.UpsertSnapshot(activePath, ItemExtension.CreateWithPath(activePath, false));
+        HostRegistries.Data.UpsertSnapshot(messagePath, ItemExtension.CreateWithPath(messagePath, "Inactive"));
+        var row = CreateMonitorViewRow(folderName, ruleName);
+
+        HostRegistries.Data.UpsertSnapshot(activePath, ItemExtension.CreateWithPath(activePath, true));
+        HostRegistries.Data.UpsertSnapshot(messagePath, ItemExtension.CreateWithPath(messagePath, "Active: threshold exceeded"));
+
+        var changed = row.TryApplyRuntimeChange(activePath);
+
+        AssertTrue(changed);
+        AssertTrue(row.IsActive);
+        AssertTrue(row.RowTooltip.Contains("Active: threshold exceeded", StringComparison.Ordinal));
+    }
+    finally
+    {
+        HostRegistries.Data.Remove(runtimePath);
+        HostRegistries.Data.Remove(activePath);
+        HostRegistries.Data.Remove(messagePath);
+    }
+}
+
+static void MonitorViewRowUpdatesAfterDelayedRuntimePublish()
+{
+    var folderName = $"main_{Guid.NewGuid():N}";
+    var ruleName = $"monitor_rule_{Guid.NewGuid():N}";
+    var runtimePath = MonitorRegistry.BuildRulePath(folderName, ruleName);
+    var activePath = $"{runtimePath}.active";
+    var messagePath = $"{runtimePath}.message";
+
+    try
+    {
+        var row = CreateMonitorViewRow(folderName, ruleName);
+        AssertFalse(row.IsActive);
+
+        HostRegistries.Data.UpsertSnapshot(activePath, ItemExtension.CreateWithPath(activePath, true));
+        HostRegistries.Data.UpsertSnapshot(messagePath, ItemExtension.CreateWithPath(messagePath, "Active: delayed publish"));
+
+        var changed = row.TryApplyRuntimeChange(activePath);
+
+        AssertTrue(changed);
+        AssertTrue(row.IsActive);
+        AssertTrue(row.RowTooltip.Contains("Active: delayed publish", StringComparison.Ordinal));
+    }
+    finally
+    {
+        HostRegistries.Data.Remove(runtimePath);
+        HostRegistries.Data.Remove(activePath);
+        HostRegistries.Data.Remove(messagePath);
+    }
+}
+
+static void MonitorViewRowIgnoresUnselectedRuleChanges()
+{
+    var folderName = $"main_{Guid.NewGuid():N}";
+    var selectedRuleName = $"monitor_rule_{Guid.NewGuid():N}";
+    var unselectedRuleName = $"monitor_rule_{Guid.NewGuid():N}";
+    var selectedRuntimePath = MonitorRegistry.BuildRulePath(folderName, selectedRuleName);
+    var selectedActivePath = $"{selectedRuntimePath}.active";
+    var selectedMessagePath = $"{selectedRuntimePath}.message";
+    var unselectedRuntimePath = MonitorRegistry.BuildRulePath(folderName, unselectedRuleName);
+    var unselectedActivePath = $"{unselectedRuntimePath}.active";
+    var unselectedMessagePath = $"{unselectedRuntimePath}.message";
+
+    try
+    {
+        HostRegistries.Data.UpsertSnapshot(selectedActivePath, ItemExtension.CreateWithPath(selectedActivePath, false));
+        HostRegistries.Data.UpsertSnapshot(selectedMessagePath, ItemExtension.CreateWithPath(selectedMessagePath, "Inactive"));
+        var row = CreateMonitorViewRow(folderName, selectedRuleName);
+
+        HostRegistries.Data.UpsertSnapshot(unselectedActivePath, ItemExtension.CreateWithPath(unselectedActivePath, true));
+        HostRegistries.Data.UpsertSnapshot(unselectedMessagePath, ItemExtension.CreateWithPath(unselectedMessagePath, "Active: unrelated"));
+
+        var changed = row.TryApplyRuntimeChange(unselectedActivePath);
+
+        AssertFalse(changed);
+        AssertFalse(row.IsActive);
+        AssertTrue(row.RowTooltip.Contains("Inactive", StringComparison.Ordinal));
+    }
+    finally
+    {
+        HostRegistries.Data.Remove(selectedRuntimePath);
+        HostRegistries.Data.Remove(selectedActivePath);
+        HostRegistries.Data.Remove(selectedMessagePath);
+        HostRegistries.Data.Remove(unselectedRuntimePath);
+        HostRegistries.Data.Remove(unselectedActivePath);
+        HostRegistries.Data.Remove(unselectedMessagePath);
+    }
+}
+
+static void MonitorViewRowAcceptsMessageChanges()
+{
+    var folderName = $"main_{Guid.NewGuid():N}";
+    var ruleName = $"monitor_rule_{Guid.NewGuid():N}";
+    var runtimePath = MonitorRegistry.BuildRulePath(folderName, ruleName);
+    var activePath = $"{runtimePath}.active";
+    var messagePath = $"{runtimePath}.message";
+
+    try
+    {
+        HostRegistries.Data.UpsertSnapshot(activePath, ItemExtension.CreateWithPath(activePath, true));
+        HostRegistries.Data.UpsertSnapshot(messagePath, ItemExtension.CreateWithPath(messagePath, "Active: first detail"));
+        var row = CreateMonitorViewRow(folderName, ruleName);
+
+        HostRegistries.Data.UpsertSnapshot(messagePath, ItemExtension.CreateWithPath(messagePath, "Active: updated detail"));
+
+        var changed = row.TryApplyRuntimeChange(messagePath);
+
+        AssertTrue(changed);
+        AssertTrue(row.IsActive);
+        AssertTrue(row.RowTooltip.Contains("Active: updated detail", StringComparison.Ordinal));
+    }
+    finally
+    {
+        HostRegistries.Data.Remove(runtimePath);
+        HostRegistries.Data.Remove(activePath);
+        HostRegistries.Data.Remove(messagePath);
+    }
+}
+
+static void MonitorViewRowIgnoresRedundantMessageUpdates()
+{
+    var folderName = $"main_{Guid.NewGuid():N}";
+    var ruleName = $"monitor_rule_{Guid.NewGuid():N}";
+    var runtimePath = MonitorRegistry.BuildRulePath(folderName, ruleName);
+    var activePath = $"{runtimePath}.active";
+    var messagePath = $"{runtimePath}.message";
+
+    try
+    {
+        HostRegistries.Data.UpsertSnapshot(activePath, ItemExtension.CreateWithPath(activePath, true));
+        HostRegistries.Data.UpsertSnapshot(messagePath, ItemExtension.CreateWithPath(messagePath, "Active"));
+        var row = CreateMonitorViewRow(folderName, ruleName);
+
+        HostRegistries.Data.UpsertSnapshot(messagePath, ItemExtension.CreateWithPath(messagePath, "Active"));
+
+        var changed = row.TryApplyRuntimeChange(messagePath);
+
+        AssertFalse(changed);
+        AssertTrue(row.IsActive);
+        AssertTrue(row.RowTooltip.Contains("Active", StringComparison.Ordinal));
+    }
+    finally
+    {
+        HostRegistries.Data.Remove(runtimePath);
+        HostRegistries.Data.Remove(activePath);
+        HostRegistries.Data.Remove(messagePath);
+    }
+}
+
+static MonitorViewRow CreateMonitorViewRow(string folderName, string ruleName)
+{
+    var ownerItem = new FolderItemModel { Kind = ControlKind.MonitorView };
+    ownerItem.SetHierarchy(folderName, parentItem: null);
+    return new MonitorViewRow(
+        ownerItem,
+        new MonitorDefinition
+        {
+            Name = ruleName,
+            EventId = 1,
+            EventText = "Pressure high",
+            LogLevel = MonitorLogLevel.Warning
+        });
+}
+
+static void CanvasWidgetPickerExcludesFunctions()
+{
+    var method = typeof(FolderEditorControl).GetMethod("CreateCanvasWidgetSelectionItems", BindingFlags.NonPublic | BindingFlags.Instance);
+    if (method is null)
+    {
+        throw new InvalidOperationException("CreateCanvasWidgetSelectionItems was not found.");
+    }
+
+    var control = new FolderEditorControl
+    {
+        DataContext = new MainWindowViewModel()
+    };
+
+    var items = method.Invoke(control, null) as System.Collections.IEnumerable;
+    if (items is null)
+    {
+        throw new InvalidOperationException("Widget selection items were not returned.");
+    }
+
+    foreach (var item in items)
+    {
+        var kindProperty = item.GetType().GetProperty("Kind", BindingFlags.Public | BindingFlags.Instance);
+        if (kindProperty?.GetValue(item) is ControlKind kind && kind == ControlKind.Functions)
+        {
+            throw new InvalidOperationException("Functions must not be offered in the canvas widget picker.");
+        }
+    }
+}
+
+static void AdminBrowserVisibilityFollowsCurrentUserLevel()
+{
+    var viewModel = new MainWindowViewModel();
+
+    AssertFalse(viewModel.IsAdminBrowserVisible);
+
+    AssertTrue(viewModel.TrySetUserByPassword("admin"));
+    AssertTrue(viewModel.IsAdminBrowserVisible);
+
+    AssertTrue(viewModel.TrySetUserByPassword(string.Empty));
+    AssertFalse(viewModel.IsAdminBrowserVisible);
 }
 
 static void DialogInteractionRulesPersistDialogWidgetIds()
@@ -3662,6 +5340,42 @@ static void MonitorEditorRejectsDuplicateEventId()
 
     AssertFalse(viewModel.TryBuildDefinition(out _, out var errorMessage));
     AssertTrue(errorMessage.Contains("unique", StringComparison.Ordinal));
+}
+
+static void MonitorEditorRejectsDuplicateEventIdFromCentralFileWithDuplicateNames()
+{
+    var folderDirectory = CreateTempDirectory();
+    try
+    {
+        File.WriteAllText(Path.Combine(folderDirectory, "Folder.yaml"), "Caption: 'main'");
+        new MonitorDefinitionFileCodec().SaveDefinitions(
+            folderDirectory: folderDirectory,
+            folderName: "main",
+            definitions:
+            [
+                new MonitorDefinition { Name = "monitor_rule_1", SourcePath = "Logs.source", EventId = 7 },
+                new MonitorDefinition { Name = "monitor_rule_1", SourcePath = "Logs.source", EventId = 8 }
+            ]);
+
+        var ownerItem = new FolderItemModel();
+        ownerItem.SetHierarchy("main", parentItem: null);
+        ownerItem.SetLayoutFilePath(Path.Combine(folderDirectory, "Folder.yaml"));
+
+        var viewModel = new MonitorEditorDialogViewModel(mainWindowViewModel: null, ownerItem, definition: null, targetLogOptions: [])
+        {
+            SourcePath = "Logs.source",
+            EventIdText = "7"
+        };
+
+        AssertEqual("monitor_rule_2", viewModel.Name);
+        AssertFalse(viewModel.TryBuildDefinition(out _, out var errorMessage));
+        AssertTrue(errorMessage.Contains("Event Id", StringComparison.Ordinal));
+        AssertTrue(errorMessage.Contains("unique", StringComparison.Ordinal));
+    }
+    finally
+    {
+        Directory.Delete(folderDirectory, recursive: true);
+    }
 }
 
 static void MonitorEditorRejectsBlankAndZeroEventId()
@@ -4730,6 +6444,299 @@ static void UdlAttachedItemsResolveViaRuntimeRegistry()
     }
 }
 
+static void UdlRuntimeReceivedItemsStayOutOfRegistryUntilAttach()
+{
+    const string attachedPath = "studio.default_layout.udl_client_control.m001";
+    HostRegistries.Data.Remove(attachedPath);
+
+    var definition = new UdlDemoModuleDefinition
+    {
+        Name = "m001",
+        Kind = UdlDemoModuleKind.SetDriven,
+        InitialValue = 0
+    };
+
+    using var runtime = CreateUdlRuntime(
+        folderName: "default_layout",
+        clientName: "udl_client_control",
+        demoEnabled: true,
+        definitions: [definition]);
+    using var projection = CreateUdlHostRegistryProjection(
+        folderName: "default_layout",
+        clientName: "udl_client_control");
+
+    try
+    {
+        ConnectUdlRuntime(runtime);
+
+        var receivedRoots = GetUdlRuntimeReceivedRootPaths(runtime);
+        AssertTrue(receivedRoots.Contains("m001", StringComparer.OrdinalIgnoreCase));
+        AssertFalse(HostRegistries.Data.TryResolve(attachedPath, out _));
+
+        var projectionInput = GetUdlRuntimeAttachmentProjectionInput(runtime, "m001");
+        AssertEqual(true, SynchronizeUdlHostRegistryProjection(projection, projectionInput));
+        AssertEqual(false, SynchronizeUdlHostRegistryProjection(projection, projectionInput));
+        AssertTrue(HostRegistries.Data.TryResolve(attachedPath, out var attached));
+        AssertEqual(attachedPath, attached?.Path);
+        AssertFalse(attachedPath.Contains("demo", StringComparison.OrdinalIgnoreCase));
+    }
+    finally
+    {
+        HostRegistries.Data.Remove(attachedPath);
+    }
+}
+
+static void UdlReadAttachmentPublishesValueReferenceMetadata()
+{
+    const string attachedReadPath = "studio.default_layout.udl_client_control.m001.read";
+    HostRegistries.Data.Remove(attachedReadPath);
+
+    var definition = new UdlDemoModuleDefinition
+    {
+        Name = "m001",
+        Kind = UdlDemoModuleKind.SetDriven,
+        InitialValue = 0
+    };
+
+    using var runtime = CreateUdlRuntime(
+        folderName: "default_layout",
+        clientName: "udl_client_control",
+        demoEnabled: true,
+        definitions: [definition]);
+    using var projection = CreateUdlHostRegistryProjection(
+        folderName: "default_layout",
+        clientName: "udl_client_control");
+
+    try
+    {
+        ConnectUdlRuntime(runtime);
+
+        var projectionInput = GetUdlRuntimeAttachmentProjectionInput(runtime, "m001");
+        AssertEqual(true, SynchronizeUdlHostRegistryProjection(projection, projectionInput));
+        AssertTrue(HostRegistries.Data.TryResolve(attachedReadPath, out var attachedRead));
+        AssertEqual("runtime.udl_client.udl_client_control.m001.read", attachedRead?.Properties["valueRefPath"].Value?.ToString());
+        AssertEqual("read", attachedRead?.Properties["valueRefParameter"].Value?.ToString());
+    }
+    finally
+    {
+        HostRegistries.Data.Remove(attachedReadPath);
+        HostRegistries.Data.Remove("studio.default_layout.udl_client_control.m001");
+    }
+}
+
+static void UdlReadAttachmentKeepsValueReferenceMetadataAfterSnapshotRefresh()
+{
+    const string attachedReadPath = "studio.default_layout.udl_client_control.m001.read";
+    HostRegistries.Data.Remove(attachedReadPath);
+
+    var definition = new UdlDemoModuleDefinition
+    {
+        Name = "m001",
+        Kind = UdlDemoModuleKind.SetDriven,
+        InitialValue = 0
+    };
+
+    using var runtime = CreateUdlRuntime(
+        folderName: "default_layout",
+        clientName: "udl_client_control",
+        demoEnabled: true,
+        definitions: [definition]);
+    using var projection = CreateUdlHostRegistryProjection(
+        folderName: "default_layout",
+        clientName: "udl_client_control");
+
+    try
+    {
+        ConnectUdlRuntime(runtime);
+
+        var projectionInput = GetUdlRuntimeAttachmentProjectionInput(runtime, "m001");
+        AssertEqual(true, SynchronizeUdlHostRegistryProjection(projection, projectionInput));
+
+        var runtimeModule = ResolveUdlRuntimeItem(runtime, "m001");
+        runtimeModule["read"].Properties["custom_refresh_marker"].Value = 123;
+
+        AssertTrue(SpinWait.SpinUntil(
+            () => HostRegistries.Data.TryResolve(attachedReadPath, out var attachedRead)
+                && attachedRead is not null
+                && attachedRead.Properties.Has("custom_refresh_marker")
+                && object.Equals(attachedRead.Properties["custom_refresh_marker"].Value, 123),
+            1000));
+
+        AssertTrue(HostRegistries.Data.TryResolve(attachedReadPath, out var refreshedRead));
+        AssertEqual("runtime.udl_client.udl_client_control.m001.read", refreshedRead?.Properties["valueRefPath"].Value?.ToString());
+        AssertEqual("read", refreshedRead?.Properties["valueRefParameter"].Value?.ToString());
+    }
+    finally
+    {
+        HostRegistries.Data.Remove(attachedReadPath);
+        HostRegistries.Data.Remove("studio.default_layout.udl_client_control.m001");
+    }
+}
+
+static void UdlValueReferenceWarmupResyncAddsOnlyNewPublicRoots()
+{
+    const string firstPath = "studio.default_layout.udl_client_control.m001";
+    const string secondPath = "studio.default_layout.udl_client_control.m002";
+    HostRegistries.Data.Remove(firstPath);
+    HostRegistries.Data.Remove(secondPath);
+
+    var definitions = new[]
+    {
+        new UdlDemoModuleDefinition
+        {
+            Name = "m001",
+            Kind = UdlDemoModuleKind.SetDriven,
+            InitialValue = 0
+        },
+        new UdlDemoModuleDefinition
+        {
+            Name = "m002",
+            Kind = UdlDemoModuleKind.SetDriven,
+            InitialValue = 0
+        }
+    };
+
+    using var runtime = CreateUdlRuntime(
+        folderName: "default_layout",
+        clientName: "udl_client_control",
+        demoEnabled: true,
+        definitions: definitions);
+    using var projection = CreateUdlHostRegistryProjection(
+        folderName: "default_layout",
+        clientName: "udl_client_control");
+
+    var addedRoots = new List<string>();
+    void OnRegistryChanged(object? sender, DataChangedEventArgs e)
+    {
+        if (e.ChangeKind != DataChangeKind.SnapshotUpserted)
+        {
+            return;
+        }
+
+        if (string.Equals(e.Key, firstPath, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(e.Key, secondPath, StringComparison.OrdinalIgnoreCase))
+        {
+            addedRoots.Add(e.Key);
+        }
+    }
+
+    HostRegistries.Data.RegistryChanged += OnRegistryChanged;
+
+    try
+    {
+        ConnectUdlRuntime(runtime);
+
+        AssertEqual(true, SynchronizeUdlHostRegistryProjection(projection, GetUdlRuntimeAttachmentProjectionInput(runtime, "m001")));
+        AssertEqual(1, addedRoots.Count);
+        AssertEqual(firstPath, addedRoots[0]);
+
+        addedRoots.Clear();
+        AssertEqual(true, SynchronizeUdlHostRegistryProjection(projection, GetUdlRuntimeAttachmentProjectionInput(runtime, "m001\nm002")));
+        AssertEqual(1, addedRoots.Count);
+        AssertEqual(secondPath, addedRoots[0]);
+
+        addedRoots.Clear();
+        AssertEqual(false, SynchronizeUdlHostRegistryProjection(projection, GetUdlRuntimeAttachmentProjectionInput(runtime, "m001\nm002")));
+        AssertEqual(0, addedRoots.Count);
+    }
+    finally
+    {
+        HostRegistries.Data.RegistryChanged -= OnRegistryChanged;
+        HostRegistries.Data.Remove(firstPath);
+        HostRegistries.Data.Remove(secondPath);
+    }
+}
+
+static void UdlProjectionClearsDetachedPublicItems()
+{
+    const string attachedPath = "studio.default_layout.udl_client_control.m001";
+    HostRegistries.Data.Remove(attachedPath);
+
+    var definition = new UdlDemoModuleDefinition
+    {
+        Name = "m001",
+        Kind = UdlDemoModuleKind.SetDriven,
+        InitialValue = 0
+    };
+
+    using var runtime = CreateUdlRuntime(
+        folderName: "default_layout",
+        clientName: "udl_client_control",
+        demoEnabled: true,
+        definitions: [definition]);
+    using var projection = CreateUdlHostRegistryProjection(
+        folderName: "default_layout",
+        clientName: "udl_client_control");
+
+    try
+    {
+        ConnectUdlRuntime(runtime);
+
+        AssertEqual(true, SynchronizeUdlHostRegistryProjection(projection, GetUdlRuntimeAttachmentProjectionInput(runtime, "m001")));
+        AssertTrue(HostRegistries.Data.TryResolve(attachedPath, out _));
+
+        AssertEqual(true, SynchronizeUdlHostRegistryProjection(projection, GetUdlRuntimeAttachmentProjectionInput(runtime, string.Empty)));
+        AssertFalse(HostRegistries.Data.TryResolve(attachedPath, out _));
+        AssertEqual(false, SynchronizeUdlHostRegistryProjection(projection, GetUdlRuntimeAttachmentProjectionInput(runtime, string.Empty)));
+    }
+    finally
+    {
+        HostRegistries.Data.Remove(attachedPath);
+    }
+}
+
+static void UdlRuntimeIsolatesAttachedPathsPerClient()
+{
+    const string firstPath = "studio.default_layout.engine_client.m001";
+    const string secondPath = "studio.default_layout.service_client.m001";
+    HostRegistries.Data.Remove(firstPath);
+    HostRegistries.Data.Remove(secondPath);
+
+    var definition = new UdlDemoModuleDefinition
+    {
+        Name = "m001",
+        Kind = UdlDemoModuleKind.SetDriven,
+        InitialValue = 0
+    };
+
+    using var firstRuntime = CreateUdlRuntime(
+        folderName: "default_layout",
+        clientName: "engine_client",
+        demoEnabled: true,
+        definitions: [definition]);
+    using var secondRuntime = CreateUdlRuntime(
+        folderName: "default_layout",
+        clientName: "service_client",
+        demoEnabled: true,
+        definitions: [definition]);
+    using var firstProjection = CreateUdlHostRegistryProjection(
+        folderName: "default_layout",
+        clientName: "engine_client");
+    using var secondProjection = CreateUdlHostRegistryProjection(
+        folderName: "default_layout",
+        clientName: "service_client");
+
+    try
+    {
+        ConnectUdlRuntime(firstRuntime);
+        ConnectUdlRuntime(secondRuntime);
+
+        AssertEqual(true, SynchronizeUdlHostRegistryProjection(firstProjection, GetUdlRuntimeAttachmentProjectionInput(firstRuntime, "m001")));
+        AssertEqual(true, SynchronizeUdlHostRegistryProjection(secondProjection, GetUdlRuntimeAttachmentProjectionInput(secondRuntime, "m001")));
+
+        AssertTrue(HostRegistries.Data.TryResolve(firstPath, out var firstAttached));
+        AssertTrue(HostRegistries.Data.TryResolve(secondPath, out var secondAttached));
+        AssertEqual(firstPath, firstAttached?.Path);
+        AssertEqual(secondPath, secondAttached?.Path);
+        AssertFalse(string.Equals(firstAttached?.Path, secondAttached?.Path, StringComparison.OrdinalIgnoreCase));
+    }
+    finally
+    {
+        HostRegistries.Data.Remove(firstPath);
+        HostRegistries.Data.Remove(secondPath);
+    }
+}
+
 static void UdlSetDrivenDemoWritesFeedbackToReadOnly()
 {
     var definition = new UdlDemoModuleDefinition
@@ -4901,6 +6908,103 @@ static void UdlRuntimeExposureBitsUseSnakeCasePaths()
     AssertEqual(0, runtimeChannel["bits"]["bit0"].Properties["bit_index"].Value);
 }
 
+static void UdlExposureProjectionDetectsActiveBitExposures()
+{
+    AssertFalse(UdlClientExposureProjection.HasActiveBitExposures(Array.Empty<UdlModuleExposureDefinition>()));
+    AssertFalse(UdlClientExposureProjection.HasActiveBitExposures(
+    [
+        new UdlModuleExposureDefinition
+        {
+            ModuleName = "m001",
+            ChannelName = "read",
+            RouteReadInputToSetRequest = true
+        }
+    ]));
+    AssertTrue(UdlClientExposureProjection.HasActiveBitExposures(
+    [
+        new UdlModuleExposureDefinition
+        {
+            ModuleName = "m001",
+            ChannelName = "read",
+            ExposeBits = true
+        }
+    ]));
+}
+
+static void UdlSimulatedDemoSchedulerKeepsPeriodicCadenceUnderHandlerLoad()
+{
+    var definition = new UdlDemoModuleDefinition
+    {
+        Name = "m001",
+        Kind = UdlDemoModuleKind.SetDriven,
+        InitialValue = 0,
+        SetScale = 1,
+        SetOffset = 0,
+        SetTauSeconds = 0
+    };
+
+    using var client = new SimulatedHostUdlClient(
+        name: "udl_client_control",
+        host: "demo",
+        port: 9001,
+        definitions: [definition]);
+
+    var frameCount = 0;
+    long firstFrameTimestamp = 0;
+    client.FrameReceived += (_, _, _) =>
+    {
+        var count = Interlocked.Increment(ref frameCount);
+        if (count == 1)
+        {
+            Interlocked.CompareExchange(ref firstFrameTimestamp, Stopwatch.GetTimestamp(), 0);
+        }
+
+        Thread.Sleep(80);
+    };
+
+    client.ConnectAsync().GetAwaiter().GetResult();
+    try
+    {
+        var firstFrameObserved = SpinWait.SpinUntil(
+            condition: () => Volatile.Read(ref firstFrameTimestamp) != 0,
+            millisecondsTimeout: 1000);
+        AssertTrue(firstFrameObserved);
+
+        while (Stopwatch.GetElapsedTime(Volatile.Read(ref firstFrameTimestamp)) < TimeSpan.FromMilliseconds(430))
+        {
+            Thread.Sleep(10);
+        }
+
+        AssertTrue(Volatile.Read(ref frameCount) >= 4);
+    }
+    finally
+    {
+        client.DisconnectAsync().GetAwaiter().GetResult();
+    }
+}
+
+static void UdlSimulatedDemoLowValueReadsSkipUnchangedAssignments()
+{
+    var method = typeof(SimulatedHostUdlClient).GetMethod("SetReadValueIfDifferent", BindingFlags.NonPublic | BindingFlags.Static);
+    if (method is null)
+    {
+        throw new InvalidOperationException("SimulatedHostUdlClient.SetReadValueIfDifferent was not found.");
+    }
+
+    var channel = new ItemModel("alert", path: "runtime.udl_client.udl_client_control.m001");
+    var existingValue = new string("steady".ToCharArray());
+    var matchingValue = new string("steady".ToCharArray());
+    channel.Properties["read"].Value = existingValue;
+
+    method.Invoke(null, [channel, matchingValue]);
+
+    AssertTrue(object.ReferenceEquals(existingValue, channel.Properties["read"].Value));
+
+    method.Invoke(null, [channel, "changed"]);
+
+    AssertEqual("changed", channel.Properties["read"].Value);
+}
+
 static void SignalSourceOptionsIncludeDescendantsAndSkipStatusRoots()
 {
     var attachedRootPath = "studio.default_layout.udl_client_control.m310";
@@ -4972,6 +7076,81 @@ static void BrokerPublishedItemCodecMigratesLegacyPaths()
     AssertEqual(BrokerPublishedItemPublishModes.OnChanged, parsed[0].PublishMode);
     AssertEqual(1000, parsed[0].PublishIntervalMs);
     AssertEqual(false, parsed[0].Writable);
+}
+
+static IDisposable CreateUdlRuntime(
+    string folderName,
+    string clientName,
+    bool demoEnabled,
+    IReadOnlyList<UdlDemoModuleDefinition> definitions)
+{
+    var runtimeType = typeof(UdlClientControl).Assembly.GetType("HornetStudio.Editor.Widgets.UdlClientRuntime");
+    if (runtimeType is null)
+    {
+        throw new InvalidOperationException("UdlClientRuntime type was not found.");
+    }
+
+    return (IDisposable)(Activator.CreateInstance(runtimeType, [folderName, clientName, "demo", 9001, demoEnabled, definitions, null])
+        ?? throw new InvalidOperationException("UdlClientRuntime instance could not be created."));
+}
+
+static void ConnectUdlRuntime(IDisposable runtime)
+{
+    var task = (Task?)(runtime.GetType().GetMethod("ConnectAsync")?.Invoke(runtime, [CancellationToken.None]));
+    if (task is null)
+    {
+        throw new InvalidOperationException("UdlClientRuntime.ConnectAsync was not found.");
+    }
+
+    task.GetAwaiter().GetResult();
+}
+
+static IReadOnlyList<string> GetUdlRuntimeReceivedRootPaths(IDisposable runtime)
+{
+    return (IReadOnlyList<string>)(runtime.GetType().GetMethod("GetReceivedRootPaths")?.Invoke(runtime, [])
+        ?? throw new InvalidOperationException("UdlClientRuntime.GetReceivedRootPaths was not found."));
+}
+
+static IDisposable CreateUdlHostRegistryProjection(string folderName, string clientName)
+{
+    var projectionType = typeof(UdlClientControl).Assembly.GetType("HornetStudio.Editor.Widgets.UdlHostRegistryProjection");
+    if (projectionType is null)
+    {
+        throw new InvalidOperationException("UdlHostRegistryProjection type was not found.");
+    }
+
+    return (IDisposable)(Activator.CreateInstance(projectionType, [folderName, clientName])
+        ?? throw new InvalidOperationException("UdlHostRegistryProjection instance could not be created."));
+}
+
+static object GetUdlRuntimeAttachmentProjectionInput(IDisposable runtime, string attachedPaths)
+{
+    return runtime.GetType().GetMethod("GetAttachmentProjectionInput")?.Invoke(runtime, [attachedPaths])
+        ?? throw new InvalidOperationException("UdlClientRuntime.GetAttachmentProjectionInput was not found.");
+}
+
+static ItemModel ResolveUdlRuntimeItem(IDisposable runtime, string relativePath)
+{
+    var method = runtime.GetType().GetMethod("TryResolveRuntimeItem");
+    if (method is null)
+    {
+        throw new InvalidOperationException("UdlClientRuntime.TryResolveRuntimeItem was not found.");
+    }
+
+    var arguments = new object?[] { relativePath, null };
+    var resolved = (bool?)(method.Invoke(runtime, arguments)) ?? false;
+    if (!resolved || arguments[1] is not ItemModel item)
+    {
+        throw new InvalidOperationException($"UDL runtime item '{relativePath}' could not be resolved.");
+    }
+
+    return item;
+}
+
+static bool SynchronizeUdlHostRegistryProjection(IDisposable projection, object attachmentProjectionInput)
+{
+    return (bool?)(projection.GetType().GetMethod("SynchronizeAttachments")?.Invoke(projection, [attachmentProjectionInput]))
+        ?? throw new InvalidOperationException("UdlHostRegistryProjection.SynchronizeAttachments was not found.");
 }
 
 static void BrokerPublishedItemCodecKeepsExplicitStudioBrokerPaths()
@@ -5543,6 +7722,326 @@ static void SignalWriteUpdatesWritePropertyWhenPresent()
     AssertEqual(80d, resolved?.Value);
     AssertEqual(80d, resolved?.Properties["read"].Value);
     AssertEqual(10d, resolved?.Properties["write"].Value);
+}
+
+static void SignalTargetPropertyResolvesValueReferenceRuntimeValue()
+{
+    const string publicPath = "studio.editor_tests.signal_value_ref.demo.read";
+    const string runtimePath = "runtime.editor_tests.signal_value_ref.demo.read";
+
+    var publicItem = ItemExtension.CreateWithPath(publicPath, 5d);
+    publicItem.Properties["read"].Value = 5d;
+    publicItem.Properties["valueRefPath"].Value = runtimePath;
+    publicItem.Properties["valueRefParameter"].Value = "read";
+
+    var runtimeItem = ItemExtension.CreateWithPath(runtimePath, 42d);
+    runtimeItem.Properties["read"].Value = 42d;
+
+    HostRegistries.Data.UpsertSnapshot(publicPath, publicItem);
+    HostRegistries.Data.UpsertSnapshot(runtimePath, runtimeItem);
+    HostRegistries.Data.RegisterValueReference(new DataRegistryValueReference(
+        PublicItemPath: publicPath,
+        PublicParameterName: "read",
+        SourceItemPath: runtimePath,
+        SourceParameterName: "read"));
+
+    try
+    {
+        var signal = new FolderItemModel
+        {
+            Kind = ControlKind.Signal,
+            Name = "ValueRefSignal",
+            TargetPath = publicPath,
+        };
+
+        AssertEqual("read", signal.TargetPropertyView.Property?.Name);
+        AssertEqual(42d, signal.TargetPropertyView.Property?.Value);
+    }
+    finally
+    {
+        HostRegistries.Data.RemoveValueReference(publicPath, "read");
+        HostRegistries.Data.Remove(publicPath);
+        HostRegistries.Data.Remove(runtimePath);
+    }
+}
+
+static void SignalPublicReadUpdatePreservesValueReferenceResolution()
+{
+    const string publicPath = "studio.editor_tests.signal_value_ref.public_update.read";
+    const string runtimePath = "runtime.editor_tests.signal_value_ref.public_update.read";
+
+    var publicItem = ItemExtension.CreateWithPath(publicPath, 5d);
+    publicItem.Properties["read"].Value = 5d;
+    publicItem.Properties["valueRefPath"].Value = runtimePath;
+    publicItem.Properties["valueRefParameter"].Value = "read";
+
+    var runtimeItem = ItemExtension.CreateWithPath(runtimePath, 42d);
+    runtimeItem.Properties["read"].Value = 42d;
+
+    HostRegistries.Data.UpsertSnapshot(publicPath, publicItem);
+    HostRegistries.Data.UpsertSnapshot(runtimePath, runtimeItem);
+    HostRegistries.Data.RegisterValueReference(new DataRegistryValueReference(
+        PublicItemPath: publicPath,
+        PublicParameterName: "read",
+        SourceItemPath: runtimePath,
+        SourceParameterName: "read"));
+
+    try
+    {
+        var signal = new FolderItemModel
+        {
+            Kind = ControlKind.Signal,
+            Name = "ValueRefPublicUpdateSignal",
+            TargetPath = publicPath,
+        };
+
+        AssertEqual(42d, signal.TargetPropertyView.Property?.Value);
+
+        AssertTrue(HostRegistries.Data.UpdateProperty(publicPath, "read", 9d));
+
+        AssertEqual(42d, signal.TargetPropertyView.Property?.Value);
+    }
+    finally
+    {
+        HostRegistries.Data.RemoveValueReference(publicPath, "read");
+        HostRegistries.Data.Remove(publicPath);
+        HostRegistries.Data.Remove(runtimePath);
+    }
+}
+
+static void SignalTargetPropertyFallsBackWhenValueReferenceIsInvalid()
+{
+    const string publicPath = "studio.editor_tests.signal_value_ref.invalid.read";
+
+    var publicItem = ItemExtension.CreateWithPath(publicPath, 7d);
+    publicItem.Properties["read"].Value = 7d;
+    publicItem.Properties["valueRefPath"].Value = "runtime.editor_tests.signal_value_ref.invalid.read";
+    publicItem.Properties["valueRefParameter"].Value = "missing";
+
+    HostRegistries.Data.UpsertSnapshot(publicPath, publicItem);
+
+    try
+    {
+        var signal = new FolderItemModel
+        {
+            Kind = ControlKind.Signal,
+            Name = "FallbackSignal",
+            TargetPath = publicPath,
+        };
+
+        AssertEqual("read", signal.TargetPropertyView.Property?.Name);
+        AssertEqual(7d, signal.TargetPropertyView.Property?.Value);
+    }
+    finally
+    {
+        HostRegistries.Data.Remove(publicPath);
+    }
+}
+
+static void SignalWriteKeepsPublicWritebackWithValueReference()
+{
+    const string publicPath = "studio.editor_tests.signal_value_ref.write.read";
+    const string runtimePath = "runtime.editor_tests.signal_value_ref.write.read";
+
+    var publicItem = ItemExtension.CreateWithPath(publicPath, 80d);
+    publicItem.Properties["read"].Value = 80d;
+    publicItem.Properties["write"].Value = 80d;
+    publicItem.Properties["valueRefPath"].Value = runtimePath;
+    publicItem.Properties["valueRefParameter"].Value = "read";
+
+    var runtimeItem = ItemExtension.CreateWithPath(runtimePath, 15d);
+    runtimeItem.Properties["read"].Value = 15d;
+
+    HostRegistries.Data.UpsertSnapshot(publicPath, publicItem);
+    HostRegistries.Data.UpsertSnapshot(runtimePath, runtimeItem);
+    HostRegistries.Data.RegisterValueReference(new DataRegistryValueReference(
+        PublicItemPath: publicPath,
+        PublicParameterName: "read",
+        SourceItemPath: runtimePath,
+        SourceParameterName: "read"));
+
+    try
+    {
+        var signal = new FolderItemModel
+        {
+            Kind = ControlKind.Signal,
+            Name = "ValueRefWriteSignal",
+            TargetPath = publicPath,
+        };
+
+        AssertEqual(15d, signal.TargetPropertyView.Property?.Value);
+        AssertTrue(signal.TryUpdateTargetPropertyValue(10d, out var error));
+        AssertEqual(string.Empty, error);
+        AssertTrue(HostRegistries.Data.TryResolve(publicPath, out var resolvedPublic));
+        AssertTrue(HostRegistries.Data.TryResolve(runtimePath, out var resolvedRuntime));
+        AssertEqual(10d, resolvedPublic?.Properties["write"].Value);
+        AssertEqual(15d, resolvedRuntime?.Properties["read"].Value);
+    }
+    finally
+    {
+        HostRegistries.Data.RemoveValueReference(publicPath, "read");
+        HostRegistries.Data.Remove(publicPath);
+        HostRegistries.Data.Remove(runtimePath);
+    }
+}
+
+static void SignalLiveValueStoreResolvesUdlValueReference()
+{
+    const string publicPath = "studio.main.signal_live_value.udl1.m001.read";
+    const string runtimePath = "runtime.udl_client.udl1.m001.read";
+
+    var publicItem = ItemExtension.CreateWithPath(publicPath, 5d);
+    publicItem.Properties["read"].Value = 5d;
+    publicItem.Properties["valueRefPath"].Value = runtimePath;
+    publicItem.Properties["valueRefParameter"].Value = "read";
+
+    HostRegistries.Data.UpsertSnapshot(publicPath, publicItem);
+    UdlClientLiveValueStore.ClearScope("main", "udl1");
+    UdlClientLiveValueStore.UpdateProperty("main", "udl1", runtimePath, "read", 42d);
+
+    try
+    {
+        var signal = new FolderItemModel
+        {
+            Kind = ControlKind.Signal,
+            Name = "LiveValueStoreSignal",
+            TargetPath = publicPath,
+        };
+
+        AssertEqual(42d, signal.TargetPropertyView.Property?.Value);
+    }
+    finally
+    {
+        UdlClientLiveValueStore.ClearScope("main", "udl1");
+        HostRegistries.Data.Remove(publicPath);
+    }
+}
+
+static void SignalLiveValueSchedulerAppliesLatestWins()
+{
+    const string publicPath = "studio.main.signal_live_value.udl1.m002.read";
+    const string runtimePath = "runtime.udl_client.udl1.m002.read";
+
+    var publicItem = ItemExtension.CreateWithPath(publicPath, 1d);
+    publicItem.Properties["read"].Value = 1d;
+    publicItem.Properties["valueRefPath"].Value = runtimePath;
+    publicItem.Properties["valueRefParameter"].Value = "read";
+
+    HostRegistries.Data.UpsertSnapshot(publicPath, publicItem);
+    UdlClientLiveValueStore.ClearScope("main", "udl1");
+
+    try
+    {
+        var signal = new FolderItemModel
+        {
+            Kind = ControlKind.Signal,
+            Name = "LiveValueSchedulerSignal",
+            TargetPath = publicPath,
+        };
+
+        UdlClientLiveValueStore.UpdateProperty("main", "udl1", runtimePath, "read", 2d);
+        UdlClientLiveValueStore.UpdateProperty("main", "udl1", runtimePath, "read", 3d);
+
+        AssertTrue(signal.ApplyScheduledSignalValueRefresh(DateTimeOffset.UtcNow));
+        AssertEqual(3d, signal.TargetPropertyView.Property?.Value);
+        AssertFalse(signal.ApplyScheduledSignalValueRefresh(DateTimeOffset.UtcNow));
+    }
+    finally
+    {
+        UdlClientLiveValueStore.ClearScope("main", "udl1");
+        HostRegistries.Data.Remove(publicPath);
+    }
+}
+
+static void SignalAncestorReadPropertyChangeUsesValueOnlyRefresh()
+{
+    const string rootPath = "studio.editor_tests.signal_refresh.demo1";
+    const string targetPath = rootPath + ".read";
+
+    var rootItem = ItemExtension.CreateWithPath(rootPath);
+    rootItem["read"].Value = 12d;
+
+    var signal = new FolderItemModel
+    {
+        Kind = ControlKind.Signal,
+        Name = "DemoSignal",
+        TargetPath = targetPath,
+        TargetPropertyPath = "read",
+    };
+
+    SetSignalTarget(signal, rootItem["read"]);
+
+    var method = typeof(FolderItemModel).GetMethod("IsTargetValueOnlyChange", BindingFlags.NonPublic | BindingFlags.Instance);
+    if (method is null)
+    {
+        throw new InvalidOperationException("FolderItemModel.IsTargetValueOnlyChange was not found.");
+    }
+
+    var result = (bool?)method.Invoke(signal, [
+        new DataChangedEventArgs(rootPath, rootItem, DataChangeKind.PropertyUpdated, "read"),
+        targetPath,
+        false,
+        true]) ?? false;
+
+    AssertTrue(result);
+}
+
+static void SignalAncestorReadPropertyQueueStoresChildTarget()
+{
+    const string rootPath = "studio.editor_tests.signal_refresh.demo_queue";
+    const string targetPath = rootPath + ".read";
+
+    var rootItem = ItemExtension.CreateWithPath(rootPath);
+    rootItem["read"].Value = 34d;
+
+    var signal = new FolderItemModel
+    {
+        Kind = ControlKind.Signal,
+        Name = "DemoSignalQueue",
+        TargetPath = targetPath,
+        TargetPropertyPath = "read",
+    };
+
+    SetSignalTarget(signal, rootItem["read"]);
+
+    var queueMethod = typeof(FolderItemModel).GetMethod("QueueTargetValueRefresh", BindingFlags.NonPublic | BindingFlags.Instance);
+    if (queueMethod is null)
+    {
+        throw new InvalidOperationException("FolderItemModel.QueueTargetValueRefresh was not found.");
+    }
+
+    queueMethod.Invoke(signal, [
+        new DataChangedEventArgs(rootPath, rootItem, DataChangeKind.PropertyUpdated, "read"),
+        targetPath]);
+
+    var pendingField = typeof(FolderItemModel).GetField("_pendingTargetValueRefresh", BindingFlags.NonPublic | BindingFlags.Instance);
+    if (pendingField is null)
+    {
+        throw new InvalidOperationException("FolderItemModel._pendingTargetValueRefresh was not found.");
+    }
+
+    var pendingRefresh = pendingField.GetValue(signal)
+        ?? throw new InvalidOperationException("Pending target value refresh was not captured.");
+    var itemProperty = pendingRefresh.GetType().GetProperty("Item", BindingFlags.Public | BindingFlags.Instance);
+    if (itemProperty is null)
+    {
+        throw new InvalidOperationException("PendingTargetValueRefresh.Item was not found.");
+    }
+
+    var queuedItem = itemProperty.GetValue(pendingRefresh) as ItemModel;
+    AssertTrue(queuedItem is not null);
+    AssertEqual(targetPath, queuedItem?.Path);
+}
+
+static void SetSignalTarget(FolderItemModel signal, ItemModel target)
+{
+    var property = typeof(FolderItemModel).GetProperty("Target", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+    if (property is null)
+    {
+        throw new InvalidOperationException("FolderItemModel.Target was not found.");
+    }
+
+    property.SetValue(signal, target);
 }
 
 static void BrokerWriteBackIgnoresNonWritableEntries()
@@ -6123,6 +8622,1372 @@ static void AssertEqual(object? expected, object? actual)
     }
 }
 
+static void UdlClientFileCodecDerivesIdFromFileName()
+{
+    var folderDirectory = CreateTemporaryDirectory();
+
+    try
+    {
+        var clientsDirectory = UdlClientDefinitionFileCodec.GetClientsDirectory(folderDirectory);
+        Directory.CreateDirectory(clientsDirectory);
+
+        var filePath = Path.Combine(clientsDirectory, "alpha_client.yaml");
+        File.WriteAllText(filePath, """
+Text: Alpha client
+Host: 10.0.0.15
+Port: 9100
+AutoConnect: true
+DebugLogging: true
+Enabled: false
+DemoEnabled: true
+AttachedItemPaths:
+  - module_a.channel_1
+DemoModules:
+  - Name: module_a
+    Kind: Dynamic
+""");
+
+        var codec = new UdlClientDefinitionFileCodec();
+        var entry = codec.LoadFile(filePath);
+
+        AssertEqual("alpha_client", entry.Definition.ClientId);
+        AssertEqual("Alpha client", entry.Definition.Text);
+        AssertEqual("10.0.0.15", entry.Definition.Host);
+        AssertEqual(9100, entry.Definition.Port);
+        AssertTrue(entry.Definition.AutoConnect);
+        AssertTrue(entry.Definition.DebugLogging);
+        AssertFalse(entry.Definition.Enabled);
+        AssertTrue(entry.Definition.DemoEnabled);
+        AssertEqual(1, entry.Definition.AttachedItemPaths.Count);
+        AssertEqual("module_a.channel_1", entry.Definition.AttachedItemPaths[0]);
+        AssertEqual(1, UdlDemoModuleDefinitionCodec.ParseDefinitions(entry.Definition.DemoModuleDefinitions).Count);
+    }
+    finally
+    {
+        Directory.Delete(folderDirectory, recursive: true);
+    }
+}
+
+static void DemoSampleKeepsUdlDefinitionFileBacked()
+{
+    var repositoryRoot = FindRepositoryRoot();
+    var folderDirectory = Path.Combine(repositoryRoot, "samples", "HornetStudioDemo", "Folders", "main");
+    var folderYamlPath = Path.Combine(folderDirectory, "Folder.yaml");
+
+    var folderYaml = File.ReadAllText(folderYamlPath);
+    AssertFalse(folderYaml.Contains("useJitter:", StringComparison.Ordinal));
+    AssertFalse(folderYaml.Contains("useSine:", StringComparison.Ordinal));
+    AssertFalse(folderYaml.Contains("usePeak:", StringComparison.Ordinal));
+    AssertFalse(folderYaml.Contains("noiseMode:", StringComparison.Ordinal));
+    AssertFalse(folderYaml.Contains("updateIntervalMs:", StringComparison.Ordinal));
+    AssertFalse(folderYaml.Contains("intervalSeconds:", StringComparison.Ordinal));
+    AssertFalse(folderYaml.Contains("durationMs:", StringComparison.Ordinal));
+
+    var codec = new UdlClientDefinitionFileCodec();
+    var entries = codec.LoadFolder(folderDirectory);
+    AssertEqual(1, entries.Count);
+
+    var definition = entries[0].Definition;
+    AssertEqual("udl1", definition.ClientId);
+    AssertEqual("Udl1", definition.Text);
+    AssertEqual("127.0.0.1", definition.Host);
+    AssertEqual(9001, definition.Port);
+    AssertTrue(definition.AutoConnect);
+    AssertTrue(definition.Enabled);
+    AssertTrue(definition.DemoEnabled);
+    AssertEqual(1, definition.AttachedItemPaths.Count);
+    AssertEqual("m001", definition.AttachedItemPaths[0]);
+    AssertEqual(1, UdlDemoModuleDefinitionCodec.ParseDefinitions(definition.DemoModuleDefinitions).Count);
+}
+
+static void ClientsBrowserEnumeratesUdlFilesFromFolderLocalClientsDirectory()
+{
+    var folderDirectory = CreateTemporaryDirectory();
+
+    try
+    {
+        var clientsDirectory = UdlClientDefinitionFileCodec.GetClientsDirectory(folderDirectory);
+        Directory.CreateDirectory(clientsDirectory);
+
+        File.WriteAllText(Path.Combine(clientsDirectory, "alpha.yaml"), "Text: Alpha\nHost: 127.0.0.1\nPort: 9001\n");
+        File.WriteAllText(Path.Combine(clientsDirectory, "beta.yaml"), "Text: Beta\nHost: 127.0.0.2\nPort: 9002\nDemoEnabled: true\n");
+
+        Directory.CreateDirectory(Path.Combine(folderDirectory, "Clients", "Item"));
+        File.WriteAllText(Path.Combine(folderDirectory, "Clients", "Item", "ignored.yaml"), "Text: Ignored\n");
+
+        var codec = new UdlClientDefinitionFileCodec();
+        var entries = codec.LoadFolder(folderDirectory);
+
+        AssertEqual(2, entries.Count);
+        AssertEqual("alpha", entries[0].Definition.ClientId);
+        AssertEqual("beta", entries[1].Definition.ClientId);
+    }
+    finally
+    {
+        Directory.Delete(folderDirectory, recursive: true);
+    }
+}
+
+static void ClientsBrowserEntryMapsUdlListFields()
+{
+    var definition = new UdlClientDefinition
+    {
+        ClientId = "demo_client",
+        Text = "Demo Client",
+        Host = "192.168.0.10",
+        Port = 9010,
+        DemoEnabled = true,
+        Enabled = true
+    };
+
+    var entry = ClientBrowserEntry.FromUdl(
+        new UdlClientFileEntry("B:/demo/Clients/Udl/demo_client.yaml", definition, new UdlClientDefinitionDocument()),
+        isConnected: true);
+
+    AssertEqual("demo_client", entry.ClientId);
+    AssertEqual("Demo Client", entry.Text);
+    AssertEqual("UDL Demo", entry.ClientType);
+    AssertEqual("Connected", entry.StatusText);
+    AssertEqual("192.168.0.10:9010", entry.SocketText);
+    AssertEqual("B:/demo/Clients/Udl/demo_client.yaml", entry.DefinitionFilePath);
+}
+
+static void UdlClientFileCodecRoundtripsAndRenames()
+{
+    var folderDirectory = CreateTemporaryDirectory();
+
+    try
+    {
+        var codec = new UdlClientDefinitionFileCodec();
+        var definition = new UdlClientDefinition
+        {
+            ClientId = "client_one",
+            Text = "Client one",
+            Host = "127.0.0.1",
+            Port = 9005,
+            AutoConnect = true,
+            DebugLogging = true,
+            Enabled = true,
+            DemoEnabled = true,
+            AttachedItemPaths = ["module_a.channel_1", "module_b.channel_2"],
+            DemoModuleDefinitions = UdlDemoModuleDefinitionCodec.SerializeDefinitions(
+            [
+                new UdlDemoModuleDefinition
+                {
+                    Name = "module_a",
+                    Kind = UdlDemoModuleKind.Dynamic
+                }
+            ])
+        };
+
+        var originalPath = codec.SaveDefinition(folderDirectory, definition);
+        var yaml = File.ReadAllText(originalPath);
+        AssertTrue(yaml.Contains("Text: Client one", StringComparison.Ordinal));
+        AssertFalse(yaml.Contains("Name:", StringComparison.Ordinal));
+
+        var renamedDefinition = definition with { ClientId = "client_two", Text = "Client two" };
+        var renamedPath = codec.SaveDefinition(folderDirectory, renamedDefinition, originalPath);
+
+        AssertFalse(File.Exists(originalPath));
+        AssertTrue(File.Exists(renamedPath));
+
+        var reloaded = codec.LoadFile(renamedPath);
+        AssertEqual("client_two", reloaded.Definition.ClientId);
+        AssertEqual("Client two", reloaded.Definition.Text);
+        AssertEqual(2, reloaded.Definition.AttachedItemPaths.Count);
+        AssertEqual("module_a.channel_1", reloaded.Definition.AttachedItemPaths[0]);
+        AssertEqual("module_b.channel_2", reloaded.Definition.AttachedItemPaths[1]);
+        AssertEqual(1, UdlDemoModuleDefinitionCodec.ParseDefinitions(reloaded.Definition.DemoModuleDefinitions).Count);
+    }
+    finally
+    {
+        Directory.Delete(folderDirectory, recursive: true);
+    }
+}
+
+static void UdlClientFileCodecRoundtripsModuleExposures()
+{
+    var folderDirectory = CreateTemporaryDirectory();
+
+    try
+    {
+        var codec = new UdlClientDefinitionFileCodec();
+        var definition = new UdlClientDefinition
+        {
+            ClientId = "client_with_exposure",
+            Text = "Client with exposure",
+            Host = "127.0.0.1",
+            Port = 9005,
+            Enabled = true,
+            AttachedItemPaths = ["m001"],
+            UdlModuleExposureDefinitions = UdlModuleExposureDefinitionCodec.SerializeDefinitions(
+            [
+                new UdlModuleExposureDefinition
+                {
+                    ModuleName = "m001",
+                    ChannelName = "read",
+                    ExposeBits = true,
+                    BitCount = 4,
+                    RouteReadInputToSetRequest = true,
+                    BitLabels = "Bit0=Ready"
+                },
+                new UdlModuleExposureDefinition
+                {
+                    ModuleName = "m001",
+                    ChannelName = "alert",
+                    ExposeBits = true,
+                    BitCount = 2,
+                    BitLabels = "Bit1=Fault"
+                }
+            ])
+        };
+
+        var filePath = codec.SaveDefinition(folderDirectory, definition);
+        var yaml = File.ReadAllText(filePath);
+        AssertTrue(yaml.Contains("UdlModuleExposures:", StringComparison.Ordinal));
+        AssertTrue(yaml.Contains("ModuleName: m001", StringComparison.Ordinal));
+
+        var reloaded = codec.LoadFile(filePath).Definition;
+        var exposures = UdlModuleExposureDefinitionCodec.ParseDefinitions(reloaded.UdlModuleExposureDefinitions);
+        AssertEqual(2, exposures.Count);
+        AssertEqual("m001", exposures[0].ModuleName);
+        AssertEqual("read", exposures[0].ChannelName);
+        AssertTrue(exposures[0].ExposeBits);
+        AssertEqual(4, exposures[0].BitCount);
+        AssertTrue(exposures[0].RouteReadInputToSetRequest);
+        AssertEqual("Bit0=Ready", exposures[0].BitLabels);
+        AssertEqual("alert", exposures[1].ChannelName);
+        AssertTrue(exposures[1].ExposeBits);
+        AssertEqual(2, exposures[1].BitCount);
+        AssertEqual("Bit1=Fault", exposures[1].BitLabels);
+        AssertEqual(1, reloaded.AttachedItemPaths.Count);
+        AssertEqual("m001", reloaded.AttachedItemPaths[0]);
+    }
+    finally
+    {
+        Directory.Delete(folderDirectory, recursive: true);
+    }
+}
+
+static void UdlClientFileCodecRoundtripsRouteOnlyModuleExposure()
+{
+    var folderDirectory = CreateTemporaryDirectory();
+
+    try
+    {
+        var codec = new UdlClientDefinitionFileCodec();
+        var definition = new UdlClientDefinition
+        {
+            ClientId = "client_with_route_only_exposure",
+            Text = "Client with route-only exposure",
+            Host = "127.0.0.1",
+            Port = 9005,
+            Enabled = true,
+            AttachedItemPaths = ["m001"],
+            UdlModuleExposureDefinitions = UdlModuleExposureDefinitionCodec.SerializeDefinitions(
+            [
+                new UdlModuleExposureDefinition
+                {
+                    ModuleName = "m001",
+                    ChannelName = "read",
+                    RouteReadInputToSetRequest = true
+                }
+            ])
+        };
+
+        var filePath = codec.SaveDefinition(folderDirectory, definition);
+        var reloaded = codec.LoadFile(filePath).Definition;
+        var exposures = UdlModuleExposureDefinitionCodec.ParseDefinitions(reloaded.UdlModuleExposureDefinitions);
+        AssertEqual(1, exposures.Count);
+        AssertEqual("m001", exposures[0].ModuleName);
+        AssertEqual("read", exposures[0].ChannelName);
+        AssertTrue(exposures[0].RouteReadInputToSetRequest);
+        AssertFalse(exposures[0].ExposeBits);
+        AssertEqual(0, exposures[0].BitCount);
+    }
+    finally
+    {
+        Directory.Delete(folderDirectory, recursive: true);
+    }
+}
+
+static void UdlModuleExposureDialogAddsFallbackBitmaskRowsForModuleScope()
+{
+    var dialog = new UdlModuleExposureDialogWindow(
+        ownerViewModel: new MainWindowViewModel(),
+        definitions: [],
+        runtimeChannels: [],
+        moduleName: "m001");
+
+    var bitmaskRows = GetBitmaskRows(dialog);
+
+    AssertEqual(3, bitmaskRows.Count);
+    AssertEqual("Alert", bitmaskRows[0].Label);
+    AssertEqual("Read", bitmaskRows[1].Label);
+    AssertEqual("Set", bitmaskRows[2].Label);
+    AssertEqual("4", bitmaskRows[0].BitCountText);
+    AssertEqual("4", bitmaskRows[1].BitCountText);
+    AssertEqual("4", bitmaskRows[2].BitCountText);
+    AssertFalse(bitmaskRows[0].ExposeBits);
+    AssertFalse(bitmaskRows[1].ExposeBits);
+    AssertFalse(bitmaskRows[2].ExposeBits);
+    AssertEqual(0, UdlModuleExposureDefinitionCodec.ParseDefinitions(BuildModuleExposureDialogResult(dialog)).Count);
+}
+
+static void UdlModuleExposureDialogSavesFallbackPublishBitsWithoutManualCountEdit()
+{
+    var dialog = new UdlModuleExposureDialogWindow(
+        ownerViewModel: new MainWindowViewModel(),
+        definitions: [],
+        runtimeChannels: [],
+        moduleName: "m001");
+
+    var readRow = GetBitmaskRows(dialog).Single(static row => string.Equals(row.Label, "Read", StringComparison.Ordinal));
+    AssertEqual("4", readRow.BitCountText);
+
+    readRow.ExposeBits = true;
+
+    var parsed = UdlModuleExposureDefinitionCodec.ParseDefinitions(BuildModuleExposureDialogResult(dialog));
+    AssertEqual(1, parsed.Count);
+    AssertEqual("read", parsed[0].ChannelName);
+    AssertTrue(parsed[0].ExposeBits);
+    AssertEqual(4, parsed[0].BitCount);
+}
+
+static void UdlModuleExposureDialogSavesRouteOnlyReadHelperSetting()
+{
+    var dialog = new UdlModuleExposureDialogWindow(
+        ownerViewModel: new MainWindowViewModel(),
+        definitions: [],
+        runtimeChannels: [],
+        moduleName: "m001");
+
+    SetReadInputRouteToSetRequest(dialog, value: true);
+
+    var parsed = UdlModuleExposureDefinitionCodec.ParseDefinitions(BuildModuleExposureDialogResult(dialog));
+    AssertEqual(1, parsed.Count);
+    AssertEqual("m001", parsed[0].ModuleName);
+    AssertEqual("read", parsed[0].ChannelName);
+    AssertTrue(parsed[0].RouteReadInputToSetRequest);
+    AssertFalse(parsed[0].ExposeBits);
+    AssertEqual(0, parsed[0].BitCount);
+}
+
+static void UdlModuleExposureDialogReopensSavedRouteOnlyReadHelperSetting()
+{
+    var dialog = new UdlModuleExposureDialogWindow(
+        ownerViewModel: new MainWindowViewModel(),
+        definitions:
+        [
+            new UdlModuleExposureDefinition
+            {
+                ModuleName = "m001",
+                ChannelName = "read",
+                RouteReadInputToSetRequest = true
+            }
+        ],
+        runtimeChannels: [],
+        moduleName: "m001");
+
+    AssertTrue(GetReadInputRouteToSetRequest(dialog));
+}
+
+static void UdlModuleExposureDialogPreservesSavedFallbackBitSettings()
+{
+    var dialog = new UdlModuleExposureDialogWindow(
+        ownerViewModel: new MainWindowViewModel(),
+        definitions:
+        [
+            new UdlModuleExposureDefinition
+            {
+                ModuleName = "m001",
+                ChannelName = "read",
+                ExposeBits = true,
+                BitCount = 8,
+                BitLabels = "Bit0=Ready"
+            }
+        ],
+        runtimeChannels: [],
+        moduleName: "m001");
+
+    var readRow = GetBitmaskRows(dialog).Single(static row => string.Equals(row.Label, "Read", StringComparison.Ordinal));
+    AssertTrue(readRow.ExposeBits);
+    AssertEqual("8", readRow.BitCountText);
+
+    var alertRow = GetBitmaskRows(dialog).Single(static row => string.Equals(row.Label, "Alert", StringComparison.Ordinal));
+    alertRow.ExposeBits = true;
+    alertRow.BitCountText = "2";
+
+    var parsed = UdlModuleExposureDefinitionCodec.ParseDefinitions(BuildModuleExposureDialogResult(dialog));
+    AssertEqual(2, parsed.Count);
+
+    var savedRead = parsed.Single(static definition => string.Equals(definition.ChannelName, "read", StringComparison.Ordinal));
+    AssertTrue(savedRead.ExposeBits);
+    AssertEqual(8, savedRead.BitCount);
+    AssertEqual("Bit0=Ready", savedRead.BitLabels);
+
+    var savedAlert = parsed.Single(static definition => string.Equals(definition.ChannelName, "alert", StringComparison.Ordinal));
+    AssertTrue(savedAlert.ExposeBits);
+    AssertEqual(2, savedAlert.BitCount);
+
+    AssertFalse(parsed.Any(static definition => string.Equals(definition.ChannelName, "set", StringComparison.Ordinal)));
+}
+
+static void UdlModuleExposureDialogKeepsRuntimeBitFormatPrecedence()
+{
+    var dialog = new UdlModuleExposureDialogWindow(
+        ownerViewModel: new MainWindowViewModel(),
+        definitions: [],
+        runtimeChannels:
+        [
+            new UdlRuntimeModuleChannelDescriptor
+            {
+                ModuleName = "m001",
+                ChannelName = "read",
+                Format = "b16",
+                Unit = "raw",
+                BitCount = 16
+            }
+        ],
+        moduleName: "m001");
+
+    var bitmaskRows = GetBitmaskRows(dialog);
+    AssertEqual(3, bitmaskRows.Count);
+
+    var readRow = bitmaskRows.Single(static row => string.Equals(row.Label, "Read", StringComparison.Ordinal));
+    AssertEqual("16", readRow.BitCountText);
+    readRow.ExposeBits = true;
+
+    var parsed = UdlModuleExposureDefinitionCodec.ParseDefinitions(BuildModuleExposureDialogResult(dialog));
+    var savedRead = parsed.Single(static definition => string.Equals(definition.ChannelName, "read", StringComparison.Ordinal));
+    AssertEqual("b16", savedRead.Format);
+    AssertEqual(16, savedRead.BitCount);
+}
+
+static void UdlRuntimeManagerConnectsSimulatedClient()
+{
+    var managerType = GetUdlRuntimeManagerType();
+    var connectMethod = managerType.GetMethod("ConnectAsync", BindingFlags.NonPublic | BindingFlags.Static)
+        ?? throw new InvalidOperationException("UdlClientRuntimeManager.ConnectAsync was not found.");
+    var disconnectMethod = managerType.GetMethod("DisconnectAsync", BindingFlags.NonPublic | BindingFlags.Static)
+        ?? throw new InvalidOperationException("UdlClientRuntimeManager.DisconnectAsync was not found.");
+    var tryGetRuntimeMethod = managerType.GetMethod("TryGetRuntime", BindingFlags.NonPublic | BindingFlags.Static)
+        ?? throw new InvalidOperationException("UdlClientRuntimeManager.TryGetRuntime was not found.");
+
+    var definition = new UdlClientDefinition
+    {
+        ClientId = "client_demo",
+        Host = "127.0.0.1",
+        Port = 9001,
+        Enabled = true,
+        DemoEnabled = true
+    };
+
+    var connectTask = (Task?)connectMethod.Invoke(null, ["folder_demo", definition, CancellationToken.None])
+        ?? throw new InvalidOperationException("UdlClientRuntimeManager.ConnectAsync returned null.");
+    connectTask.GetAwaiter().GetResult();
+
+    var tryGetArgs = new object?[] { "folder_demo", "client_demo", null };
+    var found = (bool)(tryGetRuntimeMethod.Invoke(null, tryGetArgs)
+        ?? throw new InvalidOperationException("UdlClientRuntimeManager.TryGetRuntime returned null."));
+    AssertTrue(found);
+    AssertTrue(tryGetArgs[2] is not null);
+
+    var disconnectTask = (Task?)disconnectMethod.Invoke(null, ["folder_demo", "client_demo", CancellationToken.None])
+        ?? throw new InvalidOperationException("UdlClientRuntimeManager.DisconnectAsync returned null.");
+    disconnectTask.GetAwaiter().GetResult();
+
+    tryGetArgs = ["folder_demo", "client_demo", null];
+    found = (bool)(tryGetRuntimeMethod.Invoke(null, tryGetArgs)
+        ?? throw new InvalidOperationException("UdlClientRuntimeManager.TryGetRuntime returned null."));
+    AssertFalse(found);
+}
+
+static IReadOnlyList<UdlModuleExposureBitmaskRow> GetBitmaskRows(UdlModuleExposureDialogWindow dialog)
+{
+    var dataContext = dialog.DataContext ?? throw new InvalidOperationException("Dialog DataContext was not set.");
+    var property = dataContext.GetType().GetProperty("BitmaskRows", BindingFlags.Instance | BindingFlags.Public)
+        ?? throw new InvalidOperationException("BitmaskRows property was not found.");
+
+    return ((IEnumerable<UdlModuleExposureBitmaskRow>?)property.GetValue(dataContext))?.ToArray()
+        ?? throw new InvalidOperationException("BitmaskRows value was not available.");
+}
+
+static string BuildModuleExposureDialogResult(UdlModuleExposureDialogWindow dialog)
+{
+    var dataContext = dialog.DataContext ?? throw new InvalidOperationException("Dialog DataContext was not set.");
+    var method = dataContext.GetType().GetMethod("TryBuildResult", BindingFlags.Instance | BindingFlags.Public)
+        ?? throw new InvalidOperationException("TryBuildResult method was not found.");
+    object?[] arguments = [null];
+
+    var success = (bool?)method.Invoke(dataContext, arguments)
+        ?? throw new InvalidOperationException("TryBuildResult returned no result.");
+    AssertTrue(success);
+
+    return arguments[0]?.ToString() ?? string.Empty;
+}
+
+static bool GetReadInputRouteToSetRequest(UdlModuleExposureDialogWindow dialog)
+{
+    var dataContext = dialog.DataContext ?? throw new InvalidOperationException("Dialog DataContext was not set.");
+    var property = dataContext.GetType().GetProperty("ReadInputRouteToSetRequest", BindingFlags.Instance | BindingFlags.Public)
+        ?? throw new InvalidOperationException("ReadInputRouteToSetRequest property was not found.");
+
+    return (bool?)property.GetValue(dataContext)
+        ?? throw new InvalidOperationException("ReadInputRouteToSetRequest value was not available.");
+}
+
+static void SetReadInputRouteToSetRequest(UdlModuleExposureDialogWindow dialog, bool value)
+{
+    var dataContext = dialog.DataContext ?? throw new InvalidOperationException("Dialog DataContext was not set.");
+    var property = dataContext.GetType().GetProperty("ReadInputRouteToSetRequest", BindingFlags.Instance | BindingFlags.Public)
+        ?? throw new InvalidOperationException("ReadInputRouteToSetRequest property was not found.");
+
+    property.SetValue(dataContext, value);
+}
+
+static void UdlFileSaveAndSyncUpdatesFolderRuntimeDefinitions()
+{
+    const string folderName = "browser_sync_folder";
+    var folderDirectory = CreateTemporaryDirectory();
+
+    try
+    {
+        var codec = new UdlClientDefinitionFileCodec();
+        var definition = new UdlClientDefinition
+        {
+            ClientId = "browser_sync_client",
+            Text = "Browser sync client",
+            Host = "127.0.0.1",
+            Port = 9001,
+            AutoConnect = true,
+            Enabled = true,
+            DemoEnabled = true,
+            AttachedItemPaths = ["m001"]
+        };
+
+        var filePath = codec.SaveDefinition(folderDirectory, definition);
+        InvokeUdlRuntimeManagerSyncDefinitions(folderName, codec.LoadFolder(folderDirectory).Select(static entry => entry.Definition).ToArray(), forceRecreate: true);
+
+        AssertTrue(SpinWait.SpinUntil(
+            () => InvokeUdlRuntimeManagerTryGetRuntime(folderName, definition.ClientId),
+            TimeSpan.FromSeconds(5)));
+
+        var updatedDefinition = definition with
+        {
+            Text = "Browser sync client updated",
+            Host = "10.0.0.42",
+            AutoConnect = false,
+            Enabled = false
+        };
+
+        codec.SaveDefinition(folderDirectory, updatedDefinition, filePath);
+        InvokeUdlRuntimeManagerSyncDefinitions(folderName, codec.LoadFolder(folderDirectory).Select(static entry => entry.Definition).ToArray(), forceRecreate: false);
+
+        AssertFalse(InvokeUdlRuntimeManagerTryGetRuntime(folderName, definition.ClientId));
+
+        var reloaded = codec.LoadFolder(folderDirectory).Single().Definition;
+        AssertEqual("Browser sync client updated", reloaded.Text);
+        AssertEqual("10.0.0.42", reloaded.Host);
+        AssertFalse(reloaded.AutoConnect);
+        AssertFalse(reloaded.Enabled);
+    }
+    finally
+    {
+        ReleaseUdlRuntimeManagerFolder(folderName);
+        Directory.Delete(folderDirectory, recursive: true);
+    }
+}
+
+static void UdlRuntimeManagerProjectsStatusWithoutWidget()
+{
+    const string folderName = "headless_status_folder";
+    const string clientId = "client_headless";
+    var endpointPath = $"studio.{folderName}.{clientId}.status.endpoint";
+    var connectionPath = $"studio.{folderName}.{clientId}.status.connection";
+    var itemCountPath = $"studio.{folderName}.{clientId}.status.item_count";
+
+    ReleaseUdlRuntimeManagerFolder(folderName);
+
+    try
+    {
+        InvokeUdlRuntimeManagerSyncDefinitions(folderName,
+        [
+            CreateHeadlessUdlDefinition(clientId, attachedItemPaths: ["m001"])
+        ], forceRecreate: true);
+
+        AssertTrue(SpinWait.SpinUntil(
+            () => HostRegistries.Data.TryResolve(connectionPath, out var connection)
+                && string.Equals(connection?.Value?.ToString(), "Connected", StringComparison.OrdinalIgnoreCase),
+            TimeSpan.FromSeconds(5)));
+        AssertTrue(HostRegistries.Data.TryResolve(endpointPath, out var endpoint));
+        AssertEqual("127.0.0.1:9001", endpoint?.Value?.ToString());
+        AssertTrue(SpinWait.SpinUntil(
+            () => HostRegistries.Data.TryResolve(itemCountPath, out var itemCount)
+                && Convert.ToInt32(itemCount?.Value ?? 0) >= 1,
+            TimeSpan.FromSeconds(5)));
+    }
+    finally
+    {
+        ReleaseUdlRuntimeManagerFolder(folderName);
+    }
+}
+
+static void UdlRuntimeManagerPublishesAttachedItemsWithoutWidget()
+{
+    const string folderName = "headless_attach_folder";
+    const string clientId = "client_headless";
+    var attachedPath = $"studio.{folderName}.{clientId}.m001";
+
+    HostRegistries.Data.Remove(attachedPath);
+    ReleaseUdlRuntimeManagerFolder(folderName);
+
+    try
+    {
+        InvokeUdlRuntimeManagerSyncDefinitions(folderName,
+        [
+            CreateHeadlessUdlDefinition(clientId, attachedItemPaths: ["m001"])
+        ], forceRecreate: true);
+
+        AssertTrue(SpinWait.SpinUntil(
+            () => HostRegistries.Data.TryResolve(attachedPath, out _),
+            TimeSpan.FromSeconds(5)));
+    }
+    finally
+    {
+        ReleaseUdlRuntimeManagerFolder(folderName);
+        HostRegistries.Data.Remove(attachedPath);
+    }
+}
+
+static void UdlRuntimeManagerDuplicateAutoConnectSyncDoesNotRecreateAttachedRoots()
+{
+    const string folderName = "headless_attach_pending_connect_folder";
+    const string clientId = "client_headless";
+    var attachedPath = $"studio.{folderName}.{clientId}.m001";
+
+    HostRegistries.Data.Remove(attachedPath);
+    ReleaseUdlRuntimeManagerFolder(folderName);
+
+    var addedRoots = new List<string>();
+    void OnRegistryChanged(object? sender, DataChangedEventArgs e)
+    {
+        if (e.ChangeKind == DataChangeKind.SnapshotUpserted
+            && string.Equals(e.Key, attachedPath, StringComparison.OrdinalIgnoreCase))
+        {
+            addedRoots.Add(e.Key);
+        }
+    }
+
+    HostRegistries.Data.RegistryChanged += OnRegistryChanged;
+
+    try
+    {
+        var definitions = new[]
+        {
+            CreateHeadlessUdlDefinition(clientId, attachedItemPaths: ["m001"])
+        };
+
+        InvokeUdlRuntimeManagerSyncDefinitions(folderName, definitions, forceRecreate: false);
+        InvokeUdlRuntimeManagerSyncDefinitions(folderName, definitions, forceRecreate: false);
+        InvokeUdlRuntimeManagerSyncDefinitions(folderName, definitions, forceRecreate: false);
+
+        AssertTrue(SpinWait.SpinUntil(
+            () => HostRegistries.Data.TryResolve(attachedPath, out _)
+                && InvokeUdlRuntimeManagerTryGetRuntime(folderName, clientId),
+            TimeSpan.FromSeconds(5)));
+        AssertEqual(1, addedRoots.Count);
+        AssertFalse(SpinWait.SpinUntil(() => addedRoots.Count > 1, TimeSpan.FromSeconds(1)));
+    }
+    finally
+    {
+        HostRegistries.Data.RegistryChanged -= OnRegistryChanged;
+        ReleaseUdlRuntimeManagerFolder(folderName);
+        HostRegistries.Data.Remove(attachedPath);
+    }
+}
+
+static void UdlRuntimeManagerRefreshDoesNotRecreateAttachedRoots()
+{
+    const string folderName = "headless_attach_refresh_folder";
+    const string clientId = "client_headless";
+    var attachedPath = $"studio.{folderName}.{clientId}.m001";
+
+    HostRegistries.Data.Remove(attachedPath);
+    ReleaseUdlRuntimeManagerFolder(folderName);
+
+    var addedRoots = new List<string>();
+    void OnRegistryChanged(object? sender, DataChangedEventArgs e)
+    {
+        if (e.ChangeKind == DataChangeKind.SnapshotUpserted
+            && string.Equals(e.Key, attachedPath, StringComparison.OrdinalIgnoreCase))
+        {
+            addedRoots.Add(e.Key);
+        }
+    }
+
+    HostRegistries.Data.RegistryChanged += OnRegistryChanged;
+
+    try
+    {
+        var definitions = new[]
+        {
+            CreateHeadlessUdlDefinition(clientId, attachedItemPaths: ["m001"])
+        };
+
+        InvokeUdlRuntimeManagerSyncDefinitions(folderName, definitions, forceRecreate: true);
+
+        AssertTrue(SpinWait.SpinUntil(
+            () => HostRegistries.Data.TryResolve(attachedPath, out _)
+                && InvokeUdlRuntimeManagerTryGetRuntime(folderName, clientId),
+            TimeSpan.FromSeconds(5)));
+
+        InvokeUdlRuntimeManagerSyncDefinitions(folderName, definitions, forceRecreate: false);
+        InvokeUdlRuntimeManagerSyncDefinitions(folderName, definitions, forceRecreate: false);
+        InvokeUdlRuntimeManagerSyncDefinitions(folderName, definitions, forceRecreate: false);
+
+        AssertEqual(1, addedRoots.Count);
+        AssertFalse(SpinWait.SpinUntil(() => addedRoots.Count > 1, TimeSpan.FromSeconds(1)));
+    }
+    finally
+    {
+        HostRegistries.Data.RegistryChanged -= OnRegistryChanged;
+        ReleaseUdlRuntimeManagerFolder(folderName);
+        HostRegistries.Data.Remove(attachedPath);
+    }
+}
+
+static void UdlRuntimeManagerRemovesLegacyExposureRoot()
+{
+    const string folderName = "headless_legacy_exposure_folder";
+    const string clientId = "client_headless";
+    var legacyExposurePath = $"studio.{folderName}.UdlClientruntime.{clientId}.Modules";
+    var bitPath = $"studio.{folderName}.{clientId}.m001.read.bits.bit0";
+
+    HostRegistries.Data.Remove(legacyExposurePath);
+    HostRegistries.Data.Remove(bitPath);
+    ReleaseUdlRuntimeManagerFolder(folderName);
+
+    try
+    {
+        InvokeUdlRuntimeManagerSyncDefinitions(folderName,
+        [
+            CreateHeadlessUdlDefinition(
+                clientId,
+                attachedItemPaths: ["m001"],
+                moduleExposureDefinitions: UdlModuleExposureDefinitionCodec.SerializeDefinitions(
+                [
+                    new UdlModuleExposureDefinition
+                    {
+                        ModuleName = "m001",
+                        ChannelName = "read",
+                        ExposeBits = true,
+                        BitCount = 1
+                    }
+                ]))
+        ], forceRecreate: true);
+
+        AssertTrue(SpinWait.SpinUntil(
+            () => HostRegistries.Data.TryResolve(bitPath, out _),
+            TimeSpan.FromSeconds(5)));
+        AssertFalse(HostRegistries.Data.TryResolve(legacyExposurePath, out _));
+    }
+    finally
+    {
+        ReleaseUdlRuntimeManagerFolder(folderName);
+        HostRegistries.Data.Remove(legacyExposurePath);
+        HostRegistries.Data.Remove(bitPath);
+    }
+}
+
+static void UdlRuntimeManagerPublishesExposedBitsWithoutWidget()
+{
+    const string folderName = "headless_exposure_folder";
+    const string clientId = "client_headless";
+    var bitPath = $"studio.{folderName}.{clientId}.m001.read.bits.bit0";
+
+    HostRegistries.Data.Remove(bitPath);
+    ReleaseUdlRuntimeManagerFolder(folderName);
+
+    try
+    {
+        InvokeUdlRuntimeManagerSyncDefinitions(folderName,
+        [
+            CreateHeadlessUdlDefinition(
+                clientId,
+                attachedItemPaths: ["m001"],
+                moduleExposureDefinitions: UdlModuleExposureDefinitionCodec.SerializeDefinitions(
+                [
+                    new UdlModuleExposureDefinition
+                    {
+                        ModuleName = "m001",
+                        ChannelName = "read",
+                        ExposeBits = true,
+                        BitCount = 4,
+                        BitLabels = "Bit0=Ready"
+                    }
+                ]))
+        ], forceRecreate: true);
+
+        AssertTrue(SpinWait.SpinUntil(
+            () => HostRegistries.Data.TryResolve(bitPath, out var bit)
+                && string.Equals(bit?.Properties["title"].Value?.ToString(), "Ready", StringComparison.Ordinal),
+            TimeSpan.FromSeconds(5)));
+    }
+    finally
+    {
+        ReleaseUdlRuntimeManagerFolder(folderName);
+        HostRegistries.Data.Remove(bitPath);
+    }
+}
+
+static void UdlRuntimeManagerWritesExposedSetBitsWithoutWidget()
+{
+    const string folderName = "headless_exposure_set_writeback_folder";
+    const string clientId = "client_headless";
+    var setBitPath = $"studio.{folderName}.{clientId}.m001.set.bits.bit1";
+    var setPath = $"studio.{folderName}.{clientId}.m001.set";
+
+    HostRegistries.Data.Remove(setBitPath);
+    HostRegistries.Data.Remove(setPath);
+    ReleaseUdlRuntimeManagerFolder(folderName);
+
+    try
+    {
+        InvokeUdlRuntimeManagerSyncDefinitions(folderName,
+        [
+            CreateHeadlessUdlDefinition(
+                clientId,
+                attachedItemPaths: ["m001"],
+                moduleExposureDefinitions: UdlModuleExposureDefinitionCodec.SerializeDefinitions(
+                [
+                    new UdlModuleExposureDefinition
+                    {
+                        ModuleName = "m001",
+                        ChannelName = "set",
+                        ExposeBits = true,
+                        BitCount = 4
+                    }
+                ]))
+        ], forceRecreate: true);
+
+        AssertTrue(SpinWait.SpinUntil(
+            () => HostRegistries.Data.TryResolve(setBitPath, out var bit)
+                && bit is not null,
+            TimeSpan.FromSeconds(5)));
+
+        AssertTrue(HostRegistries.Data.TryResolve(setBitPath, out var existingBit));
+        var updatedBit = existingBit!.Clone();
+        updatedBit.Value = true;
+        HostRegistries.Data.UpsertSnapshot(setBitPath, updatedBit, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
+
+        AssertTrue(SpinWait.SpinUntil(
+            () => HostRegistries.Data.TryResolve(setPath, out var setItem)
+                && setItem is not null
+                && Convert.ToInt32(setItem.Properties["write"].Value ?? 0) == 2,
+            TimeSpan.FromSeconds(5)));
+    }
+    finally
+    {
+        ReleaseUdlRuntimeManagerFolder(folderName);
+        HostRegistries.Data.Remove(setBitPath);
+        HostRegistries.Data.Remove(setPath);
+    }
+}
+
+static void UdlRuntimeManagerUpdatesExposedSetBitsFromNumericMaskWithoutWidget()
+{
+    const string folderName = "headless_exposure_set_numeric_sync_folder";
+    const string clientId = "client_headless";
+    var setBitPath = $"studio.{folderName}.{clientId}.m001.set.bits.bit0";
+    var setPath = $"studio.{folderName}.{clientId}.m001.set";
+
+    HostRegistries.Data.Remove(setBitPath);
+    HostRegistries.Data.Remove(setPath);
+    ReleaseUdlRuntimeManagerFolder(folderName);
+
+    try
+    {
+        InvokeUdlRuntimeManagerSyncDefinitions(folderName,
+        [
+            CreateHeadlessUdlDefinition(
+                clientId,
+                attachedItemPaths: ["m001"],
+                moduleExposureDefinitions: UdlModuleExposureDefinitionCodec.SerializeDefinitions(
+                [
+                    new UdlModuleExposureDefinition
+                    {
+                        ModuleName = "m001",
+                        ChannelName = "set",
+                        ExposeBits = true,
+                        BitCount = 4
+                    }
+                ]))
+        ], forceRecreate: true);
+
+        if (!SpinWait.SpinUntil(
+                () => HostRegistries.Data.TryResolve(setBitPath, out var bit)
+                    && bit is not null,
+                TimeSpan.FromSeconds(5)))
+        {
+            throw new InvalidOperationException($"Expected bit projection '{setBitPath}' to exist.");
+        }
+
+        AssertTrue(HostRegistries.Data.TryResolve(setPath, out var existingSet));
+        var updatedSet = existingSet!.Clone();
+        updatedSet.Properties["write"].Value = 1d;
+        HostRegistries.Data.UpsertSnapshot(setPath, updatedSet, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
+
+        if (!SpinWait.SpinUntil(
+                () => HostRegistries.Data.TryResolve(setBitPath, out var bit)
+                    && bit?.Value is true,
+                TimeSpan.FromSeconds(5)))
+        {
+            HostRegistries.Data.TryResolve(setPath, out var currentSet);
+            HostRegistries.Data.TryResolve(setBitPath, out var currentBit);
+            var setWrite = currentSet?.Properties["write"].Value?.ToString() ?? "<missing>";
+            var setRead = currentSet?.Properties["read"].Value?.ToString() ?? "<missing>";
+            var bitValue = currentBit?.Value?.ToString() ?? "<missing>";
+            throw new InvalidOperationException(
+                $"Expected bit0 true after numeric write. SetWrite={setWrite} SetRead={setRead} BitValue={bitValue}");
+        }
+
+        updatedSet = updatedSet.Clone();
+        updatedSet.Properties["write"].Value = 0d;
+        HostRegistries.Data.UpsertSnapshot(setPath, updatedSet, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
+
+        if (!SpinWait.SpinUntil(
+                () => HostRegistries.Data.TryResolve(setBitPath, out var bit)
+                    && bit?.Value is false,
+                TimeSpan.FromSeconds(5)))
+        {
+            HostRegistries.Data.TryResolve(setPath, out var currentSet);
+            HostRegistries.Data.TryResolve(setBitPath, out var currentBit);
+            var setWrite = currentSet?.Properties["write"].Value?.ToString() ?? "<missing>";
+            var setRead = currentSet?.Properties["read"].Value?.ToString() ?? "<missing>";
+            var bitValue = currentBit?.Value?.ToString() ?? "<missing>";
+            throw new InvalidOperationException(
+                $"Expected bit0 false after numeric clear. SetWrite={setWrite} SetRead={setRead} BitValue={bitValue}");
+        }
+    }
+    finally
+    {
+        ReleaseUdlRuntimeManagerFolder(folderName);
+        HostRegistries.Data.Remove(setBitPath);
+        HostRegistries.Data.Remove(setPath);
+    }
+}
+
+static void UdlRuntimeManagerRoutesReadBitWritesToSetWithoutWidget()
+{
+    const string folderName = "headless_exposure_read_route_writeback_folder";
+    const string clientId = "client_headless";
+    var readBitPath = $"studio.{folderName}.{clientId}.m001.read.bits.bit1";
+    var setPath = $"studio.{folderName}.{clientId}.m001.set";
+
+    HostRegistries.Data.Remove(readBitPath);
+    HostRegistries.Data.Remove(setPath);
+    ReleaseUdlRuntimeManagerFolder(folderName);
+
+    try
+    {
+        InvokeUdlRuntimeManagerSyncDefinitions(folderName,
+        [
+            CreateHeadlessUdlDefinition(
+                clientId,
+                attachedItemPaths: ["m001"],
+                moduleExposureDefinitions: UdlModuleExposureDefinitionCodec.SerializeDefinitions(
+                [
+                    new UdlModuleExposureDefinition
+                    {
+                        ModuleName = "m001",
+                        ChannelName = "read",
+                        ExposeBits = true,
+                        BitCount = 4,
+                        RouteReadInputToSetRequest = true
+                    }
+                ]))
+        ], forceRecreate: true);
+
+        AssertTrue(SpinWait.SpinUntil(
+            () => HostRegistries.Data.TryResolve(readBitPath, out var bit)
+                && bit is not null,
+            TimeSpan.FromSeconds(5)));
+
+        AssertTrue(HostRegistries.Data.TryResolve(readBitPath, out var existingBit));
+        var updatedBit = existingBit!.Clone();
+        updatedBit.Value = true;
+        HostRegistries.Data.UpsertSnapshot(readBitPath, updatedBit, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
+
+        AssertTrue(SpinWait.SpinUntil(
+            () => HostRegistries.Data.TryResolve(setPath, out var setItem)
+                && setItem is not null
+                && Convert.ToInt32(setItem.Properties["write"].Value ?? 0) == 2,
+            TimeSpan.FromSeconds(5)));
+    }
+    finally
+    {
+        ReleaseUdlRuntimeManagerFolder(folderName);
+        HostRegistries.Data.Remove(readBitPath);
+        HostRegistries.Data.Remove(setPath);
+    }
+}
+
+static void UdlRuntimeManagerRoutedReadBitsFollowSetMaskWithoutWidget()
+{
+    const string folderName = "headless_exposure_read_route_numeric_sync_folder";
+    const string clientId = "client_headless";
+    var readBitPath = $"studio.{folderName}.{clientId}.m001.read.bits.bit0";
+    var setPath = $"studio.{folderName}.{clientId}.m001.set";
+
+    HostRegistries.Data.Remove(readBitPath);
+    HostRegistries.Data.Remove(setPath);
+    ReleaseUdlRuntimeManagerFolder(folderName);
+
+    try
+    {
+        InvokeUdlRuntimeManagerSyncDefinitions(folderName,
+        [
+            CreateHeadlessUdlDefinition(
+                clientId,
+                attachedItemPaths: ["m001"],
+                moduleExposureDefinitions: UdlModuleExposureDefinitionCodec.SerializeDefinitions(
+                [
+                    new UdlModuleExposureDefinition
+                    {
+                        ModuleName = "m001",
+                        ChannelName = "read",
+                        ExposeBits = true,
+                        BitCount = 4,
+                        RouteReadInputToSetRequest = true
+                    }
+                ]))
+        ], forceRecreate: true);
+
+        AssertTrue(SpinWait.SpinUntil(
+            () => HostRegistries.Data.TryResolve(readBitPath, out var bit)
+                && bit is not null,
+            TimeSpan.FromSeconds(5)));
+
+        AssertTrue(HostRegistries.Data.TryResolve(setPath, out var existingSet));
+        var updatedSet = existingSet!.Clone();
+        updatedSet.Properties["write"].Value = 1d;
+        HostRegistries.Data.UpsertSnapshot(setPath, updatedSet, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
+
+        AssertTrue(SpinWait.SpinUntil(
+            () => HostRegistries.Data.TryResolve(readBitPath, out var bit)
+                && bit?.Value is true,
+            TimeSpan.FromSeconds(5)));
+
+        updatedSet = updatedSet.Clone();
+        updatedSet.Properties["write"].Value = 0d;
+        HostRegistries.Data.UpsertSnapshot(setPath, updatedSet, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
+
+        AssertTrue(SpinWait.SpinUntil(
+            () => HostRegistries.Data.TryResolve(readBitPath, out var bit)
+                && bit?.Value is false,
+            TimeSpan.FromSeconds(5)));
+    }
+    finally
+    {
+        ReleaseUdlRuntimeManagerFolder(folderName);
+        HostRegistries.Data.Remove(readBitPath);
+        HostRegistries.Data.Remove(setPath);
+    }
+}
+
+static void UdlRuntimeManagerPublishesBitExposureParityAcrossChannelsWithoutWidget()
+{
+    const string folderName = "headless_exposure_parity_folder";
+    const string clientId = "client_headless";
+    var readBitPath = $"studio.{folderName}.{clientId}.m001.read.bits.bit3";
+    var setBitPath = $"studio.{folderName}.{clientId}.m001.set.bits.bit2";
+    var alertBitPath = $"studio.{folderName}.{clientId}.m001.alert.bits.bit1";
+    var missingAlertBitPath = $"studio.{folderName}.{clientId}.m001.alert.bits.bit2";
+
+    HostRegistries.Data.Remove(readBitPath);
+    HostRegistries.Data.Remove(setBitPath);
+    HostRegistries.Data.Remove(alertBitPath);
+    HostRegistries.Data.Remove(missingAlertBitPath);
+    ReleaseUdlRuntimeManagerFolder(folderName);
+
+    try
+    {
+        InvokeUdlRuntimeManagerSyncDefinitions(folderName,
+        [
+            CreateHeadlessUdlDefinition(
+                clientId,
+                attachedItemPaths: ["m001"],
+                moduleExposureDefinitions: UdlModuleExposureDefinitionCodec.SerializeDefinitions(
+                [
+                    new UdlModuleExposureDefinition
+                    {
+                        ModuleName = "m001",
+                        ChannelName = "read",
+                        ExposeBits = true,
+                        BitCount = 4,
+                        BitLabels = "Bit3=Read Flag"
+                    },
+                    new UdlModuleExposureDefinition
+                    {
+                        ModuleName = "m001",
+                        ChannelName = "set",
+                        ExposeBits = true,
+                        BitCount = 3,
+                        BitLabels = "Bit2=Set Flag"
+                    },
+                    new UdlModuleExposureDefinition
+                    {
+                        ModuleName = "m001",
+                        ChannelName = "alert",
+                        ExposeBits = true,
+                        BitCount = 2,
+                        BitLabels = "Bit1=Alert Flag"
+                    }
+                ]))
+        ], forceRecreate: true);
+
+        AssertTrue(SpinWait.SpinUntil(
+            () => HostRegistries.Data.TryResolve(readBitPath, out var readBit)
+                && string.Equals(readBit?.Properties["title"].Value?.ToString(), "Read Flag", StringComparison.Ordinal),
+            TimeSpan.FromSeconds(5)));
+        AssertTrue(SpinWait.SpinUntil(
+            () => HostRegistries.Data.TryResolve(setBitPath, out var setBit)
+                && string.Equals(setBit?.Properties["title"].Value?.ToString(), "Set Flag", StringComparison.Ordinal),
+            TimeSpan.FromSeconds(5)));
+        AssertTrue(SpinWait.SpinUntil(
+            () => HostRegistries.Data.TryResolve(alertBitPath, out var alertBit)
+                && string.Equals(alertBit?.Properties["title"].Value?.ToString(), "Alert Flag", StringComparison.Ordinal),
+            TimeSpan.FromSeconds(5)));
+        AssertFalse(HostRegistries.Data.TryResolve(missingAlertBitPath, out _));
+    }
+    finally
+    {
+        ReleaseUdlRuntimeManagerFolder(folderName);
+        HostRegistries.Data.Remove(readBitPath);
+        HostRegistries.Data.Remove(setBitPath);
+        HostRegistries.Data.Remove(alertBitPath);
+        HostRegistries.Data.Remove(missingAlertBitPath);
+    }
+}
+
+static void UdlRuntimeManagerRemovesAttachedProjectionAfterDetachUpdate()
+{
+    const string folderName = "headless_detach_folder";
+    const string clientId = "client_headless";
+    var attachedPath = $"studio.{folderName}.{clientId}.m001";
+
+    HostRegistries.Data.Remove(attachedPath);
+    ReleaseUdlRuntimeManagerFolder(folderName);
+
+    try
+    {
+        InvokeUdlRuntimeManagerSyncDefinitions(folderName,
+        [
+            CreateHeadlessUdlDefinition(clientId, attachedItemPaths: ["m001"])
+        ], forceRecreate: true);
+
+        AssertTrue(SpinWait.SpinUntil(
+            () => HostRegistries.Data.TryResolve(attachedPath, out _),
+            TimeSpan.FromSeconds(5)));
+
+        InvokeUdlRuntimeManagerSyncDefinitions(folderName,
+        [
+            CreateHeadlessUdlDefinition(clientId, attachedItemPaths: Array.Empty<string>())
+        ], forceRecreate: false);
+
+        AssertTrue(SpinWait.SpinUntil(
+            () => !HostRegistries.Data.TryResolve(attachedPath, out _),
+            TimeSpan.FromSeconds(5)));
+    }
+    finally
+    {
+        ReleaseUdlRuntimeManagerFolder(folderName);
+        HostRegistries.Data.Remove(attachedPath);
+    }
+}
+
+static void UdlRuntimeManagerKeepsRawItemsPrivateWithoutAttach()
+{
+    const string folderName = "headless_private_folder";
+    const string clientId = "client_headless";
+    var attachedPath = $"studio.{folderName}.{clientId}.m001";
+    var statusPath = $"studio.{folderName}.{clientId}.status.connection";
+
+    HostRegistries.Data.Remove(attachedPath);
+    ReleaseUdlRuntimeManagerFolder(folderName);
+
+    try
+    {
+        InvokeUdlRuntimeManagerSyncDefinitions(folderName,
+        [
+            CreateHeadlessUdlDefinition(clientId, attachedItemPaths: Array.Empty<string>())
+        ], forceRecreate: true);
+
+        AssertTrue(SpinWait.SpinUntil(
+            () => HostRegistries.Data.TryResolve(statusPath, out var connection)
+                && string.Equals(connection?.Value?.ToString(), "Connected", StringComparison.OrdinalIgnoreCase),
+            TimeSpan.FromSeconds(5)));
+        AssertFalse(HostRegistries.Data.TryResolve(attachedPath, out _));
+    }
+    finally
+    {
+        ReleaseUdlRuntimeManagerFolder(folderName);
+        HostRegistries.Data.Remove(attachedPath);
+    }
+}
+
+static void UdlRuntimeManagerReleaseClearsProjectionState()
+{
+    const string folderName = "headless_release_folder";
+    const string clientId = "client_headless";
+    var statusPath = $"studio.{folderName}.{clientId}.status.connection";
+    var attachedPath = $"studio.{folderName}.{clientId}.m001";
+
+    ReleaseUdlRuntimeManagerFolder(folderName);
+
+    try
+    {
+        InvokeUdlRuntimeManagerSyncDefinitions(folderName,
+        [
+            CreateHeadlessUdlDefinition(clientId, attachedItemPaths: ["m001"])
+        ], forceRecreate: true);
+
+        AssertTrue(SpinWait.SpinUntil(
+            () => HostRegistries.Data.TryResolve(statusPath, out _)
+                && HostRegistries.Data.TryResolve(attachedPath, out _),
+            TimeSpan.FromSeconds(5)));
+
+        ReleaseUdlRuntimeManagerFolder(folderName);
+
+        AssertFalse(HostRegistries.Data.TryResolve(statusPath, out _));
+        AssertFalse(HostRegistries.Data.TryResolve(attachedPath, out _));
+    }
+    finally
+    {
+        ReleaseUdlRuntimeManagerFolder(folderName);
+        HostRegistries.Data.Remove(statusPath);
+        HostRegistries.Data.Remove(attachedPath);
+    }
+}
+
+static void UdlRuntimeManagerReleaseFolderClearsConnectedRuntimes()
+{
+    var managerType = GetUdlRuntimeManagerType();
+    var connectMethod = managerType.GetMethod("ConnectAsync", BindingFlags.NonPublic | BindingFlags.Static)
+        ?? throw new InvalidOperationException("UdlClientRuntimeManager.ConnectAsync was not found.");
+    var releaseFolderMethod = managerType.GetMethod("ReleaseFolder", BindingFlags.NonPublic | BindingFlags.Static)
+        ?? throw new InvalidOperationException("UdlClientRuntimeManager.ReleaseFolder was not found.");
+    var tryGetRuntimeMethod = managerType.GetMethod("TryGetRuntime", BindingFlags.NonPublic | BindingFlags.Static)
+        ?? throw new InvalidOperationException("UdlClientRuntimeManager.TryGetRuntime was not found.");
+
+    foreach (var clientId in new[] { "client_demo_1", "client_demo_2" })
+    {
+        var definition = new UdlClientDefinition
+        {
+            ClientId = clientId,
+            Host = "127.0.0.1",
+            Port = 9001,
+            Enabled = true,
+            DemoEnabled = true
+        };
+
+        var connectTask = (Task?)connectMethod.Invoke(null, ["folder_release_demo", definition, CancellationToken.None])
+            ?? throw new InvalidOperationException("UdlClientRuntimeManager.ConnectAsync returned null.");
+        connectTask.GetAwaiter().GetResult();
+    }
+
+    releaseFolderMethod.Invoke(null, ["folder_release_demo"]);
+
+    foreach (var clientId in new[] { "client_demo_1", "client_demo_2" })
+    {
+        var tryGetArgs = new object?[] { "folder_release_demo", clientId, null };
+        var found = (bool)(tryGetRuntimeMethod.Invoke(null, tryGetArgs)
+            ?? throw new InvalidOperationException("UdlClientRuntimeManager.TryGetRuntime returned null."));
+        AssertFalse(found);
+    }
+}
+
+static string CreateTemporaryDirectory()
+{
+    var directory = Path.Combine(Path.GetTempPath(), "HornetStudioEditorTests", Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(directory);
+    return directory;
+}
+
+static string FindRepositoryRoot()
+{
+    var directory = new DirectoryInfo(AppContext.BaseDirectory);
+    while (directory is not null)
+    {
+        var solutionPath = Path.Combine(directory.FullName, "HornetStudio.sln");
+        if (File.Exists(solutionPath))
+        {
+            return directory.FullName;
+        }
+
+        directory = directory.Parent;
+    }
+
+    throw new InvalidOperationException("Could not locate repository root from the editor test host.");
+}
+
+static Type GetUdlRuntimeManagerType()
+{
+    return typeof(UdlClientControl).Assembly.GetType("HornetStudio.Editor.UdlClients.UdlClientRuntimeManager")
+        ?? throw new InvalidOperationException("UdlClientRuntimeManager type was not found.");
+}
+
+static void InvokeUdlRuntimeManagerSyncDefinitions(string folderName, IReadOnlyList<UdlClientDefinition> definitions, bool forceRecreate)
+{
+    var syncMethod = GetUdlRuntimeManagerType().GetMethod("SyncDefinitions", BindingFlags.NonPublic | BindingFlags.Static)
+        ?? throw new InvalidOperationException("UdlClientRuntimeManager.SyncDefinitions was not found.");
+
+    syncMethod.Invoke(null, [folderName, definitions, forceRecreate]);
+}
+
+static bool InvokeUdlRuntimeManagerTryGetRuntime(string folderName, string clientId)
+{
+    var tryGetRuntimeMethod = GetUdlRuntimeManagerType().GetMethod("TryGetRuntime", BindingFlags.NonPublic | BindingFlags.Static)
+        ?? throw new InvalidOperationException("UdlClientRuntimeManager.TryGetRuntime was not found.");
+
+    var tryGetArgs = new object?[] { folderName, clientId, null };
+    return (bool)(tryGetRuntimeMethod.Invoke(null, tryGetArgs)
+        ?? throw new InvalidOperationException("UdlClientRuntimeManager.TryGetRuntime returned null."));
+}
+
+static void ReleaseUdlRuntimeManagerFolder(string folderName)
+{
+    var releaseFolderMethod = GetUdlRuntimeManagerType().GetMethod("ReleaseFolder", BindingFlags.NonPublic | BindingFlags.Static)
+        ?? throw new InvalidOperationException("UdlClientRuntimeManager.ReleaseFolder was not found.");
+
+    releaseFolderMethod.Invoke(null, [folderName]);
+}
+
+static UdlClientDefinition CreateHeadlessUdlDefinition(string clientId, IReadOnlyList<string> attachedItemPaths, string? moduleExposureDefinitions = null)
+{
+    return new UdlClientDefinition
+    {
+        ClientId = clientId,
+        Host = "127.0.0.1",
+        Port = 9001,
+        AutoConnect = true,
+        Enabled = true,
+        DemoEnabled = true,
+        AttachedItemPaths = attachedItemPaths,
+        UdlModuleExposureDefinitions = moduleExposureDefinitions ?? string.Empty,
+        DemoModuleDefinitions = UdlDemoModuleDefinitionCodec.SerializeDefinitions(
+        [
+            new UdlDemoModuleDefinition
+            {
+                Name = "m001",
+                Kind = UdlDemoModuleKind.SetDriven,
+                InitialValue = 0
+            }
+        ])
+    };
+}
+
 static EditorDialogField CreateInteractionRuleField()
 {
     var definition = new EditorDialogBindingDefinition(
@@ -6147,6 +10012,121 @@ static string? GetPrivateConstString(Type type, string fieldName)
     }
 
     return field.GetRawConstantValue()?.ToString();
+}
+
+static void SetUiDiagnosticsEnabledForTest(bool enabled)
+{
+    var field = typeof(UiResponsivenessDiagnostics).GetField("_isEnabled", BindingFlags.NonPublic | BindingFlags.Static);
+    if (field is null)
+    {
+        throw new InvalidOperationException("UiResponsivenessDiagnostics._isEnabled was not found.");
+    }
+
+    field.SetValue(null, enabled ? 1 : 0);
+}
+
+static void ResetUiDiagnosticsBacklogCounters()
+{
+    foreach (var fieldName in new[]
+    {
+        "_activeTargetRefreshQueuedCount",
+        "_activeTargetRefreshFollowUpCount",
+        "_activeTargetValueRefreshQueuedCount",
+        "_activeUnresolvedSignalTargetCount"
+    })
+    {
+        var field = typeof(UiResponsivenessDiagnostics).GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Static);
+        if (field is null)
+        {
+            throw new InvalidOperationException($"UiResponsivenessDiagnostics.{fieldName} was not found.");
+        }
+
+        field.SetValue(null, 0);
+    }
+}
+
+static object CaptureUiDiagnosticsBacklogSnapshot()
+{
+    var method = typeof(UiResponsivenessDiagnostics).GetMethod(
+        "CaptureSignalRefreshBacklogSnapshot",
+        BindingFlags.NonPublic | BindingFlags.Static);
+    if (method is null)
+    {
+        throw new InvalidOperationException("CaptureSignalRefreshBacklogSnapshot was not found.");
+    }
+
+    return method.Invoke(null, null)
+        ?? throw new InvalidOperationException("CaptureSignalRefreshBacklogSnapshot returned null.");
+}
+
+static object CreateUiDiagnosticsBacklogSnapshot(
+    int targetRefreshQueued,
+    int targetRefreshFollowUpQueued,
+    int targetValueRefreshQueued,
+    int unresolvedTargetGateCount)
+{
+    var type = GetUiDiagnosticsNestedType("SignalRefreshBacklogSnapshot");
+    var constructor = type.GetConstructor(
+        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+        binder: null,
+        types: [typeof(int), typeof(int), typeof(int), typeof(int)],
+        modifiers: null);
+    if (constructor is null)
+    {
+        throw new InvalidOperationException("SignalRefreshBacklogSnapshot constructor was not found.");
+    }
+
+    return constructor.Invoke([targetRefreshQueued, targetRefreshFollowUpQueued, targetValueRefreshQueued, unresolvedTargetGateCount]);
+}
+
+static object CreateUiBenchmarkSession(string scenario, TimeSpan configuredDuration, TimeSpan warmupDuration)
+{
+    var type = GetUiDiagnosticsNestedType("UiBenchmarkSession");
+    var constructor = type.GetConstructor(
+        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+        binder: null,
+        types: [typeof(string), typeof(TimeSpan), typeof(TimeSpan)],
+        modifiers: null);
+    if (constructor is null)
+    {
+        throw new InvalidOperationException("UiBenchmarkSession constructor was not found.");
+    }
+
+    return constructor.Invoke([scenario, configuredDuration, warmupDuration]);
+}
+
+static object? InvokeUiBenchmarkSessionMethod(object session, string methodName, params object?[]? args)
+{
+    var method = session.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+    if (method is null)
+    {
+        throw new InvalidOperationException($"UiBenchmarkSession.{methodName} was not found.");
+    }
+
+    return method.Invoke(session, args);
+}
+
+static Type GetUiDiagnosticsNestedType(string name)
+{
+    return typeof(UiResponsivenessDiagnostics).GetNestedType(name, BindingFlags.NonPublic)
+        ?? throw new InvalidOperationException($"UiResponsivenessDiagnostics nested type '{name}' was not found.");
+}
+
+static T GetInstanceProperty<T>(object instance, string propertyName)
+{
+    var property = instance.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+    if (property is null)
+    {
+        throw new InvalidOperationException($"Property '{propertyName}' was not found on '{instance.GetType().Name}'.");
+    }
+
+    var value = property.GetValue(instance);
+    if (value is null)
+    {
+        throw new InvalidOperationException($"Property '{propertyName}' returned null.");
+    }
+
+    return (T)value;
 }
 
 static bool ContainsTreePath(IEnumerable<HornetStudio.ViewModels.ItemTreeNodeViewModel> nodes, string path)

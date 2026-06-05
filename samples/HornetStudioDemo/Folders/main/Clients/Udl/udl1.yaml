@@ -1,0 +1,47 @@
+Text: Udl1
+Host: 127.0.0.1
+Port: 9001
+AutoConnect: true
+DebugLogging: false
+Enabled: true
+DemoEnabled: true
+AttachedItemPaths:
+  - m001
+DemoModules:
+  - Name: m001
+    Kind: SetDriven
+    Generator: Sine
+    Unit: ''
+    Format: ''
+    BaseValue: 0
+    Amplitude: 1
+    PeriodSeconds: 5
+    InitialValue: 0
+    SetScale: 1
+    SetOffset: 0
+    SetTauSeconds: 10
+    Faults:
+      - Kind: Noise
+        Enabled: true
+        Amount: 0.5
+        PeakAmount: 0
+        UseJitter: true
+        UseSine: false
+        UsePeak: false
+        NoiseMode: Jitter
+        PeriodSeconds: 2
+        UpdateIntervalMs: 250
+        IntervalSeconds: 5
+        DurationMs: 1000
+      - Kind: Freeze
+        Enabled: false
+        Amount: 0
+        PeakAmount: 0
+        UseJitter: true
+        UseSine: false
+        UsePeak: false
+        NoiseMode: Jitter
+        PeriodSeconds: 2
+        UpdateIntervalMs: 250
+        IntervalSeconds: 5
+        DurationMs: 1000

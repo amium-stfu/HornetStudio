@@ -1,5 +1,6 @@
 <Window
     x:Class="HornetStudio.Editor.Widgets.UdlModuleExposureDialogWindow"
+  x:CompileBindings="False"
     x:Name="Root"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -58,7 +59,7 @@
                        Background="{Binding EditorBackground}"
                        BorderBrush="{Binding BorderColor}">
                 <ListBox.ItemTemplate>
-                  <DataTemplate DataType="viewModels:UdlModuleExposureEditorRow">
+                  <DataTemplate>
                     <Border Padding="8" Margin="0,0,0,6" CornerRadius="6" Background="Transparent">
                       <StackPanel Spacing="2">
                         <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="{Binding DataContext.PrimaryTextBrush, ElementName=Root}" Text="{Binding DisplayName}" />
@@ -162,33 +163,10 @@
                   CornerRadius="12"
                   Padding="14">
             <StackPanel Spacing="10">
-              <TextBlock FontSize="15" FontWeight="SemiBold" Foreground="{Binding PrimaryTextBrush}" Text="Main" />
-              <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto">
-                <TextBlock VerticalAlignment="Center" Foreground="{Binding PrimaryTextBrush}" Text="Module" />
-                <TextBox Grid.Column="1" Margin="10,0,0,0" IsReadOnly="True" Background="{Binding EditorBackground}" BorderBrush="{Binding BorderColor}" Foreground="{Binding EditorForeground}" Text="{Binding ModuleCard.ModuleName}" />
-
-                <TextBlock Grid.Row="1" Margin="0,8,0,0" VerticalAlignment="Center" Foreground="{Binding PrimaryTextBrush}" Text="Type" />
-                <TextBox Grid.Row="1" Grid.Column="1" Margin="10,8,0,0" IsReadOnly="True" Background="{Binding EditorBackground}" BorderBrush="{Binding BorderColor}" Foreground="{Binding EditorForeground}" Text="{Binding ModuleCard.Type}" />
-
-                <TextBlock Grid.Row="2" Margin="0,8,0,0" VerticalAlignment="Center" Foreground="{Binding PrimaryTextBrush}" Text="S/N" />
-                <TextBox Grid.Row="2" Grid.Column="1" Margin="10,8,0,0" IsReadOnly="True" Background="{Binding EditorBackground}" BorderBrush="{Binding BorderColor}" Foreground="{Binding EditorForeground}" Text="{Binding ModuleCard.SerialNumber}" />
-
-                <TextBlock Grid.Row="3" Margin="0,8,0,0" VerticalAlignment="Center" Foreground="{Binding PrimaryTextBrush}" Text="Version" />
-                <TextBox Grid.Row="3" Grid.Column="1" Margin="10,8,0,0" IsReadOnly="True" Background="{Binding EditorBackground}" BorderBrush="{Binding BorderColor}" Foreground="{Binding EditorForeground}" Text="{Binding ModuleCard.Version}" />
-              </Grid>
-            </StackPanel>
-          </Border>
-
-          <Border Background="{Binding SectionBackground}"
-                  BorderBrush="{Binding BorderColor}"
-                  BorderThickness="1"
-                  CornerRadius="12"
-                  Padding="14">
-            <StackPanel Spacing="10">
               <TextBlock FontSize="15" FontWeight="SemiBold" Foreground="{Binding PrimaryTextBrush}" Text="Bitmask" />
               <ItemsControl ItemsSource="{Binding BitmaskRows}">
                 <ItemsControl.ItemTemplate>
-                  <DataTemplate DataType="viewModels:UdlModuleExposureBitmaskRow">
+                  <DataTemplate>
                     <Grid ColumnDefinitions="160,110,60" Margin="0,4,0,0">
                       <TextBlock VerticalAlignment="Center" Foreground="{Binding DataContext.PrimaryTextBrush, ElementName=Root}" Text="{Binding Label}" />
                       <CheckBox Grid.Column="1"
@@ -214,91 +192,10 @@
                 <TextBlock VerticalAlignment="Center" Foreground="{Binding PrimaryTextBrush}" Text="Read helper bits route to Set" />
                 <CheckBox Grid.Column="1"
                           Content="True/False"
-                          IsChecked="{Binding ReadInputRouteToSetRequest}"
+                          IsChecked="{Binding ReadInputRouteToSetRequest, Mode=TwoWay}"
                           VerticalAlignment="Center" />
               </Grid>
 
-            </StackPanel>
-          </Border>
-
-          <Border Background="{Binding SectionBackground}"
-                  BorderBrush="{Binding BorderColor}"
-                  BorderThickness="1"
-                  CornerRadius="12"
-                  Padding="14">
-            <StackPanel Spacing="10">
-              <TextBlock FontSize="15" FontWeight="SemiBold" Foreground="{Binding PrimaryTextBrush}" Text="Settings" />
-              <Grid ColumnDefinitions="120,*,*" RowDefinitions="Auto,*">
-                <Border Grid.RowSpan="2" Background="Transparent" />
-                <TextBlock Grid.Column="1" HorizontalAlignment="Center" Foreground="{Binding SecondaryTextBrush}" Text="Value" />
-                <TextBlock Grid.Column="2" HorizontalAlignment="Center" Foreground="{Binding SecondaryTextBrush}" Text="Info" />
-
-                <ItemsControl Grid.Row="1" Grid.ColumnSpan="3" ItemsSource="{Binding SettingsRows}">
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate DataType="viewModels:UdlModuleExposurePreparedFieldRow">
-                      <Grid ColumnDefinitions="120,*,*" Margin="0,4,0,0">
-                        <TextBlock VerticalAlignment="Center" Foreground="{Binding DataContext.PrimaryTextBrush, ElementName=Root}" Text="{Binding Label}" />
-                        <TextBox Grid.Column="1"
-                                 Margin="10,0,10,0"
-                                 IsReadOnly="True"
-                                 Background="{Binding DataContext.EditorBackground, ElementName=Root}"
-                                 BorderBrush="{Binding DataContext.BorderColor, ElementName=Root}"
-                                 Foreground="{Binding DataContext.EditorForeground, ElementName=Root}"
-                                 Text="{Binding ValuePlaceholder}" />
-                        <TextBox Grid.Column="2"
-                                 IsReadOnly="True"
-                                 Background="{Binding DataContext.EditorBackground, ElementName=Root}"
-                                 BorderBrush="{Binding DataContext.BorderColor, ElementName=Root}"
-                                 Foreground="{Binding DataContext.EditorForeground, ElementName=Root}"
-                                 Text="{Binding InfoPlaceholder}" />
-                      </Grid>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
-              </Grid>
-            </StackPanel>
-          </Border>
-
-          <Border Background="{Binding SectionBackground}"
-                  BorderBrush="{Binding BorderColor}"
-                  BorderThickness="1"
-                  CornerRadius="12"
-                  Padding="14">
-            <StackPanel Spacing="10">
-              <TextBlock FontSize="15" FontWeight="SemiBold" Foreground="{Binding PrimaryTextBrush}" Text="Adjust" />
-              <Grid ColumnDefinitions="120,*,*" RowDefinitions="Auto,*">
-                <Border Grid.RowSpan="2" Background="Transparent" />
-                <TextBlock Grid.Column="1" HorizontalAlignment="Center" Foreground="{Binding SecondaryTextBrush}" Text="X" />
-                <TextBlock Grid.Column="2" HorizontalAlignment="Center" Foreground="{Binding SecondaryTextBrush}" Text="Y" />
-
-                <ItemsControl Grid.Row="1" Grid.ColumnSpan="3" ItemsSource="{Binding AdjustRows}">
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate DataType="viewModels:UdlModuleExposureAdjustRow">
-                      <Grid ColumnDefinitions="120,*,*" Margin="0,4,0,0">
-                        <TextBlock VerticalAlignment="Center" Foreground="{Binding DataContext.PrimaryTextBrush, ElementName=Root}" Text="{Binding Label}" />
-                        <TextBox Grid.Column="1"
-                                 Margin="10,0,10,0"
-                                 IsReadOnly="True"
-                                 Background="{Binding DataContext.EditorBackground, ElementName=Root}"
-                                 BorderBrush="{Binding DataContext.BorderColor, ElementName=Root}"
-                                 Foreground="{Binding DataContext.EditorForeground, ElementName=Root}"
-                                 Text="{Binding XPlaceholder}" />
-                        <TextBox Grid.Column="2"
-                                 IsReadOnly="True"
-                                 Background="{Binding DataContext.EditorBackground, ElementName=Root}"
-                                 BorderBrush="{Binding DataContext.BorderColor, ElementName=Root}"
-                                 Foreground="{Binding DataContext.EditorForeground, ElementName=Root}"
-                                 Text="{Binding YPlaceholder}" />
-                      </Grid>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
-              </Grid>
-
-              <Button Classes="dialog-button"
-                      HorizontalAlignment="Right"
-                      Content="Add Point"
-                      IsEnabled="False" />
             </StackPanel>
           </Border>
 

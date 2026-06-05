@@ -1419,8 +1419,35 @@ public sealed class EnhancedSignalEditorDialogViewModel : ObservableObject
     private string GenerateNextSignalName()
     {
         var existingNames = ExtendedSignalDefinitionCodec.ParseDefinitions(_ownerItem.EnhancedSignalDefinitions)
-            .Select(static definition => definition.Name);
+            .Select(static definition => definition.Name)
+            .Concat(LoadFileBasedDefinitionNames());
         return TargetPathHelper.GenerateIndexedPathIdentityName("enhanced_signal", existingNames, "enhanced_signal");
+    }
+
+    private IEnumerable<string> LoadFileBasedDefinitionNames()
+    {
+        if (string.IsNullOrWhiteSpace(_ownerItem.FolderLayoutPath))
+        {
+            return Array.Empty<string>();
+        }
+
+        var folderDirectory = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(_ownerItem.FolderLayoutPath));
+        if (string.IsNullOrWhiteSpace(folderDirectory) || !System.IO.Directory.Exists(folderDirectory))
+        {
+            return Array.Empty<string>();
+        }
+
+        try
+        {
+            return new EnhancedSignalDefinitionFileCodec()
+                .LoadFolder(folderDirectory, _ownerItem.FolderName)
+                .Select(entry => entry.Definition.Name)
+                .ToArray();
+        }
+        catch
+        {
+            return Array.Empty<string>();
+        }
     }
 
     public bool TryCreateCurveEditorState(out AdjustmentCurveEditorState? state, out string errorMessage)

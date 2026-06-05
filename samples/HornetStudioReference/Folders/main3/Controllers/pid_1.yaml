@@ -1,0 +1,13 @@
+name: pid_1
+enabled: true
+sourcePath: enhanced_signals.enhanced_signal_1.read
+setpointPath: ''
+outputPath: udl_client_control_1.m001.set
+pid:
+  ks: 1
+  tu: 1
+  tg: 1
+  setMax: 100
+  outMax: 100
+  computeIntervalMs: 100
+  outputIntervalMs: 100

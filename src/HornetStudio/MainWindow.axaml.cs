@@ -29,6 +29,12 @@ public partial class MainWindow : Window
     private TextBox? _keyboardTarget;
     private Action? _keyboardApplyAction;
     private Action? _keyboardCancelAction;
+    private FunctionBrowserDialogWindow? _functionBrowserDialogWindow;
+    private EnhancedSignalsBrowserDialogWindow? _enhancedSignalsBrowserDialogWindow;
+    private CustomSignalsBrowserDialogWindow? _customSignalsBrowserDialogWindow;
+    private ControllersBrowserDialogWindow? _controllersBrowserDialogWindow;
+    private MonitorBrowserDialogWindow? _monitorBrowserDialogWindow;
+    private ClientsBrowserDialogWindow? _udlClientsBrowserDialogWindow;
     private MainWindowViewModel? _boundViewModel;
     private Point? _legendDragStartPoint;
     private FolderModel? _legendDragSourceFolder;
@@ -314,6 +320,192 @@ public partial class MainWindow : Window
         }
 
         viewModel.CloseDialogOverlay(overlay);
+    }
+
+    private void OnOpenFunctionBrowserClicked(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel)
+        {
+            return;
+        }
+
+        var folder = viewModel.SelectedFolder;
+        if (_functionBrowserDialogWindow is not null)
+        {
+            _functionBrowserDialogWindow.UpdateFolderContext(folder);
+            _functionBrowserDialogWindow.Activate();
+            e.Handled = true;
+            return;
+        }
+
+        _functionBrowserDialogWindow = FunctionBrowserDialogWindow.ShowOrActivate(this, viewModel, folder);
+        _functionBrowserDialogWindow.Closed -= OnFunctionBrowserDialogWindowClosed;
+        _functionBrowserDialogWindow.Closed += OnFunctionBrowserDialogWindowClosed;
+        e.Handled = true;
+    }
+
+    private void OnOpenEnhancedSignalsBrowserClicked(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel)
+        {
+            return;
+        }
+
+        var folder = viewModel.SelectedFolder;
+        if (_enhancedSignalsBrowserDialogWindow is not null)
+        {
+            _enhancedSignalsBrowserDialogWindow.UpdateFolderContext(folder);
+            _enhancedSignalsBrowserDialogWindow.Activate();
+            e.Handled = true;
+            return;
+        }
+
+        _enhancedSignalsBrowserDialogWindow = EnhancedSignalsBrowserDialogWindow.ShowOrActivate(this, viewModel, folder);
+        _enhancedSignalsBrowserDialogWindow.Closed -= OnEnhancedSignalsBrowserDialogWindowClosed;
+        _enhancedSignalsBrowserDialogWindow.Closed += OnEnhancedSignalsBrowserDialogWindowClosed;
+        e.Handled = true;
+    }
+
+    private void OnOpenCustomSignalsBrowserClicked(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel)
+        {
+            return;
+        }
+
+        var folder = viewModel.SelectedFolder;
+        if (_customSignalsBrowserDialogWindow is not null)
+        {
+            _customSignalsBrowserDialogWindow.UpdateFolderContext(folder);
+            _customSignalsBrowserDialogWindow.Activate();
+            e.Handled = true;
+            return;
+        }
+
+        _customSignalsBrowserDialogWindow = CustomSignalsBrowserDialogWindow.ShowOrActivate(this, viewModel, folder);
+        _customSignalsBrowserDialogWindow.Closed -= OnCustomSignalsBrowserDialogWindowClosed;
+        _customSignalsBrowserDialogWindow.Closed += OnCustomSignalsBrowserDialogWindowClosed;
+        e.Handled = true;
+    }
+
+    private void OnOpenControllersBrowserClicked(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel)
+        {
+            return;
+        }
+
+        var folder = viewModel.SelectedFolder;
+        if (_controllersBrowserDialogWindow is not null)
+        {
+            _controllersBrowserDialogWindow.UpdateFolderContext(folder);
+            _controllersBrowserDialogWindow.Activate();
+            e.Handled = true;
+            return;
+        }
+
+        _controllersBrowserDialogWindow = ControllersBrowserDialogWindow.ShowOrActivate(this, viewModel, folder);
+        _controllersBrowserDialogWindow.Closed -= OnControllersBrowserDialogWindowClosed;
+        _controllersBrowserDialogWindow.Closed += OnControllersBrowserDialogWindowClosed;
+        e.Handled = true;
+    }
+
+    private void OnOpenMonitorBrowserClicked(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel)
+        {
+            return;
+        }
+
+        var folder = viewModel.SelectedFolder;
+        if (_monitorBrowserDialogWindow is not null)
+        {
+            _monitorBrowserDialogWindow.UpdateFolderContext(folder);
+            _monitorBrowserDialogWindow.Activate();
+            e.Handled = true;
+            return;
+        }
+
+        _monitorBrowserDialogWindow = MonitorBrowserDialogWindow.ShowOrActivate(this, viewModel, folder);
+        _monitorBrowserDialogWindow.Closed -= OnMonitorBrowserDialogWindowClosed;
+        _monitorBrowserDialogWindow.Closed += OnMonitorBrowserDialogWindowClosed;
+        e.Handled = true;
+    }
+
+    private void OnOpenUdlClientsBrowserClicked(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel)
+        {
+            return;
+        }
+
+        var folder = viewModel.SelectedFolder;
+        if (_udlClientsBrowserDialogWindow is not null)
+        {
+            _udlClientsBrowserDialogWindow.UpdateFolderContext(folder);
+            _udlClientsBrowserDialogWindow.Activate();
+            e.Handled = true;
+            return;
+        }
+
+        _udlClientsBrowserDialogWindow = ClientsBrowserDialogWindow.ShowOrActivate(this, viewModel, folder);
+        _udlClientsBrowserDialogWindow.Closed -= OnUdlClientsBrowserDialogWindowClosed;
+        _udlClientsBrowserDialogWindow.Closed += OnUdlClientsBrowserDialogWindowClosed;
+        e.Handled = true;
+    }
+
+    private void OnFunctionBrowserDialogWindowClosed(object? sender, EventArgs e)
+    {
+        if (_functionBrowserDialogWindow is not null)
+        {
+            _functionBrowserDialogWindow.Closed -= OnFunctionBrowserDialogWindowClosed;
+            _functionBrowserDialogWindow = null;
+        }
+    }
+
+    private void OnEnhancedSignalsBrowserDialogWindowClosed(object? sender, EventArgs e)
+    {
+        if (_enhancedSignalsBrowserDialogWindow is not null)
+        {
+            _enhancedSignalsBrowserDialogWindow.Closed -= OnEnhancedSignalsBrowserDialogWindowClosed;
+            _enhancedSignalsBrowserDialogWindow = null;
+        }
+    }
+
+    private void OnCustomSignalsBrowserDialogWindowClosed(object? sender, EventArgs e)
+    {
+        if (_customSignalsBrowserDialogWindow is not null)
+        {
+            _customSignalsBrowserDialogWindow.Closed -= OnCustomSignalsBrowserDialogWindowClosed;
+            _customSignalsBrowserDialogWindow = null;
+        }
+    }
+
+    private void OnControllersBrowserDialogWindowClosed(object? sender, EventArgs e)
+    {
+        if (_controllersBrowserDialogWindow is not null)
+        {
+            _controllersBrowserDialogWindow.Closed -= OnControllersBrowserDialogWindowClosed;
+            _controllersBrowserDialogWindow = null;
+        }
+    }
+
+    private void OnMonitorBrowserDialogWindowClosed(object? sender, EventArgs e)
+    {
+        if (_monitorBrowserDialogWindow is not null)
+        {
+            _monitorBrowserDialogWindow.Closed -= OnMonitorBrowserDialogWindowClosed;
+            _monitorBrowserDialogWindow = null;
+        }
+    }
+
+    private void OnUdlClientsBrowserDialogWindowClosed(object? sender, EventArgs e)
+    {
+        if (_udlClientsBrowserDialogWindow is not null)
+        {
+            _udlClientsBrowserDialogWindow.Closed -= OnUdlClientsBrowserDialogWindowClosed;
+            _udlClientsBrowserDialogWindow = null;
+        }
     }
 
     private void OnLegendItemPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -1268,6 +1460,27 @@ public partial class MainWindow : Window
     {
         try
         {
+            if (_functionBrowserDialogWindow is not null)
+            {
+                _functionBrowserDialogWindow.Closed -= OnFunctionBrowserDialogWindowClosed;
+                _functionBrowserDialogWindow.Close();
+                _functionBrowserDialogWindow = null;
+            }
+
+            if (_monitorBrowserDialogWindow is not null)
+            {
+                _monitorBrowserDialogWindow.Closed -= OnMonitorBrowserDialogWindowClosed;
+                _monitorBrowserDialogWindow.Close();
+                _monitorBrowserDialogWindow = null;
+            }
+
+            if (_udlClientsBrowserDialogWindow is not null)
+            {
+                _udlClientsBrowserDialogWindow.Closed -= OnUdlClientsBrowserDialogWindowClosed;
+                _udlClientsBrowserDialogWindow.Close();
+                _udlClientsBrowserDialogWindow = null;
+            }
+
             HornetStudio.Editor.Widgets.ApplicationExplorerRuntime.StopAllEnvironments();
             HornetStudio.Host.HostShutdownManager.ShutdownApplication("MainWindow closing");
             HornetStudio.Host.HostShutdownManager.StopAllRuntimeScopes("MainWindow closing");

@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using HornetStudio.Editor.Monitoring;
 
 namespace HornetStudio.Editor.Widgets;
 
@@ -10,6 +11,7 @@ public static class EditorInputDialogs
 {
     public static async Task<string?> EditTextAsync(Window owner, string header, string subHeader, string? initialValue = null)
     {
+        using var diagnosticsScope = UiResponsivenessDiagnostics.TrackDialogOpen(owner, nameof(TextInputDialogWindow));
         var dialog = new TextInputDialogWindow();
         dialog.Initialize(owner.DataContext as HornetStudio.Editor.ViewModels.MainWindowViewModel, header, subHeader, initialValue);
         await dialog.ShowDialog(owner);
@@ -18,6 +20,7 @@ public static class EditorInputDialogs
 
     public static async Task<string?> EditTextAsync(Window owner, string header, string subHeader, string? initialValue, bool isPassword)
     {
+        using var diagnosticsScope = UiResponsivenessDiagnostics.TrackDialogOpen(owner, nameof(TextInputDialogWindow));
         var dialog = new TextInputDialogWindow();
         dialog.Initialize(owner.DataContext as HornetStudio.Editor.ViewModels.MainWindowViewModel, header, subHeader, initialValue, isPassword);
         await dialog.ShowDialog(owner);
@@ -26,6 +29,7 @@ public static class EditorInputDialogs
 
     public static async Task<double?> EditNumericAsync(Window owner, string header, string subHeader, string format = "0.##", double? initialValue = null)
     {
+        using var diagnosticsScope = UiResponsivenessDiagnostics.TrackDialogOpen(owner, nameof(NumericInputDialogWindow));
         var dialog = new NumericInputDialogWindow();
         dialog.DataContext = owner.DataContext;
         dialog.Initialize(header, subHeader, initialValue?.ToString(format, System.Globalization.CultureInfo.InvariantCulture), format);
@@ -35,6 +39,7 @@ public static class EditorInputDialogs
 
     public static async Task<double?> EditNumericAsync(Window owner, string header, string subHeader, string format, double? initialValue, bool maskInput)
     {
+        using var diagnosticsScope = UiResponsivenessDiagnostics.TrackDialogOpen(owner, nameof(NumericInputDialogWindow));
         var dialog = new NumericInputDialogWindow();
         dialog.DataContext = owner.DataContext;
         dialog.Initialize(header, subHeader, initialValue?.ToString(format, System.Globalization.CultureInfo.InvariantCulture), format, maskInput);
@@ -44,6 +49,7 @@ public static class EditorInputDialogs
 
     public static async Task<ulong?> EditHexAsync(Window owner, string header, string subHeader, int digits = 8, ulong? initialValue = null)
     {
+        using var diagnosticsScope = UiResponsivenessDiagnostics.TrackDialogOpen(owner, nameof(HexInputDialogWindow));
         var dialog = new HexInputDialogWindow();
         dialog.DataContext = owner.DataContext;
         dialog.Initialize(header, subHeader, initialValue, digits);
@@ -53,6 +59,7 @@ public static class EditorInputDialogs
 
     public static async Task<bool> ConfirmAsync(Window owner, string header, string subHeader, string confirmText = "OK", string cancelText = "Cancel")
     {
+        using var diagnosticsScope = UiResponsivenessDiagnostics.TrackDialogOpen(owner, "ConfirmDialogWindow");
         var result = false;
 
         var confirmButton = new Button

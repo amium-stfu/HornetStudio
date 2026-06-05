@@ -16,6 +16,7 @@ namespace HornetStudio.Editor.Widgets;
 public partial class UdlModuleExposureDialogWindow : Window
 {
     private static readonly IReadOnlyList<string> ParameterFormatOptions = ["Text", "Numeric", "Hex", "bool", "EpochToDatetime", "b4", "b8", "b16"];
+    private static readonly IReadOnlyList<string> ModuleScopedFallbackBitmaskChannels = ["read", "set", "alert"];
     private readonly EditorDialogField? _field;
     private readonly DialogViewModel _viewModel;
 
@@ -248,7 +249,7 @@ public partial class UdlModuleExposureDialogWindow : Window
             IsModuleScopedView = !string.IsNullOrWhiteSpace(moduleName);
             IsGenericChannelView = !IsModuleScopedView;
 
-            Rows = new ObservableCollection<UdlModuleExposureEditorRow>(BuildRows(definitions, runtimeChannels));
+            Rows = new ObservableCollection<UdlModuleExposureEditorRow>(BuildRows(definitions, runtimeChannels, moduleName));
             SelectedRow = Rows.FirstOrDefault();
             ModuleCard = BuildModuleCard(moduleName, Rows);
             BitmaskRows = new ObservableCollection<UdlModuleExposureBitmaskRow>(BuildBitmaskRows(Rows));
@@ -363,9 +364,11 @@ public partial class UdlModuleExposureDialogWindow : Window
 
         private static IReadOnlyList<UdlModuleExposureEditorRow> BuildRows(
             IReadOnlyList<UdlModuleExposureDefinition> definitions,
-            IReadOnlyList<UdlRuntimeModuleChannelDescriptor> runtimeChannels)
+            IReadOnlyList<UdlRuntimeModuleChannelDescriptor> runtimeChannels,
+            string? moduleName)
         {
             var rows = new Dictionary<string, UdlModuleExposureEditorRow>(System.StringComparer.OrdinalIgnoreCase);
+            var effectiveModuleName = moduleName?.Trim() ?? string.Empty;
 
             foreach (var runtime in runtimeChannels)
             {
@@ -376,7 +379,9 @@ public partial class UdlModuleExposureDialogWindow : Window
                     unit: runtime.Unit,
                     bitCount: runtime.BitCount,
                     exposeBits: false,
-                    bitLabels: string.Empty);
+                    bitLabels: string.Empty,
+                    suggestedBitCount: GetSuggestedBitCount(runtime.ChannelName),
+                    allowBitExposureFallback: !string.IsNullOrWhiteSpace(effectiveModuleName));
                 rows[row.Key] = row;
             }
 
@@ -392,7 +397,10 @@ public partial class UdlModuleExposureDialogWindow : Window
                         unit: definition.Unit,
                         bitCount: definition.BitCount,
                         exposeBits: definition.ExposeBits,
-                        bitLabels: definition.BitLabels);
+                        bitLabels: definition.BitLabels,
+                        suggestedBitCount: GetSuggestedBitCount(definition.ChannelName),
+                        allowBitExposureFallback: !string.IsNullOrWhiteSpace(effectiveModuleName));
+                    row.RouteReadInputToSetRequest = definition.RouteReadInputToSetRequest;
                     rows[key] = row;
                     continue;
                 }
@@ -405,11 +413,26 @@ public partial class UdlModuleExposureDialogWindow : Window
                 row.BitLabels = definition.BitLabels;
             }
 
-            foreach (var row in rows.Values)
+            if (!string.IsNullOrWhiteSpace(effectiveModuleName))
             {
-                if (row.BitCount <= 0)
+                foreach (var channelName in ModuleScopedFallbackBitmaskChannels)
                 {
-                    row.BitCount = GetSuggestedBitCount(row.ChannelName);
+                    var key = UdlModuleExposureEditorRow.BuildKey(effectiveModuleName, channelName);
+                    if (rows.ContainsKey(key))
+                    {
+                        continue;
+                    }
+
+                    rows[key] = new UdlModuleExposureEditorRow(
+                        moduleName: effectiveModuleName,
+                        channelName: channelName,
+                        format: string.Empty,
+                        unit: string.Empty,
+                        bitCount: 0,
+                        exposeBits: false,
+                        bitLabels: string.Empty,
+                        suggestedBitCount: GetSuggestedBitCount(channelName),
+                        allowBitExposureFallback: true);
                 }
             }
 
@@ -459,43 +482,27 @@ public partial class UdlModuleExposureDialogWindow : Window
 
         private static IReadOnlyList<UdlModuleExposureBitmaskRow> BuildBitmaskRows(IEnumerable<UdlModuleExposureEditorRow> rows)
         {
-            var lookup = rows.ToDictionary(static row => row.ChannelName, System.StringComparer.OrdinalIgnoreCase);
-            var result = new List<UdlModuleExposureBitmaskRow>();
-            var consumedChannels = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
-
-            AddBitmaskRow(result, lookup, consumedChannels, "Read / Set", ["Read", "Set"]);
-            AddBitmaskRow(result, lookup, consumedChannels, "Alert", ["Alert"]);
-
-            foreach (var row in rows.Where(static row => row.SupportsBitExposure)
-                         .Where(static row => !string.Equals(row.ChannelName, "Cmd", System.StringComparison.OrdinalIgnoreCase)
-                                       && !string.Equals(row.ChannelName, "Command", System.StringComparison.OrdinalIgnoreCase)
-                                       && !string.Equals(row.ChannelName, "State", System.StringComparison.OrdinalIgnoreCase))
-                         .Where(row => !consumedChannels.Contains(row.ChannelName)))
-            {
-                result.Add(new UdlModuleExposureBitmaskRow(row.ChannelName, [row]));
-            }
-
-            return result;
+            return rows
+                .Where(static row => row.SupportsBitExposure)
+                .OrderBy(static row => row.ChannelName, System.StringComparer.OrdinalIgnoreCase)
+                .Select(static row => new UdlModuleExposureBitmaskRow(FormatBitmaskLabel(row.ChannelName), [row]))
+                .ToArray();
         }
 
-        private static void AddBitmaskRow(List<UdlModuleExposureBitmaskRow> target, Dictionary<string, UdlModuleExposureEditorRow> lookup, HashSet<string> consumedChannels, string label, string[] aliases)
+        private static string FormatBitmaskLabel(string? channelName)
         {
-            var mappedRows = aliases
-                .Where(alias => lookup.TryGetValue(alias, out _))
-                .Select(alias => lookup[alias])
-                .ToArray();
-
-            if (mappedRows.Length == 0)
+            if (string.IsNullOrWhiteSpace(channelName))
             {
-                return;
+                return "Channel";
             }
 
-            target.Add(new UdlModuleExposureBitmaskRow(label, mappedRows));
-
-            foreach (var row in mappedRows)
+            var normalized = channelName.Trim();
+            if (normalized.Length == 1)
             {
-                consumedChannels.Add(row.ChannelName);
+                return normalized.ToUpperInvariant();
             }
+
+            return char.ToUpperInvariant(normalized[0]) + normalized[1..].ToLowerInvariant();
         }
 
         private static IReadOnlyList<UdlModuleExposurePreparedFieldRow> BuildSettingsRows()
@@ -595,7 +602,7 @@ public sealed class UdlModuleExposureBitmaskRow : NotifyBase
 
     private int ResolveBitCount()
     {
-        return _rows.Select(static row => row.EffectiveBitCount).FirstOrDefault(static count => count > 0);
+        return _rows.Select(static row => row.DisplayBitCount).FirstOrDefault(static count => count > 0);
     }
 }
 
@@ -644,6 +651,9 @@ public sealed class UdlRuntimeModuleChannelDescriptor
     public int BitCount { get; init; }
 }
 
+/// <summary>
+/// Represents one editable module/channel exposure row in the UDL exposure dialog.
+/// </summary>
 public sealed class UdlModuleExposureEditorRow : NotifyBase
 {
     private string _format;
@@ -653,7 +663,16 @@ public sealed class UdlModuleExposureEditorRow : NotifyBase
     private bool _routeReadInputToSetRequest;
     private string _bitLabels;
 
-    public UdlModuleExposureEditorRow(string moduleName, string channelName, string format, string unit, int bitCount, bool exposeBits, string bitLabels)
+    public UdlModuleExposureEditorRow(
+        string moduleName,
+        string channelName,
+        string format,
+        string unit,
+        int bitCount,
+        bool exposeBits,
+        string bitLabels,
+        int suggestedBitCount = 0,
+        bool allowBitExposureFallback = false)
     {
         ModuleName = moduleName?.Trim() ?? string.Empty;
         ChannelName = channelName?.Trim().ToLowerInvariant() ?? string.Empty;
@@ -662,6 +681,8 @@ public sealed class UdlModuleExposureEditorRow : NotifyBase
         _bitCount = bitCount > 0 ? bitCount : GetBitCountFromFormat(format);
         _exposeBits = exposeBits;
         _bitLabels = bitLabels?.Trim() ?? string.Empty;
+        SuggestedBitCount = NormalizeBitCount(suggestedBitCount);
+        AllowBitExposureFallback = allowBitExposureFallback;
     }
 
     public string Key => BuildKey(ModuleName, ChannelName);
@@ -673,14 +694,20 @@ public sealed class UdlModuleExposureEditorRow : NotifyBase
     public string DisplayName => $"{ModuleName}.{ChannelName}";
 
     public string Summary => ExposeBits
-        ? $"Count {EffectiveBitCount} | Unit {EffectiveUnit} | bit helpers active"
-        : $"Count {EffectiveBitCount} | Unit {EffectiveUnit} | no helper items";
+        ? $"Count {DisplayBitCount} | Unit {EffectiveUnit} | bit helpers active"
+        : $"Count {DisplayBitCount} | Unit {EffectiveUnit} | no helper items";
 
     public string EffectiveFormat => string.IsNullOrWhiteSpace(Format) ? "<empty>" : Format;
 
     public string EffectiveUnit => string.IsNullOrWhiteSpace(Unit) ? "<empty>" : Unit;
 
     public int EffectiveBitCount => BitCount > 0 ? BitCount : GetBitCountFromFormat(Format);
+
+    internal int SuggestedBitCount { get; }
+
+    internal bool AllowBitExposureFallback { get; }
+
+    internal int DisplayBitCount => EffectiveBitCount > 0 ? EffectiveBitCount : SuggestedBitCount;
 
     public string Format
     {
@@ -695,6 +722,7 @@ public sealed class UdlModuleExposureEditorRow : NotifyBase
                 OnPropertyChanged(nameof(SupportsBitExposure));
                 OnPropertyChanged(nameof(BitCount));
                 OnPropertyChanged(nameof(EffectiveBitCount));
+                OnPropertyChanged(nameof(DisplayBitCount));
                 OnPropertyChanged(nameof(ShowBitLabelsEditor));
                 OnPropertyChanged(nameof(Summary));
                 OnPropertyChanged(nameof(EffectiveFormat));
@@ -734,6 +762,7 @@ public sealed class UdlModuleExposureEditorRow : NotifyBase
             {
                 OnPropertyChanged(nameof(EffectiveBitCount));
                 OnPropertyChanged(nameof(SupportsBitExposure));
+                OnPropertyChanged(nameof(DisplayBitCount));
                 OnPropertyChanged(nameof(ShowBitLabelsEditor));
                 OnPropertyChanged(nameof(Summary));
             }
@@ -753,13 +782,18 @@ public sealed class UdlModuleExposureEditorRow : NotifyBase
         }
     }
 
-    public bool SupportsBitExposure => EffectiveBitCount > 0;
+    public bool SupportsBitExposure => EffectiveBitCount > 0 || (AllowBitExposureFallback && SuggestedBitCount > 0);
 
     public bool ExposeBits
     {
         get => _exposeBits;
         set
         {
+            if (value && EffectiveBitCount <= 0 && AllowBitExposureFallback && SuggestedBitCount > 0)
+            {
+                BitCount = SuggestedBitCount;
+            }
+
             if (SetProperty(ref _exposeBits, value))
             {
                 OnPropertyChanged(nameof(ShowBitLabelsEditor));
@@ -791,7 +825,7 @@ public sealed class UdlModuleExposureEditorRow : NotifyBase
             Format = Format,
             Unit = Unit,
             ExposeBits = ExposeBits,
-            BitCount = EffectiveBitCount,
+            BitCount = ResolveDefinitionBitCount(),
             RouteReadInputToSetRequest = RouteReadInputToSetRequest,
             BitLabels = BitLabels
         };
@@ -837,6 +871,16 @@ public sealed class UdlModuleExposureEditorRow : NotifyBase
         }
 
         return Math.Clamp(value, 1, 32);
+    }
+
+    private int ResolveDefinitionBitCount()
+    {
+        if (EffectiveBitCount > 0)
+        {
+            return EffectiveBitCount;
+        }
+
+        return ExposeBits && AllowBitExposureFallback ? SuggestedBitCount : 0;
     }
 
     private static (string Kind, string Property) SplitPropertyFormat(string? format)

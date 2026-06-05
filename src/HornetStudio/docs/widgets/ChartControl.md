@@ -17,12 +17,15 @@ Displays live chart data for configured signal series over time.
 ## Key Configuration
 
 - Chart series definitions
-- Visible time range and history range
+- Visible time range
 - View-related layout settings
 
 ## Runtime Notes
 
 The persisted widget type is `ChartControl`, while the rendered control implementation is based on `RealtimeChartControl`.
+ChartControl does not record signal history.
+It requests render-ready snapshots for the configured series and the current `ViewSeconds` window.
+Signal history is recorded centrally per folder only for Signal widgets that explicitly enable history.
 
 ## Source
 

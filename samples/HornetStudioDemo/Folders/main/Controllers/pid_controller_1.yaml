@@ -1,0 +1,15 @@
+name: pid_controller_1
+enabled: true
+type: PID
+sourcePath: enhanced_signals.filtered_1.read
+setpointPath: ''
+outputPath: enhanced_signals.filtered_1.set
+pid:
+  ks: 100
+  tu: 0.5
+  tg: 10
+  dFilterTauMs: 250
+  setMax: 100
+  outMax: 100
+  computeIntervalMs: 100
+  outputIntervalMs: 100

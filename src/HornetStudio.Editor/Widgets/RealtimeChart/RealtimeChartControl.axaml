@@ -61,7 +61,6 @@
             <Separator />
             <MenuItem Header="X-Achse">
               <MenuItem Header="RefreshRate ms ..." Click="OnXRefreshRateClicked" />
-              <MenuItem Header="History s ..." Click="OnXHistorySecondsClicked" />
               <MenuItem Header="View s ..." Click="OnXViewSecondsClicked" />
             </MenuItem>
           </ContextMenu>

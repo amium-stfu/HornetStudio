@@ -1,0 +1,32 @@
+<Window
+    x:Class="HornetStudio.Editor.Widgets.FunctionBrowserDialogWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:HornetStudio.Editor.Widgets"
+    Width="980"
+    Height="720"
+    MinWidth="820"
+    MinHeight="560"
+    ShowInTaskbar="False"
+    WindowStartupLocation="CenterOwner"
+    Title="Function Browser"
+    Background="{Binding DialogBackground}">
+  <Grid Margin="16" RowDefinitions="Auto,*">
+    <TextBlock FontSize="13"
+               Foreground="{Binding SecondaryTextBrush}"
+               Text="Browse and manage folder-local YAML and Python functions without placing a Functions widget on the canvas."
+               TextWrapping="Wrap" />
+
+    <Border Grid.Row="1"
+            Margin="0,12,0,0"
+            Padding="12"
+            Background="{Binding PanelBackground}"
+            BorderBrush="{Binding BorderColor}"
+            BorderThickness="1"
+            CornerRadius="12">
+      <controls:FunctionsControl x:Name="FunctionsBrowserControl"
+                                 DataContext="{Binding BrowserItem}"
+                                 EditorViewModel="{Binding EditorViewModel}" />
+    </Border>
+  </Grid>
+</Window>

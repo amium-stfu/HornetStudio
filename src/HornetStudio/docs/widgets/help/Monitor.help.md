@@ -7,17 +7,24 @@
 ## Overview
 
 The Monitor widget evaluates rule definitions against runtime items and publishes a dedicated status subtree for each rule. Rules can watch missing updates, numeric thresholds, custom boolean expressions, and execute actions on state transitions.
+The runtime is folder-scoped and continues in the background independently from whether a Monitor browser widget is currently open.
 
 ## Properties
 
 ### MonitorDefinitions
 
-Stores the configured rule set for the widget.
+Legacy widget-local storage for monitor rules.
 
 Each rule stores its own refresh rate, timeout, inhibit delay, mode, limits, custom variables, formula, event metadata, action list, and log level.
-`EventId` is mandatory, must be greater than `0`, and must be unique within the current Monitor widget. New rules start with the smallest free positive `EventId`.
+`EventId` is mandatory, must be greater than `0`, and must be unique within the current folder monitor registry. New rules start with the smallest free positive `EventId`.
 
-In `Folder.yaml`, monitor rules are persisted below the Monitor control `Properties.MonitorDefinitions` as structured entries so they can be restored when the folder is loaded again.
+The authoritative monitor rules now live in `Monitoring/Monitor.yaml`. Existing `Properties.MonitorDefinitions` values remain compatibility input when no central monitor file exists yet.
+
+### Monitoring/Monitor.yaml
+
+Stores the authoritative folder-local monitor registry.
+
+The `Monitor` widget reads and edits this file. When the file exists, it overrides legacy widget-local monitor definitions. A folder can therefore continue to evaluate and publish monitor state even without a placed `Monitor` widget.
 
 ### Name / Path / FolderName
 
@@ -41,6 +48,7 @@ If a rule has no `EventText`, the widget shows the rule name instead.
 Inactive rows remain visually neutral until the rule becomes active.
 Active rows use a severity-colored border and a subtle severity-tinted background so the active state stays visible in compact layouts.
 Each row exposes `Edit` and `Delete` through its compact action menu.
+The visible rows are projections of the shared folder runtime; the widget itself does not own the background evaluator.
 
 ### Evaluate rule state
 
@@ -54,11 +62,12 @@ Each rule can activate on timeout, lower-limit breach, upper-limit breach, or a 
 
 ### Publish runtime entries
 
-Published monitor paths use the widget-aware format `studio.{FolderName}.monitor.{WidgetName}.{RuleName}`.
+Published monitor paths use the folder-stable format `studio.{FolderName}.monitor.{RuleName}`.
 The status snapshot contains active state, event metadata, log level, source path, and current value metadata.
 These rule runtime paths can be selected as `VisualRules` sources on other widgets when they need to react to Monitor state.
+The shared folder runtime keeps these paths current even if the Monitor widget is closed or not placed at all.
 
-The monitor root `studio.{FolderName}.monitor.{WidgetName}` also publishes aggregate active event-id lists grouped by log level:
+The monitor root `studio.{FolderName}.monitor` also publishes aggregate active event-id lists grouped by log level:
 
 - `debug_active`
 - `info_active`
@@ -86,7 +95,7 @@ Rules can execute zero, one, or multiple actions on `OnActivated` and `OnCleared
 ## Help Notes for Users
 
 Use Monitor when a plain Signal widget is not enough and the page needs rule-based supervision. Keep rule names in `snake_case` so runtime paths remain predictable.
-Keep `EventId` values unique inside one Monitor widget so log and aggregate consumers can map active events reliably.
+Keep `EventId` values unique inside the folder monitor registry so log and aggregate consumers can map active events reliably.
 
 For Custom mode:
 

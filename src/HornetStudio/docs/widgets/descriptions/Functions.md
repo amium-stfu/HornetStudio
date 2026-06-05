@@ -1,8 +1,8 @@
 Functions
 
-Central folder-local function catalog for declarative YAML entries with transition support for legacy `Scripts/Workflows` files and a read-only Python view from runtime metadata.
+Legacy compatibility surface for the Admin-only Function Browser. New folders should use the right sidebar `Browser` -> `Functions` entry instead of placing this widget on the canvas.
 
-- Lists function entries in compact rows with consistent type badges, quiet state text, and row actions
+- Opens the same compact function catalog used by the folder-level browser
 - Adds, edits, and deletes declarative YAML functions from the widget UI
 - Runs runnable entries and reflects matching declarative executions started from widget rows or Button Interaction Rules
 - Validates YAML structure and marks invalid declarative entries
@@ -11,4 +11,4 @@ Central folder-local function catalog for declarative YAML entries with transiti
 - Edits declarative steps in compact inline rows, including nested `IfThenElse` and `While` lists, a dedicated condition dialog, and a required positive Delay guard inside every While body
 
 Best for:
-Folders that should expose one compact catalog of callable functions while keeping declarative YAML and future Python ownership separate.
+Opening older folders that already contain a persisted `Functions` widget while keeping the Function Browser as the primary workflow.

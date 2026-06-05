@@ -425,6 +425,20 @@ public static class ProjectUiLayoutLoader
 
             properties["MonitorDefinitions"] = array;
         }
+        if (GetSequence(control, "SelectedMonitorIds") is { } selectedMonitorIds)
+        {
+            var array = new JsonArray();
+            foreach (var child in selectedMonitorIds.Children)
+            {
+                if (TryConvertYamlNode(child, out var converted))
+                {
+                    array.Add(converted);
+                }
+            }
+
+            properties["SelectedMonitorIds"] = array;
+        }
+        SetPropertyIfPresent(properties, "OnActiveColor", GetScalarJsonNode(control, "OnActiveColor"));
         SetPropertyIfPresent(properties, "TargetPropertyPath", GetScalarJsonNode(control, "Property") ?? GetScalarJsonNode(control, "Parameter") ?? GetScalarJsonNode(control, "TargetPropertyPath") ?? GetScalarJsonNode(control, "TargetParameterPath"));
         SetPropertyIfPresent(properties, "TargetPropertyFormat", GetScalarJsonNode(control, "Format") ?? GetScalarJsonNode(control, "TargetPropertyFormat") ?? GetScalarJsonNode(control, "TargetParameterFormat"));
         SetPropertyIfPresent(properties, "IsReadOnly", GetScalarJsonNode(control, "IsReadOnly"));
@@ -442,6 +456,7 @@ public static class ProjectUiLayoutLoader
         SetPropertyIfPresent(properties, "ButtonTextAlign", GetScalarJsonNode(control, "ButtonTextAlign"));
         SetPropertyIfPresent(properties, "TargetLog", GetScalarJsonNode(control, "TargetLog"));
         SetPropertyIfPresent(properties, "HistorySeconds", GetScalarJsonNode(control, "HistorySeconds"));
+        SetPropertyIfPresent(properties, "RecordingIntervalMs", GetScalarJsonNode(control, "RecordingIntervalMs"));
         SetPropertyIfPresent(properties, "ViewSeconds", GetScalarJsonNode(control, "ViewSeconds"));
         SetPropertyIfPresent(properties, "UdlClientHost", GetScalarJsonNode(control, "UdlClientHost"));
         SetPropertyIfPresent(properties, "UdlClientPort", GetScalarJsonNode(control, "UdlClientPort"));

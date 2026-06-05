@@ -49,7 +49,7 @@ public sealed class EditorDialogBindingDefinition
         var parameterPath = string.IsNullOrWhiteSpace(item.Path) ? Key : $"{item.Path}.{Key}";
         var field = new EditorDialogField(this, new ItemProperty(Key, ReadValue(item), parameterPath));
         field.OwnerItem = item;
-        if (OptionsFactory is not null)
+        if (OptionsFactory is not null && !field.DefersInitialOptionLoad)
         {
             foreach (var option in OptionsFactory(item))
             {
@@ -58,9 +58,7 @@ public sealed class EditorDialogBindingDefinition
         }
 
         field.ToolTipText = ToolTipFactory?.Invoke(item) ?? string.Empty;
-        field.InitializeChartSeriesEditor();
-        field.InitializeAttachItemEditor();
-        field.InitializeInteractionRuleEditor();
+        field.InitializeDeferredState();
         return field;
     }
 

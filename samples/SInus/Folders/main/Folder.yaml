@@ -1,0 +1,9 @@
+Caption: main
+Screens:
+  1: 'HomeScreen'
+  9: 'Assets'
+  30: 'ResourcesScreen'
+Controls:
+- 
+Folder: main
+...

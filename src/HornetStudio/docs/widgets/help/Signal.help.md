@@ -27,6 +27,17 @@ Controls display formatting.
 
 Optional unit override for the displayed value.
 
+### HistorySeconds
+
+Defines how many seconds of in-memory history are retained for this signal source.
+`0` disables history recording for the widget.
+
+### RefreshRateMs
+
+Defines how often the widget refreshes its display.
+When `HistorySeconds > 0`, the same value also defines how often the central signal history runtime records this signal source.
+`0` disables periodic refresh and therefore also disables history recording.
+
 ### InteractionRules
 
 Defines additional click-based behavior such as open editor, set value, toggle bool, open or close `DialogWidget` overlays, or invoke Python functions.
@@ -73,9 +84,22 @@ When a referenced Monitor rule runtime path becomes active, the widget can overr
 
 The widget suppresses runtime interaction behavior when edit mode is active.
 
+### Enable chart history recording
+
+Signal widgets own chart history recording.
+When history is enabled, the folder-scoped runtime records only the configured signal sources from Signal widgets.
+Charts can display that history but do not start or extend recording implicitly.
+
+### UDL live value pipeline
+
+Attached UDL Signal widgets resolve their target binding once, keep metadata and writeback on the public registry path, and read high-frequency live values from a shared runtime live-value store.
+Visible widgets then apply the latest available value on a shared UI scheduler cadence instead of reacting to every registry value event individually.
+Structural changes such as rebinds, datatype changes, reconnects, or missing-target recovery still use the structural registry path.
+
 ## Runtime Notes
 
 Signal behavior builds on the shared target binding and property presentation infrastructure defined in the item model and property control.
+If multiple Signal widgets reference the same source, the runtime keeps the longest requested retention and the fastest requested recording interval for that shared source.
 
 ## Suggested Help Window Metadata
 

@@ -1,0 +1,65 @@
+<mxfile host="app.diagrams.net" modified="2026-06-01T00:00:00.000Z" agent="Codex" version="24.7.17" type="device">
+  <diagram id="agent-workflow" name="Agent Workflow">
+    <mxGraphModel dx="1434" dy="830" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="Agent Workitem Queue Workflow" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=22;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="304" y="30" width="560" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="struct" value="#struct&#xa;Evaluate architecture and task split" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14" vertex="1" parent="1">
+          <mxGeometry x="80" y="130" width="210" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="plan" value="#plan&#xa;Create workitem and handoff" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14" vertex="1" parent="1">
+          <mxGeometry x="360" y="130" width="210" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="queue" value="docs/workitems/active.yaml&#xa;&#xa;queue:&#xa;  - first entry is active&#xa;  - later entries wait" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14;align=left;spacingLeft=18" vertex="1" parent="1">
+          <mxGeometry x="320" y="270" width="300" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="impl" value="#impl&#xa;Read first queue entry&#xa;Implement only that handoff" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14" vertex="1" parent="1">
+          <mxGeometry x="700" y="270" width="240" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="done" value="#done&#xa;Remove first queue entry" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=14" vertex="1" parent="1">
+          <mxGeometry x="700" y="470" width="240" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="history" value="Workitem history stays in&#xa;docs/workitems/&lt;timestamp&gt;-&lt;slug&gt;/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=14" vertex="1" parent="1">
+          <mxGeometry x="320" y="510" width="300" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="empty" value="queue: []&#xa;No active workitem" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#999999;fontSize=14" vertex="1" parent="1">
+          <mxGeometry x="700" y="620" width="240" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" value="optional first step" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=12" edge="1" parent="1" source="struct" target="plan">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="append entry" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=12" edge="1" parent="1" source="plan" target="queue">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="first entry" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=12" edge="1" parent="1" source="queue" target="impl">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="implementation complete" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=12" edge="1" parent="1" source="impl" target="done">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="remove first entry" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=12" edge="1" parent="1" source="done" target="queue">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="820" y="430" />
+              <mxPoint x="470" y="430" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e6" value="handoffs remain" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=12" edge="1" parent="1" source="plan" target="history">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="465" y="240" />
+              <mxPoint x="470" y="240" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e7" value="after last done" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=12;dashed=1" edge="1" parent="1" source="done" target="empty">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

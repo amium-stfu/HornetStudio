@@ -10,6 +10,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using HornetStudio.Editor.Controls;
 using HornetStudio.Editor.Helpers;
+using HornetStudio.Editor.Monitoring;
 using HornetStudio.Editor.Models;
 using HornetStudio.Editor.ViewModels;
 using HornetStudio.Editor.Widgets.Common;
@@ -165,6 +166,7 @@ public sealed class MonitorEditorDialogViewModel : ObservableObject
 {
     private static readonly IReadOnlyList<string> ModeOptions = Enum.GetNames<MonitorRuleMode>();
     private static readonly IReadOnlyList<string> LogLevelOptions = Enum.GetNames<MonitorLogLevel>();
+    private readonly Func<IReadOnlyList<MonitorDefinition>> _registryDefinitionsProvider;
     private readonly FolderItemModel _ownerItem;
     private readonly string _originalName;
     private string _selectedMode = MonitorRuleMode.Default.ToString();
@@ -184,18 +186,20 @@ public sealed class MonitorEditorDialogViewModel : ObservableObject
     {
         _ownerItem = ownerItem;
         _originalName = definition?.Name ?? string.Empty;
-        DialogBackground = mainWindowViewModel?.DialogBackground ?? "#E3E5EE";
-        SectionBackground = mainWindowViewModel?.EditorDialogSectionContentBackground ?? "#EEF3F8";
-        BorderColor = mainWindowViewModel?.CardBorderBrush ?? "#CBD5E1";
-        ParameterHoverColor = mainWindowViewModel?.ParameterHoverColor ?? "#93C5FD";
-        PrimaryTextBrush = mainWindowViewModel?.PrimaryTextBrush ?? "#111827";
-        SecondaryTextBrush = mainWindowViewModel?.SecondaryTextBrush ?? "#5E6777";
-        SectionContentBackground = mainWindowViewModel?.EditorDialogSectionContentBackground ?? "#EEF3F8";
-        EditorBackground = mainWindowViewModel?.ParameterEditBackgrundColor ?? "#FFFFFF";
-        EditorForeground = mainWindowViewModel?.ParameterEditForeColor ?? "#111827";
-        ButtonBackground = mainWindowViewModel?.EditPanelButtonBackground ?? "#F8FAFC";
-        ButtonBorderBrush = mainWindowViewModel?.EditPanelButtonBorderBrush ?? "#CBD5E1";
-        ButtonForeground = mainWindowViewModel?.PrimaryTextBrush ?? "#111827";
+        _registryDefinitionsProvider = () => EnumerateRegistryDefinitions(mainWindowViewModel, _ownerItem);
+        var useOwnerTheme = IsMonitorBrowserOwner(ownerItem) || mainWindowViewModel is null;
+        DialogBackground = useOwnerTheme ? GetThemeValue(ownerItem.EffectiveBackground, "#E3E5EE") : mainWindowViewModel!.DialogBackground;
+        SectionBackground = useOwnerTheme ? GetThemeValue(ownerItem.EffectiveInnerBackground, "#EEF3F8") : mainWindowViewModel!.EditorDialogSectionContentBackground;
+        BorderColor = useOwnerTheme ? GetThemeValue(ownerItem.EffectiveBorderBrush, "#CBD5E1") : mainWindowViewModel!.CardBorderBrush;
+        ParameterHoverColor = mainWindowViewModel?.ParameterHoverColor ?? ownerItem.EffectiveAccentBackground;
+        PrimaryTextBrush = useOwnerTheme ? GetThemeValue(ownerItem.EffectivePrimaryForeground, "#111827") : mainWindowViewModel!.PrimaryTextBrush;
+        SecondaryTextBrush = useOwnerTheme ? GetThemeValue(ownerItem.EffectiveSecondaryForeground, "#5E6777") : mainWindowViewModel!.SecondaryTextBrush;
+        SectionContentBackground = SectionBackground;
+        EditorBackground = useOwnerTheme ? GetThemeValue(ownerItem.EffectiveBodyBackground, SectionBackground) : mainWindowViewModel!.ParameterEditBackgrundColor;
+        EditorForeground = useOwnerTheme ? GetThemeValue(ownerItem.EffectiveBodyForeground, PrimaryTextBrush) : mainWindowViewModel!.ParameterEditForeColor;
+        ButtonBackground = useOwnerTheme ? GetThemeValue(ownerItem.EffectiveAccentBackground, SectionBackground) : mainWindowViewModel!.EditPanelButtonBackground;
+        ButtonBorderBrush = useOwnerTheme ? GetThemeValue(ownerItem.EffectiveBodyBorder, BorderColor) : mainWindowViewModel!.EditPanelButtonBorderBrush;
+        ButtonForeground = useOwnerTheme ? GetThemeValue(ownerItem.EffectiveAccentForeground, PrimaryTextBrush) : mainWindowViewModel!.PrimaryTextBrush;
         ConditionEditor = new BooleanConditionEditorViewModel(
             formulaText: definition?.CustomFormula,
             variables: definition?.CustomVariables.Select(static variable => new BooleanConditionVariableDefinition
@@ -268,6 +272,15 @@ public sealed class MonitorEditorDialogViewModel : ObservableObject
     public string ButtonForeground { get; }
     
     public string ValidationErrorBrush => "#B42318";
+
+    private static bool IsMonitorBrowserOwner(FolderItemModel ownerItem)
+        => ownerItem.Kind == ControlKind.Monitor
+            && string.Equals(ownerItem.Name, "MonitorBrowser", StringComparison.OrdinalIgnoreCase);
+
+    private static string GetThemeValue(string? value, string fallback)
+        => string.IsNullOrWhiteSpace(value) || string.Equals(value, "Transparent", StringComparison.OrdinalIgnoreCase)
+            ? fallback
+            : value;
 
     public IReadOnlyList<string> AvailableModeOptions => ModeOptions;
 
@@ -418,9 +431,9 @@ public sealed class MonitorEditorDialogViewModel : ObservableObject
 
     public bool ShowFormulaStatus => IsCustomMode && !string.IsNullOrWhiteSpace(FormulaStatusMessage);
 
-    public string PreviewPath => MonitorRuleRow.BuildRegistryPath(_ownerItem.FolderName, _ownerItem.Name, Name);
+    public string PreviewPath => MonitorRegistry.BuildRulePath(_ownerItem.FolderName, Name);
 
-    public string AggregatePreviewPath => MonitorRuleRow.BuildMonitorRegistryPath(_ownerItem.FolderName, _ownerItem.Name);
+    public string AggregatePreviewPath => MonitorRegistry.BuildAggregatePath(_ownerItem.FolderName);
 
     public void AddVariable()
     {
@@ -485,16 +498,16 @@ public sealed class MonitorEditorDialogViewModel : ObservableObject
             return false;
         }
 
-        var existingNames = MonitorDefinitionCodec.ParseDefinitions(_ownerItem.MonitorDefinitions)
+        var existingNames = EnumerateRegistryDefinitions()
             .Select(candidate => candidate.Name)
             .Where(candidate => !string.Equals(candidate, _originalName, StringComparison.OrdinalIgnoreCase));
         if (existingNames.Contains(normalizedName, StringComparer.OrdinalIgnoreCase))
         {
-            errorMessage = "Name must be unique within the Monitor widget.";
+            errorMessage = "Name must be unique within the folder monitor registry.";
             return false;
         }
 
-        if (!TryParseRequiredPositiveInt(RefreshRateMsText, 250, out var refreshRateMs, out errorMessage))
+        if (!TryParseRequiredPositiveInt(RefreshRateMsText, 100, out var refreshRateMs, out errorMessage))
         {
             return false;
         }
@@ -557,7 +570,7 @@ public sealed class MonitorEditorDialogViewModel : ObservableObject
         if (EnumerateSiblingDefinitions()
             .Any(candidate => candidate.EventId == eventId))
         {
-            errorMessage = "Event Id must be unique within the Monitor widget.";
+            errorMessage = "Event Id must be unique within the folder monitor registry.";
             return false;
         }
 
@@ -616,14 +629,14 @@ public sealed class MonitorEditorDialogViewModel : ObservableObject
 
     private string GenerateNextRuleName()
     {
-        var existingNames = MonitorDefinitionCodec.ParseDefinitions(_ownerItem.MonitorDefinitions)
+        var existingNames = EnumerateRegistryDefinitions()
             .Select(definition => definition.Name);
         return TargetPathHelper.GenerateIndexedPathIdentityName("monitor_rule", existingNames, "monitor_rule");
     }
 
     private int GenerateNextEventId()
     {
-        var usedEventIds = MonitorDefinitionCodec.ParseDefinitions(_ownerItem.MonitorDefinitions)
+        var usedEventIds = EnumerateRegistryDefinitions()
             .Select(static definition => definition.EventId)
             .Where(static eventId => eventId > 0)
             .ToHashSet();
@@ -639,8 +652,58 @@ public sealed class MonitorEditorDialogViewModel : ObservableObject
 
     private IEnumerable<MonitorDefinition> EnumerateSiblingDefinitions()
     {
-        return MonitorDefinitionCodec.ParseDefinitions(_ownerItem.MonitorDefinitions)
+        return EnumerateRegistryDefinitions()
             .Where(candidate => !string.Equals(candidate.Name, _originalName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private IReadOnlyList<MonitorDefinition> EnumerateRegistryDefinitions()
+        => _registryDefinitionsProvider();
+
+    private static IReadOnlyList<MonitorDefinition> EnumerateRegistryDefinitions(MainWindowViewModel? mainWindowViewModel, FolderItemModel ownerItem)
+    {
+        if (TryLoadCentralDefinitions(ownerItem, out var centralDefinitions))
+        {
+            return centralDefinitions;
+        }
+
+        if (mainWindowViewModel is null)
+        {
+            return MonitorDefinitionCodec.ParseDefinitions(ownerItem.MonitorDefinitions)
+                .Select(static candidate => candidate.Clone())
+                .ToArray();
+        }
+
+        return mainWindowViewModel.GetMonitorRegistryEntries(ownerItem)
+            .Select(static entry => entry.Definition.Clone())
+            .ToArray();
+    }
+
+    private static bool TryLoadCentralDefinitions(FolderItemModel ownerItem, out IReadOnlyList<MonitorDefinition> definitions)
+    {
+        definitions = [];
+        if (string.IsNullOrWhiteSpace(ownerItem.FolderLayoutPath)
+            || string.IsNullOrWhiteSpace(ownerItem.FolderName))
+        {
+            return false;
+        }
+
+        var folderDirectory = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(ownerItem.FolderLayoutPath));
+        if (string.IsNullOrWhiteSpace(folderDirectory))
+        {
+            return false;
+        }
+
+        var monitorFilePath = MonitorDefinitionFileCodec.GetMonitorFilePath(folderDirectory);
+        if (!System.IO.File.Exists(monitorFilePath))
+        {
+            return false;
+        }
+
+        var codec = new MonitorDefinitionFileCodec();
+        definitions = codec.LoadDefinitions(folderDirectory, ownerItem.FolderName)
+            .Select(static definition => definition.Clone())
+            .ToArray();
+        return true;
     }
 
     private void OnActionsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)

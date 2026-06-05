@@ -13,9 +13,11 @@ namespace Amium.UdlClient;
 
 public sealed class UdlClient : IDisposable
 {
-    private sealed class PendingCommand
+    private readonly record struct PendingWriteKey(uint ModuleId, int Function);
+
+    private sealed class PendingWrite
     {
-        public PendingCommand(double desiredValue, DateTime firstAttemptUtc)
+        public PendingWrite(double desiredValue, DateTime firstAttemptUtc)
         {
             DesiredValue = desiredValue;
             FirstAttemptUtc = firstAttemptUtc;
@@ -29,7 +31,7 @@ public sealed class UdlClient : IDisposable
 
     private readonly string _itemsPath;
     private readonly object _sync = new();
-    private readonly Dictionary<uint, PendingCommand> _pendingCommands = new();
+    private readonly Dictionary<PendingWriteKey, PendingWrite> _pendingWrites = new();
     private CancellationTokenSource? _lifetime;
     private Task? _heartbeatTask;
     private Task? _writebackTask;
@@ -98,7 +100,7 @@ public sealed class UdlClient : IDisposable
             lifetime = _lifetime;
             heartbeatTask = _heartbeatTask;
             writebackTask = _writebackTask;
-            _pendingCommands.Clear();
+            _pendingWrites.Clear();
 
             _can = null;
             _lifetime = null;
@@ -189,14 +191,14 @@ public sealed class UdlClient : IDisposable
             WriteDiagnostic("writeback loop started");
             while (!token.IsCancellationRequested)
             {
-                foreach (var moduleId in GetPendingCommandModuleIds())
+                foreach (var key in GetPendingWriteKeys())
                 {
-                    if (!TryGetModule(moduleId, out var module))
+                    if (!TryGetModule(key.ModuleId, out var module))
                     {
                         continue;
                     }
 
-                    TryWriteCommand(moduleId, module);
+                    TrySendPendingWrite(key, module);
                 }
 
                 await Task.Delay(20, token).ConfigureAwait(false);
@@ -229,7 +231,7 @@ public sealed class UdlClient : IDisposable
             {
                 var stateValue = Convert.ToInt32(Math.Round(BitConverter.ToSingle(data, 0), MidpointRounding.AwayFromZero));
                 SetChannelReadValue(module.State, stateValue);
-                TrackCommandState(moduleId, stateValue, module);
+                AcknowledgePendingWrite(moduleId, function: 1, stateValue, module, module.State);
                 break;
             }
 
@@ -244,16 +246,25 @@ public sealed class UdlClient : IDisposable
                 var metadata = (ushort)(data[4] | (data[5] << 8));
                 module.Read.Properties["MetaData"].Value = metadata;
                 module.Properties["MetaData"].Value = metadata;
+                AcknowledgePendingWrite(moduleId, function: 3, value, module, module.Read);
                 break;
             }
 
             case 4:
-                SetChannelReadValue(module.Set, BitConverter.ToSingle(data, 0));
+            {
+                var value = BitConverter.ToSingle(data, 0);
+                SetChannelReadValue(module.Set, value);
+                AcknowledgePendingWrite(moduleId, function: 4, value, module, module.Set);
                 break;
+            }
 
             case 5:
-                SetChannelReadValue(module.Out, BitConverter.ToSingle(data, 0));
+            {
+                var value = BitConverter.ToSingle(data, 0);
+                SetChannelReadValue(module.Out, value);
+                AcknowledgePendingWrite(moduleId, function: 5, value, module, module.Out);
                 break;
+            }
 
             default:
                 module.Properties["LastType"].Value = type;
@@ -352,140 +363,83 @@ public sealed class UdlClient : IDisposable
 
     private void ProcessRequestWrite(uint moduleId, Module module, ItemModel requestItem)
     {
-        if (ReferenceEquals(requestItem, module.Read))
+        if (!TryGetWriteChannel(module, requestItem, out var function, out var channelName))
         {
-            WriteDiagnostic($"process request write moduleId=0x{moduleId:X3} channel=read write={FormatObject(TryGetWritePropertyValue(module.Read))} read={FormatObject(module.Read.Value)}");
-            TryWrite(moduleId, module.Read, module.Read, 3);
+            WriteDiagnostic($"process request write moduleId=0x{moduleId:X3} channel=unknown requestPath={requestItem.Path}");
             return;
         }
 
-        if (ReferenceEquals(requestItem, module.State))
-        {
-            WriteDiagnostic($"process request write moduleId=0x{moduleId:X3} channel=state write={FormatObject(TryGetWritePropertyValue(module.State))} state={FormatObject(module.State.Value)}");
-            TryWriteCommand(moduleId, module);
-            return;
-        }
-
-        if (ReferenceEquals(requestItem, module.Set))
-        {
-            WriteDiagnostic($"process request write moduleId=0x{moduleId:X3} channel=set write={FormatObject(TryGetWritePropertyValue(module.Set))} set={FormatObject(module.Set.Value)}");
-            TryWrite(moduleId, module.Set, module.Set, 4);
-            return;
-        }
-
-        if (ReferenceEquals(requestItem, module.Out))
-        {
-            WriteDiagnostic($"process request write moduleId=0x{moduleId:X3} channel=out write={FormatObject(TryGetWritePropertyValue(module.Out))} out={FormatObject(module.Out.Value)}");
-            TryWrite(moduleId, module.Out, module.Out, 5);
-            return;
-        }
-
-        WriteDiagnostic($"process request write moduleId=0x{moduleId:X3} channel=unknown requestPath={requestItem.Path}");
+        WriteDiagnostic($"process request write moduleId=0x{moduleId:X3} channel={channelName} write={FormatObject(TryGetWritePropertyValue(requestItem))} read={FormatObject(TryGetReadPropertyValue(requestItem))}");
+        QueuePendingWrite(moduleId, function, requestItem, module);
     }
 
-    private void TryWriteCommand(uint moduleId, Module module)
+    private static bool TryGetWriteChannel(Module module, ItemModel item, out int function, out string channelName)
     {
-        if (!TryGetCommandRequest(moduleId, module, out var desiredValue, out var shouldSend, out var timedOut))
+        if (ReferenceEquals(item, module.State))
         {
-            WriteDiagnostic($"state write skipped moduleId=0x{moduleId:X3} reason=no-request state={FormatObject(module.State.Value)} request={FormatObject(TryGetWritePropertyValue(module.State))}");
+            function = 1;
+            channelName = "state";
+            return true;
+        }
+
+        if (ReferenceEquals(item, module.Read))
+        {
+            function = 3;
+            channelName = "read";
+            return true;
+        }
+
+        if (ReferenceEquals(item, module.Set))
+        {
+            function = 4;
+            channelName = "set";
+            return true;
+        }
+
+        if (ReferenceEquals(item, module.Out))
+        {
+            function = 5;
+            channelName = "out";
+            return true;
+        }
+
+        function = 0;
+        channelName = string.Empty;
+        return false;
+    }
+
+    private void QueuePendingWrite(uint moduleId, int function, ItemModel item, Module module)
+    {
+        if (!TryGetWriteValue(item, out var desiredValue))
+        {
+            WriteDiagnostic($"write skipped moduleId=0x{moduleId:X3} function={function} reason=no-desired-value requestPath={item.Path}");
             return;
         }
 
-        if (timedOut)
-        {
-            module.Properties["SendStatus"].Value = "timeout";
-            ClearRequestedValue(module.State);
-            WriteDiagnostic($"state timeout moduleId=0x{moduleId:X3} desired={desiredValue:0.###}");
-            return;
-        }
+        var key = new PendingWriteKey(moduleId, function);
 
-        if (!shouldSend)
-        {
-            WriteDiagnostic($"state write deferred moduleId=0x{moduleId:X3} desired={desiredValue:0.###}");
-            return;
-        }
-
-        WriteDiagnostic($"state write request moduleId=0x{moduleId:X3} desired={desiredValue:0.###} source={module.State.Name}");
-        module.Properties["SendStatus"].Value = "sending";
-        var queued = SendWritePdo(moduleId, desiredValue, 1);
-        WriteDiagnostic($"state write send result moduleId=0x{moduleId:X3} desired={desiredValue:0.###} queued={queued}");
-        if (queued)
+        if (TryGetReadValue(item, out var currentValue) && Math.Abs(desiredValue - currentValue) <= 0.0001)
         {
             lock (_sync)
             {
-                if (_pendingCommands.TryGetValue(moduleId, out var pending))
-                {
-                    pending.DesiredValue = desiredValue;
-                    pending.LastSendUtc = DateTime.UtcNow;
-                }
-                else
-                {
-                    var pendingCommand = new PendingCommand(desiredValue, DateTime.UtcNow)
-                    {
-                        LastSendUtc = DateTime.UtcNow,
-                    };
-                    _pendingCommands[moduleId] = pendingCommand;
-                }
+                _pendingWrites.Remove(key);
             }
 
-            ClearRequestedValue(module.State);
+            WriteDiagnostic($"write skipped moduleId=0x{moduleId:X3} function={function} reason=desired-equals-current current={currentValue:0.###} desired={desiredValue:0.###} source={item.Path}");
+            return;
         }
-    }
-
-    private bool TryGetCommandRequest(uint moduleId, Module module, out double desiredValue, out bool shouldSend, out bool timedOut)
-    {
-        desiredValue = 0;
-        shouldSend = false;
-        timedOut = false;
-
-        var hasRequest = TryGetWriteValue(module.State, out var requestedValue);
-        var now = DateTime.UtcNow;
-        var sendTimeout = GetSendTimeout();
 
         lock (_sync)
         {
-            if (hasRequest)
+            if (!_pendingWrites.TryGetValue(key, out var pending)
+                || Math.Abs(pending.DesiredValue - desiredValue) > 0.0001)
             {
-                desiredValue = requestedValue;
-                if (!_pendingCommands.TryGetValue(moduleId, out var pending)
-                    || Math.Abs(pending.DesiredValue - desiredValue) > 0.0001)
-                {
-                    _pendingCommands[moduleId] = new PendingCommand(desiredValue, now);
-                    shouldSend = true;
-                    return true;
-                }
-
-                if (now - pending.FirstAttemptUtc >= sendTimeout)
-                {
-                    _pendingCommands.Remove(moduleId);
-                    timedOut = true;
-                    return true;
-                }
-
-                if (pending.LastSendUtc == DateTime.MinValue || now - pending.LastSendUtc >= TimeSpan.FromMilliseconds(20))
-                {
-                    shouldSend = true;
-                }
-
-                return true;
-            }
-
-            if (_pendingCommands.TryGetValue(moduleId, out var existingPending))
-            {
-                desiredValue = existingPending.DesiredValue;
-                if (now - existingPending.FirstAttemptUtc >= sendTimeout)
-                {
-                    _pendingCommands.Remove(moduleId);
-                    timedOut = true;
-                    return true;
-                }
-
-                shouldSend = existingPending.LastSendUtc == DateTime.MinValue || now - existingPending.LastSendUtc >= TimeSpan.FromMilliseconds(20);
-                return true;
+                _pendingWrites[key] = new PendingWrite(desiredValue, DateTime.UtcNow);
             }
         }
 
-        return false;
+        module.Properties["SendStatus"].Value = "pending";
+        WriteDiagnostic($"write queued moduleId=0x{moduleId:X3} function={function} desired={desiredValue:0.###} source={item.Path}");
     }
 
     private TimeSpan GetSendTimeout()
@@ -493,28 +447,90 @@ public sealed class UdlClient : IDisposable
         return TimeSpan.FromMilliseconds(Math.Max(20, SendTimeOut));
     }
 
-    private void TrackCommandState(uint moduleId, double stateValue, Module module)
+    private void TrySendPendingWrite(PendingWriteKey key, Module module)
     {
+        double desiredValue;
+        bool timedOut;
+        bool shouldSend;
+
+        lock (_sync)
+        {
+            if (!_pendingWrites.TryGetValue(key, out var pending))
+            {
+                return;
+            }
+
+            var now = DateTime.UtcNow;
+            desiredValue = pending.DesiredValue;
+            timedOut = now - pending.FirstAttemptUtc >= GetSendTimeout();
+            shouldSend = pending.LastSendUtc == DateTime.MinValue || now - pending.LastSendUtc >= TimeSpan.FromMilliseconds(20);
+
+            if (timedOut)
+            {
+                _pendingWrites.Remove(key);
+            }
+        }
+
+        if (timedOut)
+        {
+            if (TryGetChannelByFunction(module, key.Function, out var item, out _))
+            {
+                ClearRequestedValue(item);
+            }
+
+            module.Properties["SendStatus"].Value = "timeout";
+            WriteDiagnostic($"write timeout moduleId=0x{key.ModuleId:X3} function={key.Function} desired={desiredValue:0.###}");
+            return;
+        }
+
+        if (!shouldSend)
+        {
+            WriteDiagnostic($"write deferred moduleId=0x{key.ModuleId:X3} function={key.Function} desired={desiredValue:0.###}");
+            return;
+        }
+
+        WriteDiagnostic($"write request moduleId=0x{key.ModuleId:X3} function={key.Function} desired={desiredValue:0.###}");
+        module.Properties["SendStatus"].Value = "sending";
+        var queued = SendWritePdo(key.ModuleId, desiredValue, key.Function);
+        WriteDiagnostic($"write send result moduleId=0x{key.ModuleId:X3} function={key.Function} desired={desiredValue:0.###} queued={queued}");
+
+        if (!queued)
+        {
+            return;
+        }
+
+        lock (_sync)
+        {
+            if (_pendingWrites.TryGetValue(key, out var pending))
+            {
+                pending.LastSendUtc = DateTime.UtcNow;
+            }
+        }
+    }
+
+    private void AcknowledgePendingWrite(uint moduleId, int function, double receivedValue, Module module, ItemModel item)
+    {
+        var key = new PendingWriteKey(moduleId, function);
         var acknowledged = false;
 
         lock (_sync)
         {
-            if (!_pendingCommands.TryGetValue(moduleId, out var pending))
+            if (!_pendingWrites.TryGetValue(key, out var pending))
             {
                 return;
             }
 
-            if (DateTime.UtcNow <= pending.LastSendUtc)
+            if (pending.LastSendUtc != DateTime.MinValue && DateTime.UtcNow <= pending.LastSendUtc)
             {
                 return;
             }
 
-            if (Math.Abs(pending.DesiredValue - stateValue) > 0.0001)
+            if (Math.Abs(pending.DesiredValue - receivedValue) > 0.0001)
             {
                 return;
             }
 
-            _pendingCommands.Remove(moduleId);
+            _pendingWrites.Remove(key);
             acknowledged = true;
         }
 
@@ -523,38 +539,9 @@ public sealed class UdlClient : IDisposable
             return;
         }
 
-        ClearRequestedValue(module.State);
+        ClearRequestedValue(item);
         module.Properties["SendStatus"].Value = "ok";
-        WriteDiagnostic($"state acknowledged moduleId=0x{moduleId:X3} value={stateValue:0.###}");
-    }
-
-    private void TryWrite(uint moduleId, ItemModel requestItem, ItemModel currentItem, int function)
-    {
-        WriteDiagnostic($"try write moduleId=0x{moduleId:X3} function={function} requestPath={requestItem.Path} requestValue={FormatObject(TryGetWritePropertyValue(requestItem))} currentPath={currentItem.Path} currentValue={FormatObject(TryGetReadPropertyValue(currentItem))}");
-
-        if (!TryGetWriteValue(requestItem, out var desiredValue))
-        {
-            WriteDiagnostic($"try write skipped moduleId=0x{moduleId:X3} function={function} reason=no-desired-value requestPath={requestItem.Path}");
-            return;
-        }
-
-        if (!TryGetReadValue(currentItem, out double currentValue))
-        {
-            WriteDiagnostic($"write request moduleId=0x{moduleId:X3} function={function} current=<unset> desired={desiredValue:0.###} source={requestItem.Path}");
-            var queuedWithoutCurrent = SendWritePdo(moduleId, desiredValue, function);
-            WriteDiagnostic($"write send result moduleId=0x{moduleId:X3} function={function} queued={queuedWithoutCurrent} source={requestItem.Path}");
-            return;
-        }
-
-        if (Math.Abs(desiredValue - currentValue) <= 0.0001)
-        {
-            WriteDiagnostic($"try write skipped moduleId=0x{moduleId:X3} function={function} reason=desired-equals-current current={currentValue:0.###} desired={desiredValue:0.###} source={requestItem.Path}");
-            return;
-        }
-
-        WriteDiagnostic($"write request moduleId=0x{moduleId:X3} function={function} current={currentValue:0.###} desired={desiredValue:0.###} source={requestItem.Path}");
-        var queued = SendWritePdo(moduleId, desiredValue, function);
-        WriteDiagnostic($"write send result moduleId=0x{moduleId:X3} function={function} queued={queued} source={requestItem.Path}");
+        WriteDiagnostic($"write acknowledged moduleId=0x{moduleId:X3} function={function} value={receivedValue:0.###}");
     }
 
     private bool SendWritePdo(uint moduleId, double value, int function)
@@ -585,11 +572,11 @@ public sealed class UdlClient : IDisposable
         return 0x500 | baseId;
     }
 
-    private uint[] GetPendingCommandModuleIds()
+    private PendingWriteKey[] GetPendingWriteKeys()
     {
         lock (_sync)
         {
-            return _pendingCommands.Keys.ToArray();
+            return _pendingWrites.Keys.ToArray();
         }
     }
 
@@ -604,6 +591,33 @@ public sealed class UdlClient : IDisposable
 
         module = null!;
         return false;
+    }
+
+    private static bool TryGetChannelByFunction(Module module, int function, out ItemModel item, out string channelName)
+    {
+        switch (function)
+        {
+            case 1:
+                item = module.State;
+                channelName = "state";
+                return true;
+            case 3:
+                item = module.Read;
+                channelName = "read";
+                return true;
+            case 4:
+                item = module.Set;
+                channelName = "set";
+                return true;
+            case 5:
+                item = module.Out;
+                channelName = "out";
+                return true;
+            default:
+                item = null!;
+                channelName = string.Empty;
+                return false;
+        }
     }
 
     private static bool TryGetWriteValue(ItemModel item, out double value)

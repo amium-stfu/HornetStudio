@@ -47,6 +47,760 @@
 				"Debug"
 			],
 			"problemMatcher": []
+		},
+		{
+			"label": "validate-editor-tests-monitorview",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"dotnet build .\\src\\HornetStudio.Editor.Tests\\HornetStudio.Editor.Tests.csproj --no-restore -c Debug -p:OutDir=b:\\HornetStudio\\artifacts\\editor-tests-monitorview\\; if ($LASTEXITCODE -eq 0) { dotnet .\\artifacts\\editor-tests-monitorview\\HornetStudio.Editor.Tests.dll }; exit $LASTEXITCODE"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "validate-solution-monitorview",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"dotnet build .\\HornetStudio.sln --no-restore -c Debug -p:OutDir=b:\\HornetStudio\\artifacts\\solution-build-monitorview\\; exit $LASTEXITCODE"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "run-editor-tests-monitorview",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"dotnet .\\artifacts\\editor-tests-monitorview\\HornetStudio.Editor.Tests.dll; exit $LASTEXITCODE"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "diagnose-standard-build-output",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"dotnet build .\\HornetStudio.sln --no-restore -c Debug; exit $LASTEXITCODE"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "inspect-locking-process",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$p = Get-Process -Id 25168 -ErrorAction SilentlyContinue; if ($null -eq $p) { Write-Host 'PID_NOT_FOUND' } else { $p | Select-Object Id, ProcessName, Path, StartTime | Format-List | Out-String | Write-Host }; exit 0"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "inspect-locking-process-cmdline",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$p = Get-CimInstance Win32_Process -Filter \"ProcessId = 25168\"; if ($null -eq $p) { Write-Host 'PID_NOT_FOUND' } else { $p | Select-Object ProcessId, Name, CommandLine | Format-List | Out-String | Write-Host }; exit 0"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "inspect-locking-process-cmdline2",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$p = Get-WmiObject Win32_Process -Filter \"ProcessId=25168\"; if ($null -eq $p) { Write-Host 'PID_NOT_FOUND' } else { $p | Select-Object ProcessId, Name, CommandLine | Format-List | Out-String | Write-Host }; exit 0"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "stop-locking-editor-test-host",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"Stop-Process -Id 25168 -Force; Write-Host 'STOPPED_PID_25168'; exit 0"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "verify-standard-build-after-unlock",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"dotnet build .\\HornetStudio.sln --no-restore -c Debug; exit $LASTEXITCODE"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "list-editor-test-hosts",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"Get-WmiObject Win32_Process | Where-Object { $_.Name -eq 'dotnet.exe' -and $_.CommandLine -like '*HornetStudio.Editor.Tests.dll*' } | Select-Object ProcessId, CommandLine | Format-List | Out-String | Write-Host; exit 0"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "list-editor-test-hosts-2",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"Get-WmiObject Win32_Process | Where-Object { $_.Name -eq \"dotnet.exe\" -and $_.CommandLine -like \"*HornetStudio.Editor.Tests.dll*\" } | Select-Object ProcessId, CommandLine | Format-List | Out-String | Write-Host; exit 0"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "list-dotnet-processes",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"Get-WmiObject Win32_Process -Filter \"name='dotnet.exe'\" | Select-Object ProcessId, CommandLine | Format-Table -Wrap | Out-String -Width 4096 | Write-Host; exit 0"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "inspect-locking-process-29556",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$p = Get-WmiObject Win32_Process -Filter \"ProcessId=29556\"; if ($null -eq $p) { Write-Host 'PID_NOT_FOUND' } else { $p | Select-Object ProcessId, Name, CommandLine | Format-List | Out-String | Write-Host }; exit 0"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "stop-locking-editor-test-host-29556",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"Stop-Process -Id 29556 -Force; Write-Host 'STOPPED_PID_29556'; exit 0"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "verify-standard-build-final",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"dotnet build .\\HornetStudio.sln --no-restore -c Debug; exit $LASTEXITCODE"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "inspect-locking-process-21316",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$p = Get-CimInstance Win32_Process -Filter \"ProcessId = 21316\"; if ($null -eq $p) { Write-Host 'PID_NOT_FOUND' } else { $p | Select-Object ProcessId, Name, CommandLine | Format-List | Out-String | Write-Host }; exit 0"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "inspect-locking-process-21316-fixed",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$p = Get-CimInstance -ClassName Win32_Process -Filter \"ProcessId = 21316\"; if ($null -eq $p) { Write-Host 'PID_NOT_FOUND' } else { $p | Select-Object ProcessId, Name, CommandLine | Format-List | Out-String -Width 4096 | Write-Host }; exit 0"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "inspect-locking-process-21316-process",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$p = Get-Process -Id 21316 -ErrorAction SilentlyContinue; if ($null -eq $p) { Write-Host 'PID_NOT_FOUND' } else { $p | Select-Object Id, ProcessName, Path, StartTime | Format-List | Out-String -Width 4096 | Write-Host }; exit 0"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "inspect-locking-process-21316-cmdline",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$p = Get-CimInstance -ClassName Win32_Process | Where-Object { $_.ProcessId -eq 21316 }; if ($null -eq $p) { Write-Host 'PID_NOT_FOUND' } else { $p | Select-Object ProcessId, Name, CommandLine | Format-List | Out-String -Width 4096 | Write-Host }; exit 0"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "verify-locking-process-21316-gone",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$p = Get-Process -Id 21316 -ErrorAction SilentlyContinue; if ($null -eq $p) { Write-Host 'PID_NOT_FOUND' } else { $p | Select-Object Id, ProcessName | Format-List | Out-String | Write-Host }; exit 0"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "stop-locking-process-21316-task",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"Stop-Process -Id 21316 -Force -ErrorAction Stop; Write-Host 'STOPPED_PID_21316'; exit 0"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "verify-locking-process-21316-gone-2",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$p = Get-Process -Id 21316 -ErrorAction SilentlyContinue; if ($null -eq $p) { Write-Host 'PID_NOT_FOUND' } else { $p | Select-Object Id, ProcessName | Format-List | Out-String | Write-Host }; exit 0"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "inspect-locking-process-29272-cmdline",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$p = Get-CimInstance -ClassName Win32_Process | Where-Object { $_.ProcessId -eq 29272 }; if ($null -eq $p) { Write-Host 'PID_NOT_FOUND' } else { $p | Select-Object ProcessId, Name, CommandLine | Format-List | Out-String -Width 4096 | Write-Host }; exit 0"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "stop-locking-process-29272-task",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"Stop-Process -Id 29272 -Force -ErrorAction Stop; Write-Host 'STOPPED_PID_29272'; exit 0"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "validate-monitorview-dispatcher-followup",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts\\run_ui_benchmark.ps1",
+				"-Seconds",
+				"120",
+				"-ProjectPath",
+				"benchmarks\\ui_lag_bench_project\\project.aaep",
+				"-Scenario",
+				"MonitorViewDispatcherPostsFollowUp-120s",
+				"-NoBuild"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "run-editor-tests-monitorview-followup",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"src\\HornetStudio.Editor.Tests\\bin\\Debug\\net9.0-windows\\HornetStudio.Editor.Tests.dll"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "stop-locking-editor-test-host-12488",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$p = Get-Process -Id 12488 -ErrorAction SilentlyContinue; if ($null -eq $p) { Write-Host 'PID_NOT_FOUND' } else { $p | Select-Object Id, ProcessName, Path | Format-List | Out-String -Width 4096 | Write-Host; Stop-Process -Id 12488 -Force; Write-Host 'STOPPED_PID_12488' }; exit 0"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "debug-inspect-locking-process-15480",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$p = Get-CimInstance -ClassName Win32_Process | Where-Object { $_.ProcessId -eq 15480 }; if ($null -eq $p) { Write-Host 'PID_NOT_FOUND' } else { $p | Select-Object ProcessId, Name, CommandLine | Format-List | Out-String -Width 4096 | Write-Host }; exit 0"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "debug-stop-locking-process-15480",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$p = Get-Process -Id 15480 -ErrorAction SilentlyContinue; if ($null -eq $p) { Write-Host 'PID_NOT_FOUND' } else { $p | Select-Object Id, ProcessName, Path | Format-List | Out-String -Width 4096 | Write-Host; Stop-Process -Id 15480 -Force; Write-Host 'STOPPED_PID_15480' }; exit 0"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "debug-build-editor-after-udl-warning-fix",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"build",
+				"src\\HornetStudio.Editor\\HornetStudio.Editor.csproj",
+				"--no-restore",
+				"-c",
+				"Debug"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "debug-verify-locking-process-15480-gone",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$p = Get-Process -Id 15480 -ErrorAction SilentlyContinue; if ($null -eq $p) { Write-Host 'PID_NOT_FOUND' } else { $p | Select-Object Id, ProcessName, Path | Format-List | Out-String -Width 4096 | Write-Host }; exit 0"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "run-focused-signal-ancestor-tests",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$env:HORNET_EDITOR_TEST_FILTER='Signal ancestor'; & 'C:\\Program Files\\dotnet\\dotnet.exe' 'src\\HornetStudio.Editor.Tests\\bin\\Debug\\net9.0-windows\\HornetStudio.Editor.Tests.dll'; exit $LASTEXITCODE"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "run-focused-signal-ancestor-tests-cmd",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"set \"HORNET_EDITOR_TEST_FILTER=Signal ancestor\" && \"C:\\Program Files\\dotnet\\dotnet.exe\" \"src\\HornetStudio.Editor.Tests\\bin\\Debug\\net9.0-windows\\HornetStudio.Editor.Tests.dll\""
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "run-focused-signal-ancestor-tests-ps",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$env:HORNET_EDITOR_TEST_FILTER = \"Signal ancestor\"; & \"C:\\Program Files\\dotnet\\dotnet.exe\" \"src\\HornetStudio.Editor.Tests\\bin\\Debug\\net9.0-windows\\HornetStudio.Editor.Tests.dll\"; exit $LASTEXITCODE"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "run-focused-signal-ancestor-tests-ps-nospace",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$env:HORNET_EDITOR_TEST_FILTER=ancestor; & C:\\Progra~1\\dotnet\\dotnet.exe src\\HornetStudio.Editor.Tests\\bin\\Debug\\net9.0-windows\\HornetStudio.Editor.Tests.dll; exit $LASTEXITCODE"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "run-focused-signal-ancestor-tests-ps-chars",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$env:HORNET_EDITOR_TEST_FILTER=[string]::Concat([char[]](97,110,99,101,115,116,111,114)); & C:\\Progra~1\\dotnet\\dotnet.exe src\\HornetStudio.Editor.Tests\\bin\\Debug\\net9.0-windows\\HornetStudio.Editor.Tests.dll; exit $LASTEXITCODE"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "rerun-focused-signal-ancestor-tests-ps-chars",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$env:HORNET_EDITOR_TEST_FILTER=[string]::Concat([char[]](97,110,99,101,115,116,111,114)); & C:\\Progra~1\\dotnet\\dotnet.exe src\\HornetStudio.Editor.Tests\\bin\\Debug\\net9.0-windows\\HornetStudio.Editor.Tests.dll; exit $LASTEXITCODE"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "validate-editor-tests-value-ref",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"set \"HORNET_EDITOR_TEST_FILTER=value reference\" && \"C:\\Program Files\\dotnet\\dotnet.exe\" \"b:\\HornetStudio\\artifacts\\editor-tests-udl-value-ref\\HornetStudio.Editor.Tests.dll\""
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "validate-editor-tests-value-ref-ps",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$env:HORNET_EDITOR_TEST_FILTER='value reference'; & 'C:\\Program Files\\dotnet\\dotnet.exe' 'b:\\HornetStudio\\artifacts\\editor-tests-udl-value-ref\\HornetStudio.Editor.Tests.dll'; exit $LASTEXITCODE"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "validate-editor-tests-value-ref-cmd83",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"set HORNET_EDITOR_TEST_FILTER=value reference & C:\\Progra~1\\dotnet\\dotnet.exe b:\\HornetStudio\\artifacts\\editor-tests-udl-value-ref\\HornetStudio.Editor.Tests.dll"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "validate-solution-build-value-ref",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"build",
+				"HornetStudio.sln",
+				"--no-restore",
+				"-c",
+				"Debug"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "validate-solution-build-value-ref-outdir",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"build",
+				"HornetStudio.sln",
+				"--no-restore",
+				"-c",
+				"Debug",
+				"-p:OutDir=b:\\HornetStudio\\artifacts\\solution-value-ref\\"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "validate-solution-build-value-ref-outdir-rerun",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"build",
+				"HornetStudio.sln",
+				"--no-restore",
+				"-c",
+				"Debug",
+				"-p:OutDir=b:\\HornetStudio\\artifacts\\solution-value-ref-rerun\\"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "validate-editor-tests-value-ref-cmd83-rerun",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"set HORNET_EDITOR_TEST_FILTER=value reference & C:\\Progra~1\\dotnet\\dotnet.exe b:\\HornetStudio\\artifacts\\solution-value-ref-rerun\\HornetStudio.Editor.Tests.dll"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "benchmark-udl-value-ref-60s",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts\\run_ui_benchmark.ps1",
+				"-Seconds",
+				"60",
+				"-ProjectPath",
+				"benchmarks\\ui_lag_bench_project\\project.aaep",
+				"-Scenario",
+				"UdlSignalValueRef-60s"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "build-editor-tests-value-ref-refresh",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"build",
+				"src\\HornetStudio.Editor.Tests\\HornetStudio.Editor.Tests.csproj",
+				"--no-restore",
+				"-c",
+				"Debug",
+				"-p:OutDir=b:\\HornetStudio\\artifacts\\editor-tests-udl-value-ref-refresh\\"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "build-editor-tests-value-ref-refresh-rerun",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"build",
+				"src\\HornetStudio.Editor.Tests\\HornetStudio.Editor.Tests.csproj",
+				"--no-restore",
+				"-c",
+				"Debug",
+				"-p:OutDir=b:\\HornetStudio\\artifacts\\editor-tests-udl-value-ref-refresh-rerun\\"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "validate-editor-tests-value-ref-refresh-cmd83",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"set HORNET_EDITOR_TEST_FILTER=value reference & C:\\Progra~1\\dotnet\\dotnet.exe b:\\HornetStudio\\artifacts\\editor-tests-udl-value-ref-refresh-rerun\\HornetStudio.Editor.Tests.dll"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "benchmark-udl-value-ref-60s-rerun",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts\\run_ui_benchmark.ps1",
+				"-Seconds",
+				"60",
+				"-ProjectPath",
+				"benchmarks\\ui_lag_bench_project\\project.aaep",
+				"-Scenario",
+				"UdlSignalValueRef-60s-Rerun"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "build-editor-tests-value-ref-debug",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"build",
+				"src\\HornetStudio.Editor.Tests\\HornetStudio.Editor.Tests.csproj",
+				"--no-restore",
+				"-c",
+				"Debug",
+				"-p:OutDir=b:\\HornetStudio\\artifacts\\editor-tests-value-ref-debug\\"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "validate-editor-tests-value-ref-debug",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"set HORNET_EDITOR_TEST_FILTER=value reference & C:\\Progra~1\\dotnet\\dotnet.exe b:\\HornetStudio\\artifacts\\editor-tests-value-ref-debug\\HornetStudio.Editor.Tests.dll"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "build-editor-tests-value-ref-debug-rerun",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"build",
+				"src\\HornetStudio.Editor.Tests\\HornetStudio.Editor.Tests.csproj",
+				"--no-restore",
+				"-c",
+				"Debug",
+				"-p:OutDir=b:\\HornetStudio\\artifacts\\editor-tests-value-ref-debug-rerun\\"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "validate-editor-tests-value-ref-debug-rerun",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"set HORNET_EDITOR_TEST_FILTER=value reference & C:\\Progra~1\\dotnet\\dotnet.exe b:\\HornetStudio\\artifacts\\editor-tests-value-ref-debug-rerun\\HornetStudio.Editor.Tests.dll"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "benchmark-udl-value-ref-debug-rerun",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts\\run_ui_benchmark.ps1",
+				"-Seconds",
+				"60",
+				"-ProjectPath",
+				"benchmarks\\ui_lag_bench_project\\project.aaep",
+				"-Scenario",
+				"UdlSignalValueRef-DebugCache-60s"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "build-editor-tests-value-ref-startup",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"build",
+				"src\\HornetStudio.Editor.Tests\\HornetStudio.Editor.Tests.csproj",
+				"--no-restore",
+				"-c",
+				"Debug",
+				"-p:OutDir=b:\\HornetStudio\\artifacts\\editor-tests-value-ref-startup\\"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "validate-editor-tests-value-ref-startup",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"set HORNET_EDITOR_TEST_FILTER=value reference & C:\\Progra~1\\dotnet\\dotnet.exe b:\\HornetStudio\\artifacts\\editor-tests-value-ref-startup\\HornetStudio.Editor.Tests.dll"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "benchmark-udl-value-ref-startup-coalesce",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts\\run_ui_benchmark.ps1",
+				"-Seconds",
+				"60",
+				"-ProjectPath",
+				"benchmarks\\ui_lag_bench_project\\project.aaep",
+				"-Scenario",
+				"UdlSignalValueRef-StartupCoalesce-60s"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "validate-editor-tests-value-ref-revert-run",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"set HORNET_EDITOR_TEST_FILTER=value reference & C:\\Progra~1\\dotnet\\dotnet.exe b:\\HornetStudio\\artifacts\\editor-tests-value-ref-startup\\HornetStudio.Editor.Tests.dll"
+			],
+			"isBackground": false,
+			"group": "test"
 		}
 	]
 }

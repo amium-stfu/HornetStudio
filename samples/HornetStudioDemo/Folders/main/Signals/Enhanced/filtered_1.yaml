@@ -1,0 +1,62 @@
+name: 'filtered_1'
+enabled: true
+isWritable: true
+sourcePath: 'udl1.m001'
+writePath: ''
+writeMode: 'Direct'
+forwardChildWritesToSource: true
+unit: ''
+format: ''
+filterMode: 'Raw'
+scanIntervalMs: 100
+recordInterval: 1
+filterTimeMs: 0
+fillMissingWithLastValue: true
+kalmanEnabled: true
+kalmanMeasurementNoiseR: 1
+kalmanProcessNoiseQ: 0.05
+kalmanInitialErrorCovarianceP: 1
+kalmanTeachWindowMs: 5000
+kalmanTeachPauseOnDynamic: true
+kalmanTeachQFactor: 0.05
+kalmanTeachAutoApply: true
+kalmanDynamicQEnabled: true
+kalmanDynamicQMin: 0.001
+kalmanDynamicQMax: 1
+kalmanDynamicQHoldMs: 250
+kalmanDynamicDetectionWindowMs: 1000
+kalmanDynamicAngleThresholdDeg: 5
+kalmanDynamicAngleMaxDeg: 45
+kalmanDynamicReferenceFloor: 25
+kalmanDynamicNormalizationMode: 'HybridReferenceFloor'
+kalmanDynamicResidualWeight: 0.35
+kalmanDynamicQUseExistingDynamic: true
+adjustment:
+  enabled: true
+  mappingMode: 'None'
+  offset: 0
+  gain: 1
+  splinePoints: []
+  splineInterpolationMode: 'Linear'
+  supportsInverseMapping: true
+peakFilter:
+  enabled: false
+  threshold: 10
+  maxLengthMs: 200
+dynamicFilter:
+  enabled: false
+  detectionWindowMs: 1000
+  slopeThreshold: 2
+  relativeSlopeThresholdPercent: 0
+  dynamicAngleMaxDegrees: 45
+  dynamicFilterTimeMs: 1000
+  holdTimeMs: 1500
+statistics:
+  enabled: false
+  publishMin: false
+  publishMax: false
+  publishAverage: false
+  publishStdDev: false
+  publishIntegral: false
+  stdDevWindowMs: 10000
+  integralDivisorMs: 1

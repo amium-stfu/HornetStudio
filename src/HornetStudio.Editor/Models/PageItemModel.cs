@@ -18,6 +18,8 @@ using HornetStudio.Host;
 using HornetStudio.Logging;
 using HornetStudio.Host.Python.Client;
 using HornetStudio.Editor.Helpers;
+using HornetStudio.Editor.Monitoring;
+using HornetStudio.Editor.UdlClients;
 using HornetStudio.Editor.ViewModels;
 using HornetStudio.Editor.Widgets.Workflow;
 using Serilog.Events;
@@ -45,12 +47,15 @@ public enum ControlKind
     EnhancedSignals,
     ControllerWidget,
     Monitor,
+    MonitorView,
     Functions,
     DialogWidget
 }
 
 public sealed class FolderItemModel : ObservableObject
 {
+    private const string ValueRefPathPropertyName = "valueRefPath";
+    private const string ValueRefParameterPropertyName = "valueRefParameter";
     private static readonly ConcurrentDictionary<string, RunningDeclarativeFunctionExecution> RunningDeclarativeFunctions = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
@@ -170,6 +175,8 @@ public sealed class FolderItemModel : ObservableObject
     private string _enhancedSignalDefinitions = string.Empty;
     private string _controllerDefinitions = string.Empty;
     private string _monitorDefinitions = string.Empty;
+    private string _selectedMonitorIds = string.Empty;
+    private string _onActiveColor = string.Empty;
     private bool _applicationAutoStart;
     private string _blockedLegacyScriptPath = string.Empty;
     private DateTime _blockedLegacyScriptWriteTimeUtc;
@@ -244,8 +251,36 @@ public sealed class FolderItemModel : ObservableObject
     private DispatcherTimer? _pendingRefreshTimer;
     private DispatcherTimer? _scriptTimer;
     private int _registryRefreshQueued;
+    private int _targetRefreshQueued;
+    private int _targetValueRefreshQueued;
+    private readonly object _targetRefreshSync = new();
+    private readonly object _targetValueRefreshSync = new();
     private DateTimeOffset _lastTargetRefreshUtc = DateTimeOffset.MinValue;
+    private DateTimeOffset _lastSignalReceiveUtc = DateTimeOffset.MinValue;
+    private DateTimeOffset _lastTargetRefreshQueuedUtc = DateTimeOffset.MinValue;
+    private DateTimeOffset _targetRefreshQueuedUtc = DateTimeOffset.MinValue;
+    private string _targetRefreshQueuedPath = string.Empty;
+    private string _targetRefreshQueuedModule = string.Empty;
+    private DateTimeOffset _targetValueRefreshQueuedUtc = DateTimeOffset.MinValue;
+    private string _targetValueRefreshQueuedPath = string.Empty;
+    private string _targetValueRefreshQueuedModule = string.Empty;
     private bool _hasPendingTargetRefresh;
+    private bool _hasPendingQueuedTargetRefresh;
+    private PendingTargetRefresh _pendingQueuedTargetRefresh;
+    private bool _hasPendingTargetValueRefresh;
+    private PendingTargetValueRefresh _pendingTargetValueRefresh;
+    private string _lastSignalDiagnosticsPath = string.Empty;
+    private string _lastSignalDiagnosticsModule = string.Empty;
+    private string _lastSignalRawValueSignature = string.Empty;
+    private string _lastSignalResolvedDisplayValue = string.Empty;
+    private string _lastSignalDisplayText = string.Empty;
+    private string _cachedSignalValueRefPath = string.Empty;
+    private string _cachedSignalValueRefParameter = string.Empty;
+    private ItemModel? _cachedSignalValueRefRuntimeItem;
+    private readonly string _signalValueSchedulerSubscriptionKey = Guid.NewGuid().ToString("N");
+    private SignalLiveValueBindingDescriptor? _resolvedSignalLiveValueBinding;
+    private long _lastAppliedSignalLiveValueVersion = -1;
+    private string _unresolvedSignalTargetPath = string.Empty;
     private string _lastTargetParameterViewSignature = string.Empty;
     private string _lastItemBodyPresentationSignature = string.Empty;
     private object? _scriptValue;
@@ -1155,6 +1190,8 @@ public sealed class FolderItemModel : ObservableObject
 
     public bool IsMonitor => Kind == ControlKind.Monitor;
 
+    public bool IsMonitorView => Kind == ControlKind.MonitorView;
+
     public bool IsFunctions => Kind == ControlKind.Functions;
 
     // Controls, die als Child in einem Table gerendert und selektiert werden duerfen.
@@ -1172,6 +1209,7 @@ public sealed class FolderItemModel : ObservableObject
         or ControlKind.CustomSignals
         or ControlKind.EnhancedSignals
         or ControlKind.ControllerWidget
+        or ControlKind.MonitorView
         or ControlKind.Functions;
 
     public bool IsSelected
@@ -1765,6 +1803,18 @@ public sealed class FolderItemModel : ObservableObject
         set => SetProperty(ref _monitorDefinitions, value ?? string.Empty);
     }
 
+    public string SelectedMonitorIds
+    {
+        get => _selectedMonitorIds;
+        set => SetProperty(ref _selectedMonitorIds, value ?? string.Empty);
+    }
+
+    public string OnActiveColor
+    {
+        get => _onActiveColor;
+        set => SetProperty(ref _onActiveColor, value ?? string.Empty);
+    }
+
     public bool ApplicationAutoStart
     {
         get => _applicationAutoStart;
@@ -1779,6 +1829,7 @@ public sealed class FolderItemModel : ObservableObject
             var normalizedValue = NormalizeTargetPropertyPath(value);
             if (SetProperty(ref _targetParameterPath, normalizedValue))
             {
+                UpdateSignalLiveValueBinding();
                 RaisePropertyChanged(nameof(TargetPropertyView));
                 RaisePropertyChanged(nameof(ItemBodyPresentation));
                 RaisePropertyChanged(nameof(ShowItemFooterPanel));
@@ -1912,7 +1963,7 @@ public sealed class FolderItemModel : ObservableObject
     public int HistorySeconds
     {
         get => _historySeconds;
-        set => SetProperty(ref _historySeconds, value <= 1 ? 1 : value);
+        set => SetProperty(ref _historySeconds, value <= 0 ? 0 : value);
     }
 
     public int View
@@ -2131,6 +2182,8 @@ public sealed class FolderItemModel : ObservableObject
         {
             if (SetProperty(ref _target, value))
             {
+                RefreshSignalValueReferenceCache();
+                UpdateSignalLiveValueBinding();
                 RaisePropertyChanged(nameof(DisplayValue));
                 RaisePropertyChanged(nameof(DisplayUnit));
                 RaisePropertyChanged(nameof(RequestStatusText));
@@ -2937,6 +2990,7 @@ public sealed class FolderItemModel : ObservableObject
         {
             Target = null;
             TargetPropertyPath = string.Empty;
+            ClearUnresolvedSignalTargetRefreshGate();
             CancelPendingTargetRefresh();
             TriggerTargetRefresh();
             return;
@@ -2946,6 +3000,7 @@ public sealed class FolderItemModel : ObservableObject
         {
             Target = null;
             TargetPropertyPath = string.Empty;
+            ArmUnresolvedSignalTargetRefreshGate(TargetPath);
             CancelPendingTargetRefresh();
             TriggerTargetRefresh();
             return;
@@ -2961,6 +3016,7 @@ public sealed class FolderItemModel : ObservableObject
 
         Target = selectedItem;
         EnsureTargetPropertySelection(selectedItem);
+        ClearUnresolvedSignalTargetRefreshGate();
         CancelPendingTargetRefresh();
         TriggerTargetRefresh();
     }
@@ -3018,10 +3074,157 @@ public sealed class FolderItemModel : ObservableObject
         TriggerTargetRefresh();
     }
 
+    internal string SignalValueSchedulerSubscriptionKey => _signalValueSchedulerSubscriptionKey;
+
+    internal bool IsSignalValueSchedulerActive()
+        => TryGetResolvedSignalLiveValueBinding(out _);
+
+    internal bool ApplyScheduledSignalValueRefresh(DateTimeOffset tickUtc)
+    {
+        if (!TryGetResolvedSignalLiveValueBinding(out var binding)
+            || !UdlClientLiveValueStore.TryGetSnapshot(binding, out var snapshot)
+            || snapshot.Version == _lastAppliedSignalLiveValueVersion)
+        {
+            return false;
+        }
+
+        _lastAppliedSignalLiveValueVersion = snapshot.Version;
+        UiResponsivenessDiagnostics.RecordSignalPipelineEvent(
+            stage: "SignalLatestValueApply",
+            path: binding.RuntimeItemPath,
+            module: binding.ModuleName,
+            executedAtUtc: tickUtc);
+        RefreshTargetValueBindings();
+        return true;
+    }
+
+    private void UpdateSignalLiveValueBinding()
+    {
+        var hadBinding = _resolvedSignalLiveValueBinding is not null;
+        if (TryCreateSignalLiveValueBinding(out var binding))
+        {
+            _resolvedSignalLiveValueBinding = binding;
+            SignalValueUiScheduler.Subscribe(this);
+            return;
+        }
+
+        _resolvedSignalLiveValueBinding = null;
+        _lastAppliedSignalLiveValueVersion = -1;
+        if (hadBinding)
+        {
+            SignalValueUiScheduler.Unsubscribe(this);
+        }
+    }
+
+    private bool TryGetResolvedSignalLiveValueBinding(out SignalLiveValueBindingDescriptor binding)
+    {
+        binding = _resolvedSignalLiveValueBinding!;
+        return binding is not null;
+    }
+
+    private bool TryCreateSignalLiveValueBinding(out SignalLiveValueBindingDescriptor binding)
+    {
+        binding = null!;
+        if (!IsSignal
+            || Target is null)
+        {
+            return false;
+        }
+
+        var folderName = ResolveSignalLiveValueFolderName();
+        if (string.IsNullOrWhiteSpace(folderName))
+        {
+            return false;
+        }
+
+        var selectedParameterName = ResolveSignalLiveValueParameterName(Target);
+        if (string.IsNullOrWhiteSpace(selectedParameterName))
+        {
+            return false;
+        }
+
+        string runtimeItemPath;
+        string runtimeParameterName;
+        if (TryGetSignalValueReference(out var valueRefPath, out var valueRefParameter)
+            && UdlPathHelper.IsUdlRuntimePath(valueRefPath))
+        {
+            if (!string.Equals(selectedParameterName, valueRefParameter, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            runtimeItemPath = valueRefPath;
+            runtimeParameterName = valueRefParameter;
+        }
+        else if (!string.IsNullOrWhiteSpace(Target.Path)
+                 && UdlPathHelper.IsUdlRuntimePath(Target.Path))
+        {
+            runtimeItemPath = Target.Path;
+            runtimeParameterName = selectedParameterName;
+        }
+        else
+        {
+            return false;
+        }
+
+        if (!UdlPathHelper.TryGetRuntimeClientName(runtimeItemPath, out var clientName))
+        {
+            return false;
+        }
+
+        var moduleName = GetSignalPipelineModuleName(runtimeItemPath, Target);
+        binding = new SignalLiveValueBindingDescriptor(
+            FolderName: folderName,
+            ClientName: clientName,
+            PublicTargetPath: TargetPathHelper.NormalizeConfiguredTargetPath(!string.IsNullOrWhiteSpace(Target.Path) ? Target.Path : TargetPath),
+            RuntimeItemPath: TargetPathHelper.NormalizeConfiguredTargetPath(runtimeItemPath),
+            RuntimeParameterName: runtimeParameterName,
+            ModuleName: moduleName);
+        return true;
+    }
+
+    private string ResolveSignalLiveValueFolderName()
+    {
+        if (!string.IsNullOrWhiteSpace(FolderName))
+        {
+            return FolderName;
+        }
+
+        var targetPath = !string.IsNullOrWhiteSpace(Target?.Path) ? Target.Path : TargetPath;
+        var segments = TargetPathHelper.SplitPathSegments(targetPath);
+        if (segments.Count >= 2 && string.Equals(segments[0], "studio", StringComparison.OrdinalIgnoreCase))
+        {
+            return segments[1];
+        }
+
+        return string.Empty;
+    }
+
+    private string ResolveSignalLiveValueParameterName(ItemModel targetItem)
+    {
+        if (!string.IsNullOrWhiteSpace(TargetPropertyPath)
+            && HostRegistryPropertyPolicy.CanShowInUserPicker(TargetPropertyPath)
+            && targetItem.Properties.Has(TargetPropertyPath))
+        {
+            return TargetPropertyPath;
+        }
+
+        if (targetItem.Properties.Has("read"))
+        {
+            return "read";
+        }
+
+        return string.Empty;
+    }
+
     public void RefreshTargetBindings()
     {
-        var targetParameterViewChanged = HasPresentationChanged(TargetPropertyView, ref _lastTargetParameterViewSignature);
-        var itemBodyPresentationChanged = HasPresentationChanged(ItemBodyPresentation, ref _lastItemBodyPresentationSignature);
+        var targetPropertyView = TargetPropertyView;
+        var itemBodyPresentation = ItemBodyPresentation;
+        RecordSignalVisualPipelineState(targetPropertyView, itemBodyPresentation);
+
+        var targetParameterViewChanged = HasPresentationChanged(targetPropertyView, ref _lastTargetParameterViewSignature);
+        var itemBodyPresentationChanged = HasPresentationChanged(itemBodyPresentation, ref _lastItemBodyPresentationSignature);
 
         RaisePropertyChanged(nameof(DisplayValue));
         RaisePropertyChanged(nameof(DisplayUnit));
@@ -3029,11 +3232,13 @@ public sealed class FolderItemModel : ObservableObject
         RaisePropertyChanged(nameof(DisplayFooter));
         if (targetParameterViewChanged)
         {
+            RecordSignalVisualPropertyChanged(stage: "SignalTargetPropertyChanged");
             RaisePropertyChanged(nameof(TargetPropertyView));
         }
 
         if (itemBodyPresentationChanged)
         {
+            RecordSignalVisualPropertyChanged(stage: "SignalDisplayPropertyChanged");
             RaisePropertyChanged(nameof(ItemBodyPresentation));
         }
 
@@ -4658,6 +4863,11 @@ public sealed class FolderItemModel : ObservableObject
             return;
         }
 
+        if (TryHandleSignalLiveValueRegistryFastPath(e, visualRulesAffected))
+        {
+            return;
+        }
+
         var matchedTargetPath = TargetPathHelper.EnumerateResolutionCandidates(TargetPath, FolderName)
             .Concat(TargetPathHelper.EnumerateItemBrokerRuntimeCandidates(TargetPath))
             .FirstOrDefault(candidate => TargetPathHelper.PathsEqual(e.Key, candidate)
@@ -4666,6 +4876,13 @@ public sealed class FolderItemModel : ObservableObject
 
         if (string.IsNullOrWhiteSpace(matchedTargetPath))
         {
+            if (TryHandleSignalValueRefRegistryChange(e, visualRulesAffected))
+            {
+                return;
+            }
+
+            RecordSignalIrrelevantEvent(path: e.Key, item: e.ItemModel);
+
             if (!visualRulesAffected)
             {
                 return;
@@ -4680,15 +4897,35 @@ public sealed class FolderItemModel : ObservableObject
         var isAncestorTarget = TargetPathHelper.IsDescendantPath(matchedTargetPath, e.Key);
         if (!isDirectTarget && !isChildTarget && !isAncestorTarget)
         {
+            RecordSignalIrrelevantEvent(path: e.Key, item: e.ItemModel);
+            return;
+        }
+
+        RecordSignalRegistryEvent(stage: "SignalRegistryEventRelevant", path: matchedTargetPath, item: e.ItemModel);
+        RecordSignalPipelineReceive(path: matchedTargetPath, item: e.ItemModel);
+
+        if (ShouldSuppressUnresolvedTargetRefresh(
+                e,
+                matchedTargetPath,
+                isDirectTarget,
+                isAncestorTarget))
+        {
             return;
         }
 
         if (!Dispatcher.UIThread.CheckAccess())
         {
+            if (IsTargetValueOnlyChange(e, matchedTargetPath, isDirectTarget, isAncestorTarget))
+            {
+                QueueTargetValueRefresh(e, matchedTargetPath);
+                return;
+            }
+
             QueueRegistryRefresh();
             return;
         }
 
+        var previousTargetPropertyPath = TargetPropertyPath;
         if (isDirectTarget && (Target is null || !ReferenceEquals(Target, e.ItemModel)))
         {
             Target = e.ItemModel;
@@ -4715,7 +4952,118 @@ public sealed class FolderItemModel : ObservableObject
             EnsureTargetPropertySelection(Target);
         }
 
+        if (string.Equals(previousTargetPropertyPath, TargetPropertyPath, StringComparison.Ordinal)
+            && IsTargetValueOnlyChange(e, matchedTargetPath, isDirectTarget, isAncestorTarget))
+        {
+            RequestTargetValueRefresh();
+            return;
+        }
+
         RequestTargetRefresh();
+    }
+
+    private bool TryHandleSignalLiveValueRegistryFastPath(DataChangedEventArgs e, bool visualRulesAffected)
+    {
+        if (visualRulesAffected
+            || !TryGetResolvedSignalLiveValueBinding(out var binding))
+        {
+            return false;
+        }
+
+        var publicPathMatched = MatchesSignalBindingPath(e.Key, binding.PublicTargetPath);
+        var runtimePathMatched = MatchesSignalBindingPath(e.Key, binding.RuntimeItemPath);
+        if (!publicPathMatched && !runtimePathMatched)
+        {
+            return true;
+        }
+
+        if (publicPathMatched
+            && IsTargetValueOnlyChange(
+                e,
+                binding.PublicTargetPath,
+                isDirectTarget: TargetPathHelper.PathsEqual(e.Key, binding.PublicTargetPath),
+                isAncestorTarget: TargetPathHelper.IsDescendantPath(binding.PublicTargetPath, e.Key)))
+        {
+            RecordSignalPipelineStage(stage: "SignalRegistryValueRefreshBypassed", path: binding.PublicTargetPath, module: binding.ModuleName);
+            return true;
+        }
+
+        if (runtimePathMatched
+            && IsSignalValueReferenceValueOnlyChange(
+                e,
+                binding.RuntimeItemPath,
+                binding.RuntimeParameterName,
+                isDirectValueRef: TargetPathHelper.PathsEqual(e.Key, binding.RuntimeItemPath),
+                isAncestorValueRef: TargetPathHelper.IsDescendantPath(binding.RuntimeItemPath, e.Key)))
+        {
+            RecordSignalPipelineStage(stage: "SignalRuntimeValueRefreshBypassed", path: binding.RuntimeItemPath, module: binding.ModuleName);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool MatchesSignalBindingPath(string? changedPath, string? bindingPath)
+    {
+        if (string.IsNullOrWhiteSpace(changedPath) || string.IsNullOrWhiteSpace(bindingPath))
+        {
+            return false;
+        }
+
+        return TargetPathHelper.PathsEqual(changedPath, bindingPath)
+               || TargetPathHelper.IsDescendantPath(changedPath, bindingPath)
+               || TargetPathHelper.IsDescendantPath(bindingPath, changedPath);
+    }
+
+    private bool TryHandleSignalValueRefRegistryChange(DataChangedEventArgs e, bool visualRulesAffected)
+    {
+        if (!IsSignal
+            || CanUseResolvedTargetProperty()
+            || !TryGetSignalValueReference(out var valueRefPath, out var valueRefParameter)
+            || !MatchesSignalValueReferencePath(e.Key, valueRefPath, out var isDirectValueRef, out var isAncestorValueRef))
+        {
+            return false;
+        }
+
+        RecordSignalRegistryEvent(stage: "SignalValueRefDirtyReceived", path: valueRefPath, item: e.ItemModel);
+        RecordSignalPipelineReceive(path: valueRefPath, item: e.ItemModel);
+
+        if (ShouldSuppressUnresolvedValueReferenceRefresh(valueRefPath, e.ItemModel))
+        {
+            return true;
+        }
+
+        var valueOnlyChange = IsSignalValueReferenceValueOnlyChange(
+            e,
+            valueRefPath,
+            valueRefParameter,
+            isDirectValueRef,
+            isAncestorValueRef);
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            if (valueOnlyChange)
+            {
+                RequestTargetValueRefresh();
+                return true;
+            }
+
+            QueueRegistryRefresh();
+            return true;
+        }
+
+        if (valueOnlyChange)
+        {
+            RequestTargetValueRefresh();
+            return true;
+        }
+
+        if (visualRulesAffected)
+        {
+            ApplyTheme(_isDarkThemeApplied);
+        }
+
+        RequestTargetRefresh();
+        return true;
     }
 
     private void QueueRegistryRefresh()
@@ -4737,6 +5085,110 @@ public sealed class FolderItemModel : ObservableObject
             ResolveTarget();
             RequestTargetRefresh();
         }, DispatcherPriority.Background);
+    }
+
+    private void ArmUnresolvedSignalTargetRefreshGate(string? targetPath)
+    {
+        if (!IsSignal)
+        {
+            return;
+        }
+
+        var normalizedTargetPath = TargetPathHelper.NormalizeConfiguredTargetPath(targetPath);
+        if (string.IsNullOrWhiteSpace(normalizedTargetPath)
+            || string.Equals(_unresolvedSignalTargetPath, normalizedTargetPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _unresolvedSignalTargetPath = normalizedTargetPath;
+        UiResponsivenessDiagnostics.AdjustSignalRefreshBacklog(unresolvedTargetGateDelta: 1);
+        RecordSignalRegistryEvent(stage: "SignalTargetAvailabilityGateArmed", path: normalizedTargetPath, item: Target);
+    }
+
+    private void ClearUnresolvedSignalTargetRefreshGate()
+    {
+        if (string.IsNullOrWhiteSpace(_unresolvedSignalTargetPath))
+        {
+            return;
+        }
+
+        _unresolvedSignalTargetPath = string.Empty;
+        UiResponsivenessDiagnostics.AdjustSignalRefreshBacklog(unresolvedTargetGateDelta: -1);
+    }
+
+    private bool ShouldSuppressUnresolvedTargetRefresh(
+        DataChangedEventArgs e,
+        string matchedTargetPath,
+        bool isDirectTarget,
+        bool isAncestorTarget)
+    {
+        if (!IsUnresolvedSignalTargetRefreshGateActive(matchedTargetPath))
+        {
+            return false;
+        }
+
+        if (CanResolveUnresolvedSignalTarget(e, matchedTargetPath, isDirectTarget, isAncestorTarget))
+        {
+            RecordSignalRegistryEvent(stage: "SignalTargetAvailabilityDetected", path: matchedTargetPath, item: e.ItemModel);
+            ClearUnresolvedSignalTargetRefreshGate();
+            return false;
+        }
+
+        RecordSignalRegistryEvent(stage: "SignalTargetAwaitingAvailability", path: matchedTargetPath, item: e.ItemModel);
+        return true;
+    }
+
+    private bool ShouldSuppressUnresolvedValueReferenceRefresh(string valueRefPath, ItemModel? item)
+    {
+        if (!IsUnresolvedSignalTargetRefreshGateActive(TargetPath))
+        {
+            return false;
+        }
+
+        RecordSignalRegistryEvent(stage: "SignalValueRefAwaitingTargetAvailability", path: valueRefPath, item: item);
+        return true;
+    }
+
+    private bool IsUnresolvedSignalTargetRefreshGateActive(string? matchedTargetPath)
+    {
+        if (!IsSignal)
+        {
+            return false;
+        }
+
+        var unresolvedTargetPath = _unresolvedSignalTargetPath;
+        if (string.IsNullOrWhiteSpace(unresolvedTargetPath))
+        {
+            return false;
+        }
+
+        var normalizedMatchedTargetPath = TargetPathHelper.NormalizeConfiguredTargetPath(matchedTargetPath);
+        return !string.IsNullOrWhiteSpace(normalizedMatchedTargetPath)
+            && TargetPathHelper.PathsEqual(normalizedMatchedTargetPath, unresolvedTargetPath);
+    }
+
+    private bool CanResolveUnresolvedSignalTarget(
+        DataChangedEventArgs e,
+        string matchedTargetPath,
+        bool isDirectTarget,
+        bool isAncestorTarget)
+    {
+        if (TryResolveTargetItem(matchedTargetPath, out var resolvedTarget) && resolvedTarget is not null)
+        {
+            return true;
+        }
+
+        if (isDirectTarget && e.ItemModel is not null)
+        {
+            return true;
+        }
+
+        return isAncestorTarget
+            && e.ItemModel is not null
+            && TryGetTargetRelativePath(matchedTargetPath, e.Key, out var targetRelativePath)
+            && TryResolveRelativeChild(e.ItemModel, targetRelativePath, out resolvedTarget)
+            && resolvedTarget is not null;
     }
 
     private static void ApplyChildRegistryUpdate(ItemModel rootItem, string relativePath, DataChangedEventArgs e)
@@ -4807,6 +5259,364 @@ public sealed class FolderItemModel : ObservableObject
         SchedulePendingRefresh(dueAt - now);
     }
 
+    private bool IsTargetValueOnlyChange(DataChangedEventArgs e, string matchedTargetPath, bool isDirectTarget, bool isAncestorTarget)
+    {
+        if (Kind is not (ControlKind.Signal or ControlKind.ItemModel)
+            || IsScriptTarget
+            || Target is null
+            || e.ChangeKind == DataChangeKind.SnapshotUpserted)
+        {
+            return false;
+        }
+
+        if (!isDirectTarget)
+        {
+            if (!isAncestorTarget || !IsTargetAncestorPropertyChange(e, matchedTargetPath))
+            {
+                return false;
+            }
+        }
+        else if (isAncestorTarget)
+        {
+            return false;
+        }
+
+        if (e.ChangeKind == DataChangeKind.ValueUpdated)
+        {
+            return true;
+        }
+
+        return e.ChangeKind == DataChangeKind.PropertyUpdated
+            && IsValueOnlyTargetParameter(e.ParameterName);
+    }
+
+    private bool IsSignalValueReferenceValueOnlyChange(
+        DataChangedEventArgs e,
+        string valueRefPath,
+        string valueRefParameter,
+        bool isDirectValueRef,
+        bool isAncestorValueRef)
+    {
+        if (Target is null || e.ChangeKind == DataChangeKind.SnapshotUpserted)
+        {
+            return false;
+        }
+
+        if (!isDirectValueRef)
+        {
+            if (!isAncestorValueRef || !IsTargetAncestorPropertyChange(e, valueRefPath))
+            {
+                return false;
+            }
+        }
+        else if (isAncestorValueRef)
+        {
+            return false;
+        }
+
+        if (e.ChangeKind == DataChangeKind.ValueUpdated)
+        {
+            return true;
+        }
+
+        return e.ChangeKind == DataChangeKind.PropertyUpdated
+            && IsValueOnlySignalValueReferenceParameter(e.ParameterName, valueRefParameter);
+    }
+
+    private bool IsValueOnlyTargetParameter(string? parameterName)
+    {
+        var normalizedParameterName = parameterName?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(normalizedParameterName))
+        {
+            return false;
+        }
+
+        return string.Equals(normalizedParameterName, TargetPropertyPath, StringComparison.OrdinalIgnoreCase)
+            || (string.IsNullOrWhiteSpace(TargetPropertyPath) && string.Equals(normalizedParameterName, "read", StringComparison.OrdinalIgnoreCase))
+            || string.Equals(normalizedParameterName, "unit", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalizedParameterName, "SendStatus", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsValueOnlySignalValueReferenceParameter(string? parameterName, string valueRefParameter)
+    {
+        var normalizedParameterName = parameterName?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(normalizedParameterName))
+        {
+            return false;
+        }
+
+        return string.Equals(normalizedParameterName, valueRefParameter, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalizedParameterName, "unit", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalizedParameterName, "SendStatus", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void QueueTargetValueRefresh(DataChangedEventArgs e, string matchedTargetPath)
+    {
+        var pendingItem = e.ItemModel;
+        if (IsTargetAncestorPropertyChange(e, matchedTargetPath)
+            && TryGetTargetRelativePath(matchedTargetPath, e.Key, out var targetRelativePath)
+            && TryResolveRelativeChild(e.ItemModel, targetRelativePath, out var resolvedTarget)
+            && resolvedTarget is not null)
+        {
+            pendingItem = resolvedTarget;
+        }
+
+        lock (_targetValueRefreshSync)
+        {
+            _pendingTargetValueRefresh = new PendingTargetValueRefresh(
+                e.Key,
+                matchedTargetPath,
+                pendingItem,
+                e.ChangeKind,
+                e.ParameterName,
+                TargetPropertyPath);
+            _hasPendingTargetValueRefresh = true;
+        }
+
+        RecordSignalRegistryEvent(stage: "SignalLatestValueStored", path: matchedTargetPath, item: pendingItem);
+
+        RequestTargetValueRefresh();
+    }
+
+    private void RequestTargetValueRefresh()
+    {
+        var queuedAtUtc = DateTimeOffset.UtcNow;
+        var queuedPath = _lastSignalDiagnosticsPath;
+        var queuedModule = _lastSignalDiagnosticsModule;
+        if (Interlocked.Exchange(ref _targetValueRefreshQueued, 1) == 1)
+        {
+            RecordSignalPipelineStage(stage: "SignalValueRefreshCoalesced", path: queuedPath, module: queuedModule);
+            return;
+        }
+
+        lock (_targetValueRefreshSync)
+        {
+            _targetValueRefreshQueuedUtc = queuedAtUtc;
+            _targetValueRefreshQueuedPath = queuedPath;
+            _targetValueRefreshQueuedModule = queuedModule;
+        }
+
+        UiResponsivenessDiagnostics.AdjustSignalRefreshBacklog(targetValueRefreshQueuedDelta: 1);
+        RecordSignalPipelineStage(stage: "SignalValueRefreshScheduled", path: queuedPath, module: queuedModule);
+        RecordTargetValueRefreshQueued(queuedAtUtc, queuedPath, queuedModule);
+
+        Dispatcher.UIThread.Post(ExecuteTargetValueRefresh, DispatcherPriority.Background);
+    }
+
+    private void ExecuteTargetValueRefresh()
+    {
+        Interlocked.Exchange(ref _targetValueRefreshQueued, 0);
+        UiResponsivenessDiagnostics.AdjustSignalRefreshBacklog(targetValueRefreshQueuedDelta: -1);
+
+        var queuedAtUtc = DateTimeOffset.MinValue;
+        var queuedPath = string.Empty;
+        var queuedModule = string.Empty;
+        var hasPendingTargetValueRefresh = false;
+        var pendingTargetValueRefresh = default(PendingTargetValueRefresh);
+        lock (_targetValueRefreshSync)
+        {
+            queuedAtUtc = _targetValueRefreshQueuedUtc;
+            _targetValueRefreshQueuedUtc = DateTimeOffset.MinValue;
+            queuedPath = _targetValueRefreshQueuedPath;
+            queuedModule = _targetValueRefreshQueuedModule;
+            _targetValueRefreshQueuedPath = string.Empty;
+            _targetValueRefreshQueuedModule = string.Empty;
+            if (_hasPendingTargetValueRefresh)
+            {
+                pendingTargetValueRefresh = _pendingTargetValueRefresh;
+                _pendingTargetValueRefresh = default;
+                _hasPendingTargetValueRefresh = false;
+                hasPendingTargetValueRefresh = true;
+            }
+        }
+
+        if (hasPendingTargetValueRefresh && !ApplyPendingTargetValueRefresh(pendingTargetValueRefresh))
+        {
+            TriggerTargetRefresh();
+            return;
+        }
+
+        if (hasPendingTargetValueRefresh)
+        {
+            RecordSignalRegistryEvent(
+                stage: "SignalLatestValueApplied",
+                path: pendingTargetValueRefresh.MatchedTargetPath,
+                item: pendingTargetValueRefresh.Item);
+        }
+
+        RecordTargetValueRefreshExecuted(queuedAtUtc, queuedPath, queuedModule);
+        RefreshTargetValueBindings();
+        RecordSignalValueReferenceApplied();
+        _lastTargetRefreshUtc = DateTimeOffset.UtcNow;
+    }
+
+    private void RecordSignalValueReferenceApplied()
+    {
+        if (!TryResolveSignalValueReferenceProperty(out _, out var runtimeItem, out var valueRefPath, out _))
+        {
+            return;
+        }
+
+        RecordSignalRegistryEvent(stage: "SignalValueRefLatestValueApplied", path: valueRefPath, item: runtimeItem);
+    }
+
+    private bool ApplyPendingTargetValueRefresh(PendingTargetValueRefresh pendingRefresh)
+    {
+        if (Target is null
+            || !IsCurrentTargetCandidate(pendingRefresh.MatchedTargetPath)
+            || !string.Equals(pendingRefresh.TargetPropertyPath, TargetPropertyPath, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        Target = pendingRefresh.Item;
+        if (Target is null)
+        {
+            return false;
+        }
+
+        var previousTargetPropertyPath = TargetPropertyPath;
+        EnsureTargetPropertySelection(Target);
+        return string.Equals(previousTargetPropertyPath, TargetPropertyPath, StringComparison.Ordinal)
+            && IsTargetValueOnlyChange(
+                new DataChangedEventArgs(
+                    pendingRefresh.ChangedPath,
+                    pendingRefresh.Item,
+                    pendingRefresh.ChangeKind,
+                    pendingRefresh.ParameterName),
+                pendingRefresh.MatchedTargetPath,
+                isDirectTarget: true,
+                isAncestorTarget: false);
+    }
+
+    private static bool IsTargetAncestorPropertyChange(DataChangedEventArgs e, string matchedTargetPath)
+    {
+        if (e.ChangeKind != DataChangeKind.PropertyUpdated || string.IsNullOrWhiteSpace(e.ParameterName))
+        {
+            return false;
+        }
+
+        return TryGetTargetRelativePath(matchedTargetPath, e.Key, out var targetRelativePath)
+            && !targetRelativePath.Contains('.', StringComparison.Ordinal)
+            && string.Equals(targetRelativePath, e.ParameterName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TryGetTargetRelativePath(string matchedTargetPath, string changedPath, out string targetRelativePath)
+        => TargetPathHelper.TryGetRelativePath(matchedTargetPath, changedPath, out targetRelativePath);
+
+    private bool IsCurrentTargetCandidate(string matchedTargetPath)
+        => TargetPathHelper.EnumerateResolutionCandidates(TargetPath, FolderName)
+            .Concat(TargetPathHelper.EnumerateItemBrokerRuntimeCandidates(TargetPath))
+            .Any(candidate => TargetPathHelper.PathsEqual(candidate, matchedTargetPath));
+
+    private void RefreshTargetValueBindings()
+    {
+        var targetPropertyView = TargetPropertyView;
+        var itemBodyPresentation = ItemBodyPresentation;
+        RecordSignalVisualPipelineState(targetPropertyView, itemBodyPresentation);
+
+        var targetParameterViewChanged = HasPresentationChanged(targetPropertyView, ref _lastTargetParameterViewSignature);
+        var itemBodyPresentationChanged = HasPresentationChanged(itemBodyPresentation, ref _lastItemBodyPresentationSignature);
+
+        RaisePropertyChanged(nameof(DisplayValue));
+        RaisePropertyChanged(nameof(DisplayUnit));
+        RaisePropertyChanged(nameof(RequestStatusText));
+        if (targetParameterViewChanged)
+        {
+            RecordSignalVisualPropertyChanged(stage: "SignalTargetPropertyChanged");
+            RaisePropertyChanged(nameof(TargetPropertyView));
+        }
+
+        if (itemBodyPresentationChanged)
+        {
+            RecordSignalVisualPropertyChanged(stage: "SignalDisplayPropertyChanged");
+            RaisePropertyChanged(nameof(ItemBodyPresentation));
+        }
+
+        RaisePropertyChanged(nameof(ItemChoiceButtonHeight));
+        RaisePropertyChanged(nameof(ItemUnitWidth));
+        RaisePropertyChanged(nameof(ItemValueFontSize));
+        RaisePropertyChanged(nameof(ItemUnitFontSize));
+        RaisePropertyChanged(nameof(CanOpenValueEditor));
+    }
+
+    private void RecordSignalVisualPipelineState(PropertyDisplayModel targetPropertyView, PropertyDisplayModel itemBodyPresentation)
+    {
+        if (!ShouldTrackSignalPipelineDiagnostics())
+        {
+            return;
+        }
+
+        var (path, module) = GetSignalVisualDiagnosticIdentity();
+
+        var rawValueSignature = GetSignalRawValueSignature(targetPropertyView);
+        if (!string.Equals(rawValueSignature, _lastSignalRawValueSignature, StringComparison.Ordinal))
+        {
+            _lastSignalRawValueSignature = rawValueSignature;
+            UiResponsivenessDiagnostics.RecordSignalPipelineEvent(
+                stage: "TargetRawValueChanged",
+                path: path,
+                module: module);
+        }
+
+        var resolvedDisplayValue = DisplayValue;
+        if (!string.Equals(resolvedDisplayValue, _lastSignalResolvedDisplayValue, StringComparison.Ordinal))
+        {
+            _lastSignalResolvedDisplayValue = resolvedDisplayValue;
+            UiResponsivenessDiagnostics.RecordSignalPipelineEvent(
+                stage: "SignalResolvedDisplayValueChanged",
+                path: path,
+                module: module);
+        }
+
+        var displayText = itemBodyPresentation.ValueText ?? string.Empty;
+        if (!string.Equals(displayText, _lastSignalDisplayText, StringComparison.Ordinal))
+        {
+            _lastSignalDisplayText = displayText;
+            UiResponsivenessDiagnostics.RecordSignalPipelineEvent(
+                stage: "SignalDisplayTextChanged",
+                path: path,
+                module: module);
+        }
+    }
+
+    private void RecordSignalVisualPropertyChanged(string stage)
+    {
+        if (!ShouldTrackSignalPipelineDiagnostics())
+        {
+            return;
+        }
+
+        var (path, module) = GetSignalVisualDiagnosticIdentity();
+        UiResponsivenessDiagnostics.RecordSignalPipelineEvent(
+            stage: stage,
+            path: path,
+            module: module);
+    }
+
+    private (string Path, string Module) GetSignalVisualDiagnosticIdentity()
+    {
+        var path = !string.IsNullOrWhiteSpace(_lastSignalDiagnosticsPath)
+            ? _lastSignalDiagnosticsPath
+            : !string.IsNullOrWhiteSpace(Target?.Path)
+                ? TargetPathHelper.NormalizeConfiguredTargetPath(Target.Path)
+                : TargetPathHelper.NormalizeConfiguredTargetPath(TargetPath);
+        var module = !string.IsNullOrWhiteSpace(_lastSignalDiagnosticsModule)
+            ? _lastSignalDiagnosticsModule
+            : GetSignalPipelineModuleName(path, Target);
+        return (path, module);
+    }
+
+    private string GetSignalRawValueSignature(PropertyDisplayModel targetPropertyView)
+    {
+        if (IsScriptTarget)
+        {
+            return FormatDiagnosticValue(_scriptValue);
+        }
+
+        return FormatDiagnosticValue(targetPropertyView.Property?.Value);
+    }
+
     private void SchedulePendingRefresh(TimeSpan dueIn)
     {
         if (dueIn < TimeSpan.Zero)
@@ -4839,16 +5649,89 @@ public sealed class FolderItemModel : ObservableObject
 
     private void TriggerTargetRefresh()
     {
-        Dispatcher.UIThread.Post(() =>
+        var queuedAtUtc = DateTimeOffset.UtcNow;
+        var (diagnosticPath, diagnosticModule) = GetSignalVisualDiagnosticIdentity();
+        var queuedPath = !string.IsNullOrWhiteSpace(_lastSignalDiagnosticsPath)
+            ? _lastSignalDiagnosticsPath
+            : diagnosticPath;
+        var queuedModule = !string.IsNullOrWhiteSpace(_lastSignalDiagnosticsModule)
+            ? _lastSignalDiagnosticsModule
+            : diagnosticModule;
+
+        lock (_targetRefreshSync)
         {
-            if (IsScriptTarget && !IsLegacyScriptBlockedForCurrentPath())
+            if (Interlocked.Exchange(ref _targetRefreshQueued, 1) == 1)
             {
-                RefreshScriptValue();
+                var hadPendingQueuedTargetRefresh = _hasPendingQueuedTargetRefresh;
+                _pendingQueuedTargetRefresh = new PendingTargetRefresh(
+                    QueuedAtUtc: queuedAtUtc,
+                    Path: queuedPath,
+                    Module: queuedModule);
+                _hasPendingQueuedTargetRefresh = true;
+                if (!hadPendingQueuedTargetRefresh)
+                {
+                    UiResponsivenessDiagnostics.AdjustSignalRefreshBacklog(targetRefreshFollowUpDelta: 1);
+                }
+
+                RecordSignalPipelineStage(stage: "TargetRefreshCoalesced", path: queuedPath, module: queuedModule);
+                return;
             }
 
-            RefreshTargetBindings();
-            _lastTargetRefreshUtc = DateTimeOffset.UtcNow;
-        });
+            _targetRefreshQueuedUtc = queuedAtUtc;
+            _targetRefreshQueuedPath = queuedPath;
+            _targetRefreshQueuedModule = queuedModule;
+        }
+
+        UiResponsivenessDiagnostics.AdjustSignalRefreshBacklog(targetRefreshQueuedDelta: 1);
+        RecordTargetRefreshQueued(queuedAtUtc, queuedPath, queuedModule);
+        Dispatcher.UIThread.Post(ExecuteTargetRefresh, DispatcherPriority.Background);
+    }
+
+    private void ExecuteTargetRefresh()
+    {
+        var queuedAtUtc = DateTimeOffset.MinValue;
+        var queuedPath = string.Empty;
+        var queuedModule = string.Empty;
+        lock (_targetRefreshSync)
+        {
+            queuedAtUtc = _targetRefreshQueuedUtc;
+            queuedPath = _targetRefreshQueuedPath;
+            queuedModule = _targetRefreshQueuedModule;
+            _targetRefreshQueuedUtc = DateTimeOffset.MinValue;
+            _targetRefreshQueuedPath = string.Empty;
+            _targetRefreshQueuedModule = string.Empty;
+        }
+
+        if (IsScriptTarget && !IsLegacyScriptBlockedForCurrentPath())
+        {
+            RefreshScriptValue();
+        }
+
+        RecordTargetRefreshExecuted(queuedAtUtc, queuedPath, queuedModule);
+        RefreshTargetBindings();
+        _lastTargetRefreshUtc = DateTimeOffset.UtcNow;
+
+        PendingTargetRefresh pendingTargetRefresh;
+        lock (_targetRefreshSync)
+        {
+            if (!_hasPendingQueuedTargetRefresh)
+            {
+                Interlocked.Exchange(ref _targetRefreshQueued, 0);
+                UiResponsivenessDiagnostics.AdjustSignalRefreshBacklog(targetRefreshQueuedDelta: -1);
+                return;
+            }
+
+            pendingTargetRefresh = _pendingQueuedTargetRefresh;
+            _pendingQueuedTargetRefresh = default;
+            _hasPendingQueuedTargetRefresh = false;
+            _targetRefreshQueuedUtc = pendingTargetRefresh.QueuedAtUtc;
+            _targetRefreshQueuedPath = pendingTargetRefresh.Path;
+            _targetRefreshQueuedModule = pendingTargetRefresh.Module;
+        }
+
+        UiResponsivenessDiagnostics.AdjustSignalRefreshBacklog(targetRefreshFollowUpDelta: -1);
+        RecordTargetRefreshQueued(pendingTargetRefresh.QueuedAtUtc, pendingTargetRefresh.Path, pendingTargetRefresh.Module);
+        Dispatcher.UIThread.Post(ExecuteTargetRefresh, DispatcherPriority.Background);
     }
 
     private void CancelPendingTargetRefresh()
@@ -4856,6 +5739,226 @@ public sealed class FolderItemModel : ObservableObject
         _hasPendingTargetRefresh = false;
         Dispatcher.UIThread.Post(() => _pendingRefreshTimer?.Stop());
     }
+
+    private void RecordSignalPipelineReceive(string? path, ItemModel? item)
+    {
+        if (!ShouldTrackSignalPipelineDiagnostics())
+        {
+            return;
+        }
+
+        var normalizedPath = string.IsNullOrWhiteSpace(path)
+            ? TargetPathHelper.NormalizeConfiguredTargetPath(TargetPath)
+            : TargetPathHelper.NormalizeConfiguredTargetPath(path);
+        var module = GetSignalPipelineModuleName(path: normalizedPath, item: item);
+        _lastSignalReceiveUtc = DateTimeOffset.UtcNow;
+        _lastSignalDiagnosticsPath = normalizedPath;
+        _lastSignalDiagnosticsModule = module;
+
+        UiResponsivenessDiagnostics.RecordSignalPipelineEvent(
+            stage: "SignalReceive",
+            path: normalizedPath,
+            module: module);
+    }
+
+    private void RecordSignalRegistryEvent(string stage, string? path, ItemModel? item)
+    {
+        if (!ShouldTrackSignalPipelineDiagnostics())
+        {
+            return;
+        }
+
+        var normalizedPath = string.IsNullOrWhiteSpace(path)
+            ? TargetPathHelper.NormalizeConfiguredTargetPath(TargetPath)
+            : TargetPathHelper.NormalizeConfiguredTargetPath(path);
+        var module = GetSignalPipelineModuleName(path: normalizedPath, item: item);
+        UiResponsivenessDiagnostics.RecordSignalPipelineEvent(
+            stage: stage,
+            path: normalizedPath,
+            module: module);
+    }
+
+    private void RecordSignalIrrelevantEvent(string? path, ItemModel? item)
+    {
+        if (!ShouldRecordSignalIrrelevantEvent(path))
+        {
+            return;
+        }
+
+        RecordSignalRegistryEvent(stage: "SignalRegistryEventIrrelevant", path: path, item: item);
+    }
+
+    private bool ShouldRecordSignalIrrelevantEvent(string? changedPath)
+    {
+        if (!ShouldTrackSignalPipelineDiagnostics())
+        {
+            return false;
+        }
+
+        var normalizedChangedPath = TargetPathHelper.NormalizeConfiguredTargetPath(changedPath);
+        if (string.IsNullOrWhiteSpace(normalizedChangedPath))
+        {
+            return false;
+        }
+
+        var normalizedTargetPath = TargetPathHelper.NormalizeConfiguredTargetPath(TargetPath);
+        if (string.IsNullOrWhiteSpace(normalizedTargetPath))
+        {
+            return false;
+        }
+
+        if (PathsShareSignalScope(normalizedChangedPath, normalizedTargetPath))
+        {
+            return true;
+        }
+
+        return TryGetSignalTargetScopePath(normalizedTargetPath, out var targetScopePath)
+            && PathsShareSignalScope(normalizedChangedPath, targetScopePath);
+    }
+
+    private static bool PathsShareSignalScope(string changedPath, string targetScopePath)
+        => TargetPathHelper.PathsEqual(changedPath, targetScopePath)
+           || TargetPathHelper.IsDescendantPath(changedPath, targetScopePath)
+           || TargetPathHelper.IsDescendantPath(targetScopePath, changedPath);
+
+    private static bool TryGetSignalTargetScopePath(string targetPath, out string targetScopePath)
+    {
+        targetScopePath = string.Empty;
+
+        var segments = TargetPathHelper.SplitPathSegments(targetPath);
+        if (segments.Count <= 1)
+        {
+            return false;
+        }
+
+        targetScopePath = string.Join('.', segments.Take(segments.Count - 1));
+        return !string.IsNullOrWhiteSpace(targetScopePath);
+    }
+
+    private void RecordSignalPipelineStage(string stage, string? path, string? module)
+    {
+        if (!ShouldTrackSignalPipelineDiagnostics())
+        {
+            return;
+        }
+
+        UiResponsivenessDiagnostics.RecordSignalPipelineEvent(
+            stage: stage,
+            path: path,
+            module: module);
+    }
+
+    private void RecordTargetRefreshQueued(DateTimeOffset queuedAtUtc, string? path, string? module)
+    {
+        RecordTargetRefreshQueued(stage: "TargetRefreshQueued", queuedAtUtc, path, module);
+    }
+
+    private void RecordTargetValueRefreshQueued(DateTimeOffset queuedAtUtc, string? path, string? module)
+    {
+        RecordTargetRefreshQueued(stage: "TargetValueRefreshQueued", queuedAtUtc, path, module);
+    }
+
+    private void RecordTargetRefreshQueued(string stage, DateTimeOffset queuedAtUtc, string? path, string? module)
+    {
+        if (!ShouldTrackSignalPipelineDiagnostics())
+        {
+            return;
+        }
+
+        _lastTargetRefreshQueuedUtc = queuedAtUtc;
+        if (_lastSignalReceiveUtc != DateTimeOffset.MinValue && queuedAtUtc >= _lastSignalReceiveUtc)
+        {
+            UiResponsivenessDiagnostics.RecordSignalPipelineDelay(
+                stage: stage,
+                delay: queuedAtUtc - _lastSignalReceiveUtc,
+                path: path,
+                module: module,
+                queuedAtUtc: _lastSignalReceiveUtc,
+                executedAtUtc: queuedAtUtc);
+            return;
+        }
+
+        UiResponsivenessDiagnostics.RecordSignalPipelineEvent(
+            stage: stage,
+            path: path,
+            module: module,
+            queuedAtUtc: queuedAtUtc);
+    }
+
+    private void RecordTargetRefreshExecuted(DateTimeOffset queuedAtUtc, string? path, string? module)
+    {
+        RecordTargetRefreshExecuted(stage: "TargetRefreshExecuted", queuedAtUtc, path, module);
+    }
+
+    private void RecordTargetValueRefreshExecuted(DateTimeOffset queuedAtUtc, string? path, string? module)
+    {
+        RecordTargetRefreshExecuted(stage: "TargetValueRefreshExecuted", queuedAtUtc, path, module);
+    }
+
+    private void RecordTargetRefreshExecuted(string stage, DateTimeOffset queuedAtUtc, string? path, string? module)
+    {
+        if (!ShouldTrackSignalPipelineDiagnostics())
+        {
+            return;
+        }
+
+        var executedAtUtc = DateTimeOffset.UtcNow;
+        if (queuedAtUtc != DateTimeOffset.MinValue && executedAtUtc >= queuedAtUtc)
+        {
+            UiResponsivenessDiagnostics.RecordSignalPipelineDelay(
+                stage: stage,
+                delay: executedAtUtc - queuedAtUtc,
+                path: path,
+                module: module,
+                queuedAtUtc: queuedAtUtc,
+                executedAtUtc: executedAtUtc);
+            return;
+        }
+
+        UiResponsivenessDiagnostics.RecordSignalPipelineEvent(
+            stage: stage,
+            path: path,
+            module: module,
+            executedAtUtc: executedAtUtc);
+    }
+
+    private bool ShouldTrackSignalPipelineDiagnostics()
+    {
+        return UiResponsivenessDiagnostics.IsEnabled
+            && Kind == ControlKind.Signal;
+    }
+
+    private static string GetSignalPipelineModuleName(string? path, ItemModel? item)
+    {
+        if (!string.IsNullOrWhiteSpace(item?.Name))
+        {
+            return item.Name.Trim();
+        }
+
+        var normalizedPath = TargetPathHelper.NormalizeConfiguredTargetPath(path);
+        if (string.IsNullOrWhiteSpace(normalizedPath))
+        {
+            return string.Empty;
+        }
+
+        var lastSeparator = normalizedPath.LastIndexOf('.');
+        return lastSeparator >= 0 && lastSeparator < normalizedPath.Length - 1
+            ? normalizedPath[(lastSeparator + 1)..]
+            : normalizedPath;
+    }
+
+    private readonly record struct PendingTargetValueRefresh(
+        string ChangedPath,
+        string MatchedTargetPath,
+        ItemModel Item,
+        DataChangeKind ChangeKind,
+        string? ParameterName,
+        string TargetPropertyPath);
+
+    private readonly record struct PendingTargetRefresh(
+        DateTimeOffset QueuedAtUtc,
+        string Path,
+        string Module);
 
     private void UpdateScriptTimer()
     {
@@ -5678,19 +6781,240 @@ public sealed class FolderItemModel : ObservableObject
 
     private ItemProperty? ResolveTargetProperty()
     {
+        var resolvedTarget = GetResolvedTargetForDisplay();
+        if (resolvedTarget is null)
+        {
+            if (IsSignal)
+            {
+                RecordSignalRegistryEvent(stage: "SignalTargetUnresolved", path: TargetPath, item: Target);
+            }
+
+            return null;
+        }
+
+        if (TryResolveSignalLiveValueProperty(out var liveValueProperty))
+        {
+            return liveValueProperty;
+        }
+
+        if (!string.IsNullOrWhiteSpace(TargetPropertyPath)
+            && HostRegistryPropertyPolicy.CanShowInUserPicker(TargetPropertyPath)
+            && resolvedTarget.Properties.Has(TargetPropertyPath))
+        {
+            if (IsSignal)
+            {
+                RecordSignalRegistryEvent(stage: "SignalEffectiveTargetPropertyUsed", path: resolvedTarget.Path, item: resolvedTarget);
+            }
+
+            return resolvedTarget.Properties[TargetPropertyPath];
+        }
+
+        var hasSignalValueReference = IsSignal && TryGetSignalValueReference(out _, out _);
+
+        if (TryResolveSignalValueReferenceProperty(out var valueRefProperty, out var runtimeItem, out var valueRefPath, out _))
+        {
+            RecordSignalRegistryEvent(stage: "SignalValueRefResolved", path: valueRefPath, item: runtimeItem);
+            return valueRefProperty;
+        }
+
+        if (IsSignal && resolvedTarget.Properties.Has("read"))
+        {
+            RecordSignalRegistryEvent(stage: GetSignalReadFallbackStage(hasSignalValueReference), path: resolvedTarget.Path, item: resolvedTarget);
+            return resolvedTarget.Properties["read"];
+        }
+
+        return null;
+    }
+
+    private bool TryResolveSignalLiveValueProperty(out ItemProperty? property)
+    {
+        property = null;
+        if (!TryGetResolvedSignalLiveValueBinding(out var binding)
+            || !UdlClientLiveValueStore.TryGetSnapshot(binding, out var snapshot))
+        {
+            return false;
+        }
+
+        property = new ItemProperty(
+            binding.RuntimeParameterName,
+            snapshot.Value,
+            $"{binding.RuntimeItemPath}.{binding.RuntimeParameterName}");
+        return true;
+    }
+
+    private string GetSignalReadFallbackStage(bool hasSignalValueReference)
+    {
+        if (!string.IsNullOrWhiteSpace(TargetPropertyPath)
+            && HostRegistryPropertyPolicy.CanShowInUserPicker(TargetPropertyPath)
+            && !string.Equals(TargetPropertyPath, "read", StringComparison.OrdinalIgnoreCase))
+        {
+            return "SignalFallbackSelectedPropertyMissing";
+        }
+
+        return hasSignalValueReference
+            ? "SignalFallbackInvalidValueReference"
+            : "SignalFallbackPublicReadUsed";
+    }
+
+    private bool CanUseResolvedTargetProperty()
+    {
+        var resolvedTarget = GetResolvedTargetForDisplay();
+        if (resolvedTarget is null)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(TargetPropertyPath)
+            && HostRegistryPropertyPolicy.CanShowInUserPicker(TargetPropertyPath)
+            && resolvedTarget.Properties.Has(TargetPropertyPath))
+        {
+            return true;
+        }
+
+        return resolvedTarget.Properties.Has("read");
+    }
+
+    private ItemModel? GetResolvedTargetForDisplay()
+    {
         if (Target is null)
         {
             return null;
         }
 
-        if (!string.IsNullOrWhiteSpace(TargetPropertyPath)
-            && HostRegistryPropertyPolicy.CanShowInUserPicker(TargetPropertyPath)
-            && Target.Properties.Has(TargetPropertyPath))
+        if (string.IsNullOrWhiteSpace(Target.Path)
+            || !TryResolveTargetItem(Target.Path, out var resolvedTarget)
+            || resolvedTarget is null)
         {
-            return Target.Properties[TargetPropertyPath];
+            return Target;
         }
 
-        return Target.Properties.Has("read") ? Target.Properties["read"] : null;
+        return resolvedTarget;
+    }
+
+    private bool TryResolveSignalValueReferenceProperty(
+        out ItemProperty? property,
+        out ItemModel? runtimeItem,
+        out string valueRefPath,
+        out string valueRefParameter)
+    {
+        property = null;
+        runtimeItem = null;
+        valueRefPath = string.Empty;
+        valueRefParameter = string.Empty;
+
+        if (!TryGetSignalValueReference(out valueRefPath, out valueRefParameter))
+        {
+            return false;
+        }
+
+        if (TryGetResolvedSignalLiveValueBinding(out var binding)
+            && TargetPathHelper.PathsEqual(binding.RuntimeItemPath, valueRefPath)
+            && string.Equals(binding.RuntimeParameterName, valueRefParameter, StringComparison.OrdinalIgnoreCase)
+            && UdlClientLiveValueStore.TryGetSnapshot(binding, out var snapshot))
+        {
+            property = new ItemProperty(
+                valueRefParameter,
+                snapshot.Value,
+                $"{valueRefPath}.{valueRefParameter}");
+            return true;
+        }
+
+        runtimeItem = _cachedSignalValueRefRuntimeItem;
+        if (runtimeItem is null
+            || !TargetPathHelper.PathsEqual(runtimeItem.Path, valueRefPath)
+            || !runtimeItem.Properties.Has(valueRefParameter))
+        {
+            if (!TryResolveTargetItem(valueRefPath, out runtimeItem)
+                || runtimeItem is null
+                || !runtimeItem.Properties.Has(valueRefParameter))
+            {
+                _cachedSignalValueRefRuntimeItem = null;
+                return false;
+            }
+
+            _cachedSignalValueRefRuntimeItem = runtimeItem;
+        }
+
+        property = runtimeItem.Properties[valueRefParameter];
+        return true;
+    }
+
+    private bool TryGetSignalValueReference(out string valueRefPath, out string valueRefParameter)
+    {
+        valueRefPath = _cachedSignalValueRefPath;
+        valueRefParameter = _cachedSignalValueRefParameter;
+        if (!string.IsNullOrWhiteSpace(valueRefPath) && !string.IsNullOrWhiteSpace(valueRefParameter))
+        {
+            return true;
+        }
+
+        RefreshSignalValueReferenceCache();
+        valueRefPath = _cachedSignalValueRefPath;
+        valueRefParameter = _cachedSignalValueRefParameter;
+        return !string.IsNullOrWhiteSpace(valueRefPath) && !string.IsNullOrWhiteSpace(valueRefParameter);
+    }
+
+    private void RefreshSignalValueReferenceCache()
+    {
+        _cachedSignalValueRefPath = string.Empty;
+        _cachedSignalValueRefParameter = string.Empty;
+        _cachedSignalValueRefRuntimeItem = null;
+
+        if (!IsSignal)
+        {
+            return;
+        }
+
+        if (!TryReadSignalValueReferenceMetadata(Target, out var valueRefPath, out var valueRefParameter))
+        {
+            if (!TryResolveTargetItem(TargetPath, out var resolvedTarget)
+                || !TryReadSignalValueReferenceMetadata(resolvedTarget, out valueRefPath, out valueRefParameter))
+            {
+                return;
+            }
+        }
+
+        _cachedSignalValueRefPath = valueRefPath;
+        _cachedSignalValueRefParameter = valueRefParameter;
+
+        if (TryResolveTargetItem(valueRefPath, out var runtimeItem))
+        {
+            _cachedSignalValueRefRuntimeItem = runtimeItem;
+        }
+    }
+
+    private static bool TryReadSignalValueReferenceMetadata(ItemModel? targetItem, out string valueRefPath, out string valueRefParameter)
+    {
+        valueRefPath = string.Empty;
+        valueRefParameter = string.Empty;
+
+        if (targetItem is null)
+        {
+            return false;
+        }
+
+        var rawValueRefPath = targetItem.Properties.Has(ValueRefPathPropertyName)
+            ? targetItem.Properties[ValueRefPathPropertyName].Value?.ToString()
+            : null;
+        var rawValueRefParameter = targetItem.Properties.Has(ValueRefParameterPropertyName)
+            ? targetItem.Properties[ValueRefParameterPropertyName].Value?.ToString()
+            : null;
+        if (string.IsNullOrWhiteSpace(rawValueRefPath) || string.IsNullOrWhiteSpace(rawValueRefParameter))
+        {
+            return false;
+        }
+
+        valueRefPath = TargetPathHelper.NormalizeConfiguredTargetPath(rawValueRefPath);
+        valueRefParameter = rawValueRefParameter?.Trim() ?? string.Empty;
+        return !string.IsNullOrWhiteSpace(valueRefPath) && !string.IsNullOrWhiteSpace(valueRefParameter);
+    }
+
+    private static bool MatchesSignalValueReferencePath(string changedPath, string valueRefPath, out bool isDirectValueRef, out bool isAncestorValueRef)
+    {
+        isDirectValueRef = TargetPathHelper.PathsEqual(changedPath, valueRefPath);
+        var isChildValueRef = TargetPathHelper.IsDescendantPath(changedPath, valueRefPath);
+        isAncestorValueRef = TargetPathHelper.IsDescendantPath(valueRefPath, changedPath);
+        return isDirectValueRef || isChildValueRef || isAncestorValueRef;
     }
 
     private ItemProperty? ResolveWriteParameter()

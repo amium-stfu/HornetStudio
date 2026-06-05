@@ -1,0 +1,159 @@
+Caption: 'main2'
+Screens:
+  1: 'HomeScreen'
+  9: 'Assets'
+  30: 'ResourcesScreen'
+Controls:
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_1'
+      Text: 'signal_1'
+      Path: 'signal_1'
+      Id: 'c938b327b9e348929566ebb5fc880fa8'
+    Bounds:
+      X: 616
+      Y: 104
+      Width: 299
+      Height: 110
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'Signal'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'udl_client_control_1.m001.read'
+      Parameter: 'read'
+      Format: ''
+      IsReadOnly: false
+      RefreshRateMs: '1000'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_2'
+      Text: 'signal_2'
+      Path: 'signal_2'
+      Id: '86e5ac48bfac40eeb375d1b6e404a8a2'
+    Bounds:
+      X: 619
+      Y: 223
+      Width: 294
+      Height: 114
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'Signal'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'udl_client_control_1.m001.read'
+      Parameter: 'read'
+      Format: ''
+      IsReadOnly: false
+      RefreshRateMs: '1000'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_3'
+      Text: 'signal_3'
+      Path: 'signal_3'
+      Id: '3746ef0c86214585bb376245b8178188'
+    Bounds:
+      X: 626
+      Y: 343
+      Width: 277
+      Height: 126
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'Signal'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'udl_client_control_1.m001.set'
+      Parameter: 'read'
+      Format: ''
+      IsReadOnly: false
+      RefreshRateMs: '1000'

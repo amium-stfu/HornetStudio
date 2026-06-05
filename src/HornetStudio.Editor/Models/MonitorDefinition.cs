@@ -136,6 +136,24 @@ public sealed class MonitorDefinition
     }
 }
 
+public sealed class MonitorRuntimeSettings
+{
+    public int StartupDelayMs { get; set; }
+
+    public MonitorRuntimeSettings Clone()
+    {
+        return new MonitorRuntimeSettings
+        {
+            StartupDelayMs = StartupDelayMs
+        };
+    }
+}
+
+public sealed class MonitorRuntimeSettingsDocument
+{
+    public int StartupDelayMs { get; init; }
+}
+
 public sealed class MonitorActionDefinitionDocument
 {
     public MonitorActionTrigger Trigger { get; init; } = MonitorActionTrigger.OnActivated;
@@ -330,7 +348,7 @@ public static class MonitorDefinitionCodec
         {
             Name = TargetPathHelper.NormalizeIdentityName(definition.Name),
             SourcePath = TargetPathHelper.ToPersistedLayoutTargetPath(definition.SourcePath, folderName),
-            RefreshRateMs = Math.Max(250, definition.RefreshRateMs),
+            RefreshRateMs = Math.Max(100, definition.RefreshRateMs),
             TimeoutMs = definition.TimeoutMs,
             Mode = definition.Mode,
             LowerLimit = definition.LowerLimit?.Trim() ?? string.Empty,
@@ -361,7 +379,7 @@ public static class MonitorDefinitionCodec
         return NormalizeDefinition(new MonitorDefinition
         {
             Name = document.Name,
-            SourcePath = TargetPathHelper.NormalizeConfiguredTargetPath(document.SourcePath),
+            SourcePath = ExpandPersistedTargetPath(document.SourcePath, folderName),
             RefreshRateMs = document.RefreshRateMs,
             TimeoutMs = document.TimeoutMs,
             Mode = document.Mode,
@@ -378,7 +396,7 @@ public static class MonitorDefinitionCodec
             EventText = document.EventText,
             Actions = document.Actions
                 .Where(static action => action is not null)
-                .Select(static action => FromActionDocument(action!))
+                .Select(action => FromActionDocument(action!, folderName))
                 .ToList(),
             TargetLog = TargetPathHelper.NormalizeConfiguredTargetPath(document.TargetLog),
             LogLevel = document.LogLevel
@@ -391,7 +409,7 @@ public static class MonitorDefinitionCodec
         {
             Name = TargetPathHelper.NormalizeIdentityName(definition.Name),
             SourcePath = TargetPathHelper.NormalizeConfiguredTargetPath(definition.SourcePath),
-            RefreshRateMs = definition.RefreshRateMs <= 0 ? 1000 : Math.Max(250, definition.RefreshRateMs),
+            RefreshRateMs = definition.RefreshRateMs <= 0 ? 1000 : Math.Max(100, definition.RefreshRateMs),
             TimeoutMs = definition.TimeoutMs > 0 ? definition.TimeoutMs : null,
             Mode = definition.Mode,
             LowerLimit = definition.LowerLimit?.Trim() ?? string.Empty,
@@ -425,14 +443,14 @@ public static class MonitorDefinitionCodec
         };
     }
 
-    private static MonitorActionDefinition FromActionDocument(MonitorActionDefinitionDocument document)
+    private static MonitorActionDefinition FromActionDocument(MonitorActionDefinitionDocument document, string? folderName)
     {
         return new MonitorActionDefinition
         {
             Trigger = document.Trigger,
             ActionType = document.ActionType,
-            TargetLog = TargetPathHelper.NormalizeConfiguredTargetPath(document.TargetLog),
-            TargetPath = NormalizeActionTargetPath(document.ActionType, document.TargetPath),
+            TargetLog = ExpandPersistedTargetPath(document.TargetLog, folderName),
+            TargetPath = NormalizeActionTargetPath(document.ActionType, document.TargetPath, folderName),
             FunctionName = document.FunctionName?.Trim() ?? string.Empty,
             Argument = document.Argument?.Trim() ?? string.Empty
         };
@@ -482,7 +500,7 @@ public static class MonitorDefinitionCodec
             Trigger = normalizedTrigger,
             ActionType = normalizedActionType,
             TargetLog = TargetPathHelper.NormalizeConfiguredTargetPath(action.TargetLog),
-            TargetPath = NormalizeActionTargetPath(normalizedActionType, action.TargetPath),
+            TargetPath = NormalizeActionTargetPath(normalizedActionType, action.TargetPath, folderName: null),
             FunctionName = action.FunctionName?.Trim() ?? string.Empty,
             Argument = action.Argument?.Trim() ?? string.Empty
         };
@@ -498,14 +516,28 @@ public static class MonitorDefinitionCodec
         };
     }
 
-    private static string NormalizeActionTargetPath(MonitorActionType actionType, string? targetPath)
+    private static string NormalizeActionTargetPath(MonitorActionType actionType, string? targetPath, string? folderName)
     {
         return actionType switch
         {
             MonitorActionType.InvokeFunction => targetPath?.Trim() ?? string.Empty,
-            MonitorActionType.SetValue => TargetPathHelper.NormalizeConfiguredTargetPath(targetPath),
+            MonitorActionType.SetValue => ExpandPersistedTargetPath(targetPath, folderName),
             _ => string.Empty
         };
+    }
+
+    private static string ExpandPersistedTargetPath(string? path, string? folderName)
+    {
+        var normalized = TargetPathHelper.NormalizeConfiguredTargetPath(path);
+        if (string.IsNullOrWhiteSpace(normalized)
+            || string.Equals(normalized, "this", StringComparison.OrdinalIgnoreCase))
+        {
+            return normalized;
+        }
+
+        return TargetPathHelper.EnumerateResolutionCandidates(normalized, folderName)
+            .FirstOrDefault(static candidate => candidate.StartsWith("studio.", StringComparison.OrdinalIgnoreCase))
+            ?? normalized;
     }
 
     private static MonitorVariableDefinition NormalizeVariable(MonitorVariableDefinition variable, string? folderName)

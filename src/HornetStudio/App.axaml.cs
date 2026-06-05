@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using HornetStudio.Editor.Monitoring;
 using HornetStudio.Host;
 using HornetStudio.Logging;
 using System;
@@ -16,23 +17,32 @@ public partial class App : Application
 {
 	private static int _formatExceptionLogCount;
 	private static int _globalExceptionHandlersRegistered;
+	private static string[] _startupArgs = Array.Empty<string>();
+
+	public static void SetStartupArguments(string[] args)
+	{
+		_startupArgs = args ?? Array.Empty<string>();
+	}
 
 	public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
 	public override void OnFrameworkInitializationCompleted()
 	{
 		HostLogger.Initialize("HornetStudio");
+		UiResponsivenessDiagnostics.InitializeFromEnvironment(_startupArgs);
 		HostLogger.Log.Information("HornetStudio startup. BaseDirectory={BaseDirectory}", AppContext.BaseDirectory);
 		RegisterGlobalExceptionHandlers();
 
 		if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
 		{
 			desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
+			UiResponsivenessDiagnostics.StartProbe();
 
 			desktop.Exit += (_, _) =>
 			{
 				try
 				{
+					UiResponsivenessDiagnostics.StopProbe();
 					HostShutdownManager.ShutdownApplication("Application exit");
 				}
 				catch
@@ -61,7 +71,7 @@ public partial class App : Application
 		try
 		{
 			splashScreen.UpdateProgress(65);
-			var viewModel = new ViewModels.MainWindowViewModel();
+			var viewModel = new ViewModels.MainWindowViewModel(_startupArgs);
 			splashScreen.DataContext = viewModel;
 
 			var mainWindow = new MainWindow

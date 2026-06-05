@@ -1,0 +1,135 @@
+<Window
+    x:Class="HornetStudio.Editor.Widgets.MonitorSelectionDialogWindow"
+    x:Name="Root"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:HornetStudio.Editor.Controls"
+  xmlns:local="using:HornetStudio.Editor.Widgets"
+  x:DataType="local:MonitorSelectionDialogWindow"
+    Width="620"
+    MinWidth="560"
+    MinHeight="260"
+    MaxHeight="760"
+    SizeToContent="Height"
+    ShowInTaskbar="False"
+    WindowStartupLocation="CenterOwner"
+    Title="Select Monitor Rules"
+    Background="{Binding DialogBackground, ElementName=Root}">
+  <Window.Styles>
+    <Style Selector="Button.dialog-button">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Padding" Value="12,7" />
+      <Setter Property="Background" Value="{Binding ButtonBackground, ElementName=Root}" />
+      <Setter Property="BorderBrush" Value="{Binding ButtonBorderBrush, ElementName=Root}" />
+      <Setter Property="Foreground" Value="{Binding ButtonForeground, ElementName=Root}" />
+    </Style>
+    <Style Selector="CheckBox">
+      <Setter Property="Foreground" Value="{Binding PrimaryTextBrush, ElementName=Root}" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+  </Window.Styles>
+
+  <controls:EditorShellControl
+      Margin="16"
+      ShellBackground="{Binding DialogBackground, ElementName=Root}"
+      ShellBorderBrush="{Binding BorderColor, ElementName=Root}"
+      ShellBorderThickness="1"
+      ShellCornerRadius="10"
+      ShellPadding="14"
+      ShowHeader="True"
+      ShowFooter="True"
+      HeaderPadding="0,0,0,10">
+    <controls:EditorShellControl.HeaderContent>
+      <StackPanel>
+        <TextBlock FontSize="15" FontWeight="SemiBold" Foreground="{Binding PrimaryTextBrush, ElementName=Root}" Text="Select Monitor Rules" />
+        <TextBlock Margin="0,4,0,0" FontSize="12" Foreground="{Binding SecondaryTextBrush, ElementName=Root}" Text="Choose stable monitor rule names from the folder registry. The selection persists rule names, not EventId values." TextWrapping="Wrap" />
+      </StackPanel>
+    </controls:EditorShellControl.HeaderContent>
+
+    <controls:EditorShellControl.BodyContent>
+      <Border Background="{Binding EditorDialogSectionContentBackground, ElementName=Root}"
+              BorderBrush="{Binding BorderColor, ElementName=Root}"
+              BorderThickness="1"
+              CornerRadius="8"
+              Padding="10">
+        <Grid RowDefinitions="Auto,*">
+          <Grid ColumnDefinitions="28,*,170" Margin="0,0,0,8">
+            <TextBlock Grid.Column="1"
+                       FontSize="11"
+                       FontWeight="SemiBold"
+                       Foreground="{Binding SecondaryTextBrush, ElementName=Root}"
+                       Text="Monitor rule" />
+            <TextBlock Grid.Column="2"
+                       Margin="12,0,0,0"
+                       FontSize="11"
+                       FontWeight="SemiBold"
+                       Foreground="{Binding SecondaryTextBrush, ElementName=Root}"
+                       Text="Details" />
+          </Grid>
+
+          <TextBlock Grid.Row="1"
+                     Margin="0,12,0,12"
+                     FontSize="12"
+                     Foreground="{Binding SecondaryTextBrush, ElementName=Root}"
+                     Text="No monitor rules found in the folder registry."
+                     TextWrapping="Wrap"
+                     IsVisible="{Binding ShowEmptyRowsMessage}" />
+
+          <ScrollViewer Grid.Row="1"
+                        MaxHeight="460"
+                        HorizontalScrollBarVisibility="Disabled"
+                        VerticalScrollBarVisibility="Auto"
+                        IsVisible="{Binding HasRows}">
+            <ItemsControl ItemsSource="{Binding Rows}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="local:MonitorSelectionRow">
+                  <Grid Margin="0,0,0,8" ColumnDefinitions="28,*,170">
+                    <CheckBox Grid.Column="0"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Top"
+                              IsChecked="{Binding IsSelected, Mode=TwoWay}" />
+
+                    <StackPanel Grid.Column="1" Spacing="2">
+                      <TextBlock FontSize="12"
+                                 Foreground="{Binding PrimaryTextBrush, ElementName=Root}"
+                                 Text="{Binding Label}"
+                                 TextWrapping="Wrap" />
+                      <TextBlock FontSize="11"
+                                 Foreground="{Binding SecondaryTextBrush, ElementName=Root}"
+                                 Text="{Binding Name}"
+                                 TextWrapping="Wrap"
+                                 IsVisible="{Binding IsMissing}" />
+                    </StackPanel>
+
+                    <TextBlock Grid.Column="2"
+                               Margin="12,0,0,0"
+                               FontSize="11"
+                               Foreground="{Binding SecondaryTextBrush, ElementName=Root}"
+                               Text="{Binding Description}"
+                               TextWrapping="Wrap" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </Grid>
+      </Border>
+    </controls:EditorShellControl.BodyContent>
+
+    <controls:EditorShellControl.FooterContent>
+      <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+        <Button Grid.Column="0"
+                Classes="dialog-button"
+                HorizontalAlignment="Left"
+                Content="{Binding ToggleSelectionButtonText}"
+                Click="OnToggleSelectionClicked"
+                IsVisible="{Binding HasRows}" />
+
+        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+          <Button Classes="dialog-button" Content="Save" Click="OnSaveClicked" />
+          <Button Classes="dialog-button" Content="Cancel" Click="OnCancelClicked" />
+        </StackPanel>
+      </Grid>
+    </controls:EditorShellControl.FooterContent>
+  </controls:EditorShellControl>
+</Window>

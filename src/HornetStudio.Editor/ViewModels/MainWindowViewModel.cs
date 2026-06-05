@@ -23,12 +23,15 @@ using HornetStudio.Host;
 using HornetStudio.Logging;
 using HornetStudio.Editor;
 using HornetStudio.Editor.Helpers;
+using HornetStudio.Editor.Monitoring;
 using HornetStudio.Editor.Models;
 using HornetStudio.Editor.Persistence;
+using HornetStudio.Editor.UdlClients;
+using HornetStudio.Editor.Widgets;
 
 namespace HornetStudio.Editor.ViewModels;
 
-public class MainWindowViewModel : ObservableObject, IEditorUiHost
+public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPropertyDialogHost
 {
     private const string DemoTargetPath = "Demo/ItemModel/Demo 1";
     private static readonly IReadOnlyList<string> ParameterFormatOptions = ["Text", "Numeric", "Hex", "bool", "EpochToDatetime", "b4", "b8", "b16"];
@@ -93,6 +96,15 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
     private readonly ObservableCollection<FolderItemModel> _selectedItems = [];
     private readonly Dictionary<string, CsvLogger> _csvLoggers = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, object> _sqlLoggers = new(StringComparer.OrdinalIgnoreCase);
+    private readonly EnhancedSignalDefinitionFileCodec _enhancedSignalFileCodec = new();
+    private readonly CustomSignalDefinitionFileCodec _customSignalFileCodec = new();
+    private readonly ControllerDefinitionFileCodec _controllerFileCodec = new();
+    private readonly UdlClientDefinitionFileCodec _udlClientFileCodec = new();
+    private readonly Dictionary<string, HashSet<string>> _customSignalPublishedPathsByFolder = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DateTimeOffset> _customSignalLastComputedTimes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _customSignalTimerFolders = new(StringComparer.OrdinalIgnoreCase);
+    private System.Threading.Timer? _customSignalEvaluationTimer;
+    private readonly ConcurrentDictionary<string, byte> _pendingCustomSignalSourceChanges = new(StringComparer.OrdinalIgnoreCase);
     private readonly bool _supportsUdlClientControl;
     private bool _isEditMode;
     private bool _showGrid = true;
@@ -122,6 +134,10 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
     private double _editorDialogX;
     private double _editorDialogY;
     private int _dataRegistryRefreshQueued;
+    private int _customSignalEvaluationQueued;
+    private int _customSignalSourceChangeQueued;
+    private bool _isPublishingCustomSignals;
+    private readonly HashSet<string> _refreshingFolderBindings = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, byte> _runningPageYamlSaves = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, byte> _pendingPageYamlSaves = new(StringComparer.OrdinalIgnoreCase);
     private FolderItemModel? _activeValueInputItem;
@@ -129,6 +145,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
     private readonly ObservableCollection<DialogWidgetOverlayEntry> _openDialogOverlays = [];
     private UserLevel _currentUser = UserLevel.Default;
     private Dock _tabStripPlacement = Dock.Right;
+    private long _projectRuntimeGeneration;
     protected bool AutoSaveOnEditModeExit { get; set; } = true;
 
     public MainWindowViewModel(bool supportsUdlClientControl = false)
@@ -162,6 +179,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         _currentUser = UserLevel.Default;
         _viewLimit = _currentUser.ViewLimit;
         HostRegistries.Data.RegistryChanged += OnDataRegistryStructureChanged;
+        HostRegistries.Data.ItemChanged += OnCustomSignalRegistryItemChanged;
         _openDialogOverlays.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasOpenDialogOverlays));
 
         SetFolders(CreateDefaultPages());
@@ -181,6 +199,12 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
     public ObservableCollection<HostMessageEntry> Messages { get; }
 
     public ObservableCollection<DialogWidgetOverlayEntry> OpenDialogOverlays { get; }
+
+    public long ProjectRuntimeGeneration
+    {
+        get => _projectRuntimeGeneration;
+        private set => SetProperty(ref _projectRuntimeGeneration, value);
+    }
 
     public bool HasOpenDialogOverlays => OpenDialogOverlays.Count > 0;
 
@@ -445,7 +469,9 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         ? PrimaryTextBrush
         : _currentUser.Color;
 
-    public bool IsEditModeToggleVisible => _currentUser.Id == 2 || _currentUser.Id == 3;
+    public bool IsAdminBrowserVisible => _currentUser.Id >= 2;
+
+    public bool IsEditModeToggleVisible => IsAdminBrowserVisible;
 
     public bool IsLogoutAvailable => _currentUser.Id != UserLevel.Default.Id;
 
@@ -1002,6 +1028,12 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
 
     public void OpenItemEditor(FolderItemModel item, double x, double y)
     {
+        if (item.Kind is ControlKind.Signal or ControlKind.ItemModel)
+        {
+            RequestPropertyDialogSession(item);
+            return;
+        }
+
         if (IsEditorDialogOpen
             && _editorDialogMode == EditorDialogMode.Edit
             && ReferenceEquals(_editorDialogItem, item))
@@ -1216,6 +1248,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         OnPropertyChanged(nameof(IsLogoutAvailable));
         OnPropertyChanged(nameof(IsChangePasswordAvailable));
         OnPropertyChanged(nameof(IsResetPasswordsAvailable));
+        OnPropertyChanged(nameof(IsAdminBrowserVisible));
         OnPropertyChanged(nameof(IsEditModeToggleVisible));
         StatusText = $"User level: {user.Caption}";
         return true;
@@ -1521,6 +1554,52 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         StartQueuedPageYamlSave(page, pageKey);
     }
 
+    internal IReadOnlyList<MonitorRegistryEntry> GetMonitorRegistryEntries(FolderItemModel? item = null)
+    {
+        var owningPage = item is null ? SelectedFolder : (FindOwningPage(item) ?? SelectedFolder);
+        if (owningPage is null)
+        {
+            return [];
+        }
+
+        var folderDirectory = ResolveFolderWorkspaceDirectory(owningPage);
+        var legacyMonitorItems = EnumeratePageItems(owningPage.Items)
+            .Where(static candidate => candidate.Kind == ControlKind.Monitor)
+            .ToArray();
+
+        return MonitorRegistry.EnumerateEntries(folderDirectory, owningPage.Name, legacyMonitorItems);
+    }
+
+    internal bool TrySaveMonitorRegistryDefinitions(FolderItemModel ownerItem, IEnumerable<MonitorDefinition> definitions)
+    {
+        ArgumentNullException.ThrowIfNull(ownerItem);
+        ArgumentNullException.ThrowIfNull(definitions);
+
+        var page = FindOwningPage(ownerItem) ?? SelectedFolder;
+        if (page is null)
+        {
+            return false;
+        }
+
+        var folderDirectory = ResolveFolderWorkspaceDirectory(page);
+        if (string.IsNullOrWhiteSpace(folderDirectory))
+        {
+            return false;
+        }
+
+        var codec = new MonitorDefinitionFileCodec();
+        codec.SaveDefinitions(folderDirectory, page.Name, definitions);
+
+        foreach (var monitorItem in EnumeratePageItems(page.Items).Where(static candidate => candidate.Kind == ControlKind.Monitor))
+        {
+            monitorItem.MonitorDefinitions = string.Empty;
+        }
+
+        SyncMonitors(page, forceRecreate: false);
+
+        return TrySavePageYamlForPage(page, out _);
+    }
+
     private void StartQueuedPageYamlSave(FolderModel page, string pageKey)
     {
         if (!_runningPageYamlSaves.TryAdd(pageKey, 0))
@@ -1771,7 +1850,10 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             nodeObject.Remove("AutoCreateLog");
         }
         nodeObject["RefreshRateMs"] = item.RefreshRateMs;
-        nodeObject["HistorySeconds"] = item.HistorySeconds;
+        if (item.Kind is ControlKind.Signal or ControlKind.ItemModel)
+        {
+            nodeObject["HistorySeconds"] = item.HistorySeconds;
+        }
         nodeObject["ViewSeconds"] = item.ViewSeconds;
         nodeObject["ChartSeriesDefinitions"] = TargetPathHelper.ToPersistedChartSeriesDefinitions(item.ChartSeriesDefinitions, item.FolderName);
         if (TryBuildInteractionRulesJson(item.InteractionRules, item.FolderName, out var interactionRulesJson))
@@ -1992,7 +2074,6 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                 break;
             case ControlKind.ChartControl:
                 control["RefreshRateMs"] = item.RefreshRateMs;
-                control["HistorySeconds"] = item.HistorySeconds;
                 control["ViewSeconds"] = item.ViewSeconds;
                 if (!string.IsNullOrWhiteSpace(item.ChartSeriesDefinitions))
                 {
@@ -2073,6 +2154,10 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             case ControlKind.Monitor:
                 control["MonitorDefinitions"] = MonitorDefinitionCodec.ToJsonArray(item.MonitorDefinitions, item.FolderName);
                 break;
+            case ControlKind.MonitorView:
+                control["SelectedMonitorIds"] = MonitorRegistry.ToJsonArray(item.SelectedMonitorIds);
+                SetOptionalJsonValue(control, "OnActiveColor", item.OnActiveColor);
+                break;
             case ControlKind.Functions:
                 break;
         }
@@ -2136,6 +2221,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             ControlKind.EnhancedSignals => "EnhancedSignals",
             ControlKind.ControllerWidget => "ControllerWidget",
             ControlKind.Monitor => "Monitor",
+            ControlKind.MonitorView => "MonitorView",
             ControlKind.Functions => "Functions",
             ControlKind.DialogWidget => "DialogWidget",
             ControlKind.ItemModel or ControlKind.Signal => "Signal",
@@ -2215,6 +2301,8 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         item.EnhancedSignalDefinitions = ExtendedSignalDefinitionCodec.FromJsonNode(properties["EnhancedSignals"], pageName);
         item.ControllerDefinitions = ControllerDefinitionCodec.FromJsonNode(properties["ControllerDefinitions"]);
         item.MonitorDefinitions = MonitorDefinitionCodec.FromJsonNode(properties["MonitorDefinitions"], pageName);
+        item.SelectedMonitorIds = MonitorRegistry.FromJsonNode(properties["SelectedMonitorIds"]);
+        item.OnActiveColor = GetStringProperty(properties, "OnActiveColor") ?? item.OnActiveColor;
         if (item.IsEnhancedSignals)
         {
             Core.LogInfo($"[EnhancedSignalsSet] origin=from-json-node item={item.Path} page={pageName} summary={SummarizeEnhancedSignalDefinitions(item.EnhancedSignalDefinitions)} raw={item.EnhancedSignalDefinitions}");
@@ -2228,8 +2316,13 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         item.Unit = GetFirstStringProperty(properties, "Unit", "Footer") ?? item.Unit;
         item.TargetLog = GetStringProperty(properties, "TargetLog") ?? item.TargetLog;
         item.AutoCreateLog = GetBoolProperty(properties, "AutoCreateLog") ?? item.AutoCreateLog;
-        item.RefreshRateMs = GetIntProperty(properties, "RefreshRateMs") ?? item.RefreshRateMs;
-        item.HistorySeconds = GetIntProperty(properties, "HistorySeconds") ?? item.HistorySeconds;
+        item.RefreshRateMs = GetIntProperty(properties, "RefreshRateMs")
+            ?? GetIntProperty(properties, "RecordingIntervalMs")
+            ?? item.RefreshRateMs;
+        if (item.Kind is ControlKind.Signal or ControlKind.ItemModel)
+        {
+            item.HistorySeconds = GetIntProperty(properties, "HistorySeconds") ?? item.HistorySeconds;
+        }
         item.ViewSeconds = GetIntProperty(properties, "ViewSeconds") ?? item.ViewSeconds;
         item.ChartSeriesDefinitions = TargetPathHelper.NormalizeChartSeriesDefinitions(GetStringProperty(properties, "ChartSeriesDefinitions") ?? item.ChartSeriesDefinitions);
         item.InteractionRules = ReadInteractionRulesProperty(properties) ?? item.InteractionRules;
@@ -2596,6 +2689,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             ControlKind.EnhancedSignals => "EnhancedSignals",
             ControlKind.ControllerWidget => "ControllerWidget",
             ControlKind.Monitor => "Monitor",
+            ControlKind.MonitorView => "MonitorView",
             ControlKind.Functions => "Functions",
             ControlKind.DialogWidget => "DialogWidget",
             ControlKind.ItemModel or ControlKind.Signal => "Signal",
@@ -2843,6 +2937,41 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
     public string? ProjectRootDirectory => CurrentProjectRootDirectory;
 
     protected virtual string? CurrentProjectRootDirectory => null;
+
+    /// <summary>
+    /// Resolves the workspace directory for a folder-backed resource set.
+    /// </summary>
+    /// <param name="page">The folder whose workspace directory should be resolved.</param>
+    /// <returns>The folder workspace directory when known.</returns>
+    protected virtual string? ResolveFolderWorkspaceDirectory(FolderModel page)
+    {
+        if (!string.IsNullOrWhiteSpace(page.UiFilePath))
+        {
+            var uiDirectory = Path.GetDirectoryName(page.UiFilePath);
+            if (!string.IsNullOrWhiteSpace(uiDirectory))
+            {
+                return Path.GetFullPath(uiDirectory);
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(CurrentProjectRootDirectory))
+        {
+            return null;
+        }
+
+        return Path.Combine(CurrentProjectRootDirectory, page.Name);
+    }
+
+    /// <summary>
+    /// Reports a non-fatal enhanced signal synchronization warning.
+    /// </summary>
+    /// <param name="message">The warning message.</param>
+    /// <param name="location">An optional related file or folder location.</param>
+    protected virtual void ReportEnhancedSignalWarning(string message, string? location = null)
+    {
+        _ = message;
+        _ = location;
+    }
 
     protected virtual void OnPageYamlFileSaving(string yamlPath)
     {
@@ -3191,7 +3320,6 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                 Width = Math.Max(width, 520),
                 Height = Math.Max(height, 260),
                 ContainerBorderWidth = 0,
-                HistorySeconds = 120,
                 ViewSeconds = 30,
                 RefreshRateMs = 100
             },
@@ -3320,6 +3448,21 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                 BodyCaptionVisible = false,
                 ShowFooter = true,
                 Footer = "No monitor rules configured",
+                X = x,
+                Y = y,
+                Width = Math.Max(width, 420),
+                Height = Math.Max(height, 220),
+                ContainerBorderWidth = 0
+            },
+            ControlKind.MonitorView => new FolderItemModel
+            {
+                Kind = ControlKind.MonitorView,
+                Name = "MonitorView",
+                ControlCaption = "MonitorView",
+                BodyCaption = string.Empty,
+                BodyCaptionVisible = false,
+                ShowFooter = true,
+                Footer = "No monitor rules selected",
                 X = x,
                 Y = y,
                 Width = Math.Max(width, 420),
@@ -3524,8 +3667,13 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
 
         foreach (var existingPage in Folders)
         {
+            ReleaseCustomSignals(existingPage.Name);
+            SignalHistoryRuntimeManager.ReleaseFolder(existingPage.Name);
             EnhancedSignalRuntimeManager.ReleaseFolder(existingPage.Name);
+            MonitorRuntimeManager.ReleaseFolder(existingPage.Name);
             ControllerRuntimeManager.ReleaseFolder(existingPage.Name);
+            UdlClientRuntimeManager.ReleaseFolder(existingPage.Name);
+            RealtimeChartRuntimeManager.ReleaseFolder(existingPage.Name);
         }
 
         Folders.Clear();
@@ -3534,7 +3682,11 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         {
             AttachPage(page);
             AttachHierarchy(page);
+            SyncCustomSignals(page);
+            SyncSignalHistory(page);
+            SyncUdlClients(page, forceRecreate: false);
             SyncEnhancedSignals(page, forceRecreate: false);
+            SyncMonitors(page, forceRecreate: false);
             SyncControllers(page, forceRecreate: false);
             Folders.Add(page);
         }
@@ -3555,6 +3707,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         CancelEditorDialog();
         OnPropertyChanged(nameof(SelectedFolder));
         OnPropertyChanged(nameof(FooterText));
+        ProjectRuntimeGeneration++;
     }
 
     private void AttachPage(FolderModel page)
@@ -3576,6 +3729,10 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
     private void OpenEditorDialog(EditorDialogMode mode, FolderItemModel item, FolderItemModel? parentItem, double x, double y, string title)
     {
         ResetEditorDialogSubscriptions();
+        EditorDialogSections.Clear();
+        EditorDialogActionFields.Clear();
+        OnPropertyChanged(nameof(HasEditorDialogActionFields));
+        OnPropertyChanged(nameof(ShowEditorDialogActionPlaceholder));
         _editorDialogMode = mode;
         _editorDialogItem = item;
         _editorDialogParentItem = parentItem;
@@ -3587,9 +3744,35 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         var availableHeight = _canvasHeight > 0 ? _canvasHeight : 900;
         EditorDialogX = Math.Max(24, (availableWidth - dialogWidth) / 2);
         EditorDialogY = Math.Max(24, (availableHeight - dialogHeight) / 2);
-        RebuildEditorDialogSections(item);
-        RefreshEditorDialogChoiceOptions(item);
         IsEditorDialogOpen = true;
+        QueueDeferredEditorDialogRefresh(item);
+    }
+
+    private void QueueDeferredEditorDialogRefresh(FolderItemModel item)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!IsEditorDialogOpen || !ReferenceEquals(_editorDialogItem, item))
+            {
+                return;
+            }
+
+            RebuildEditorDialogSections(item);
+            RefreshEditorDialogChoiceOptions(item);
+        }, DispatcherPriority.Background);
+    }
+
+    private void QueueDeferredEditorDialogChoiceRefresh(FolderItemModel item)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!IsEditorDialogOpen || !ReferenceEquals(_editorDialogItem, item))
+            {
+                return;
+            }
+
+            RefreshEditorDialogChoiceOptions(item);
+        }, DispatcherPriority.Background);
     }
 
     private void RebuildEditorDialogSections(FolderItemModel item)
@@ -3598,22 +3781,9 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         foreach (var section in BuildSectionsForItem(item))
         {
             EditorDialogSections.Add(section);
-            foreach (var field in section.Fields)
+            if (section.IsExpanded)
             {
-                field.IsVisible = ShouldShowEditorDialogField(item, field.Key);
-                if (_editorDialogMode == EditorDialogMode.Edit
-                    && string.Equals(field.Key, "Name", StringComparison.Ordinal))
-                {
-                    field.IsReadOnly = true;
-                }
-
-                if (string.Equals(field.Key, "ControlCaption", StringComparison.Ordinal) && item.SyncText)
-                {
-                    field.IsReadOnly = true;
-                }
-
-                field.OwnerWorkspaceDirectory = ResolveWorkspaceDirectory(item);
-                field.PropertyChanged += OnEditorDialogFieldChanged;
+                section.BeginLoadFields();
             }
         }
 
@@ -3633,6 +3803,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
     {
         foreach (var section in EditorDialogSections)
         {
+            section.CancelFieldLoading();
             foreach (var field in section.Fields)
             {
                 field.PropertyChanged -= OnEditorDialogFieldChanged;
@@ -3659,6 +3830,182 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             RefreshDataRegistryDiagnostics();
             RefreshOpenEditorDialogChoiceOptions();
         }, DispatcherPriority.Background);
+    }
+
+    public void EnsureEditorDialogSectionExpanded(EditorDialogSection section)
+    {
+        if (!IsEditorDialogOpen || _editorDialogItem is null)
+        {
+            return;
+        }
+
+        section.BeginLoadFields();
+    }
+
+    private void OnCustomSignalRegistryItemChanged(object? sender, DataChangedEventArgs e)
+    {
+        if (_isPublishingCustomSignals)
+        {
+            return;
+        }
+
+        if (IsComputedCustomSignalRegistryItem(e.Key))
+        {
+            return;
+        }
+
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            QueueCustomSignalSourceChangeCheck(e.Key);
+            return;
+        }
+
+        QueueCustomSignalEvaluationIfSourceChanged(e.Key);
+    }
+
+    private void QueueCustomSignalSourceChangeCheck(string registryPath)
+    {
+        _pendingCustomSignalSourceChanges[registryPath] = 0;
+        ScheduleCustomSignalSourceChangeCheck();
+    }
+
+    private void ScheduleCustomSignalSourceChangeCheck()
+    {
+        if (Interlocked.Exchange(ref _customSignalSourceChangeQueued, 1) == 1)
+        {
+            return;
+        }
+
+        Dispatcher.UIThread.Post(ProcessQueuedCustomSignalSourceChanges, DispatcherPriority.Background);
+    }
+
+    private void ProcessQueuedCustomSignalSourceChanges()
+    {
+        var registryPaths = _pendingCustomSignalSourceChanges.Keys.ToArray();
+        foreach (var registryPath in registryPaths)
+        {
+            _pendingCustomSignalSourceChanges.TryRemove(registryPath, out _);
+        }
+
+        Interlocked.Exchange(ref _customSignalSourceChangeQueued, 0);
+
+        foreach (var registryPath in registryPaths)
+        {
+            if (IsCustomSignalSourceChange(registryPath))
+            {
+                QueueCustomSignalEvaluation();
+                break;
+            }
+        }
+
+        if (!_pendingCustomSignalSourceChanges.IsEmpty)
+        {
+            ScheduleCustomSignalSourceChangeCheck();
+        }
+    }
+
+    private void QueueCustomSignalEvaluationIfSourceChanged(string registryPath)
+    {
+        if (!IsCustomSignalSourceChange(registryPath))
+        {
+            return;
+        }
+
+        QueueCustomSignalEvaluation();
+    }
+
+    private static bool IsComputedCustomSignalRegistryItem(string registryPath)
+    {
+        if (!HostRegistries.Data.TryGet(registryPath, out var item) || item is null)
+        {
+            return false;
+        }
+
+        if (!item.Properties.Has("kind")
+            || !string.Equals(item.Properties["kind"].Value?.ToString(), "CustomSignal", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return item.Properties.Has("mode")
+            && string.Equals(item.Properties["mode"].Value?.ToString(), CustomSignalMode.Computed.ToString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void QueueCustomSignalEvaluation()
+    {
+        if (Interlocked.Exchange(ref _customSignalEvaluationQueued, 1) == 1)
+        {
+            return;
+        }
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            Interlocked.Exchange(ref _customSignalEvaluationQueued, 0);
+            RefreshComputedCustomSignals();
+        }, DispatcherPriority.Background);
+    }
+
+    private void RefreshComputedCustomSignals()
+    {
+        foreach (var page in Folders)
+        {
+            SyncCustomSignals(page, preserveComputedSchedule: true);
+        }
+    }
+
+    private bool IsCustomSignalSourceChange(string registryPath)
+    {
+        foreach (var page in Folders)
+        {
+            foreach (var definition in GetCustomSignalDefinitions(page))
+            {
+                if (definition.Mode != CustomSignalMode.Computed)
+                {
+                    continue;
+                }
+
+                foreach (var sourcePath in EnumerateCustomSignalSourcePaths(definition))
+                {
+                    foreach (var candidate in TargetPathHelper.EnumerateResolutionCandidates(sourcePath, page.Name))
+                    {
+                        if (TargetPathHelper.PathsEqual(candidate, registryPath)
+                            || TargetPathHelper.IsDescendantPath(candidate, registryPath)
+                            || TargetPathHelper.IsDescendantPath(registryPath, candidate))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static IEnumerable<string> EnumerateCustomSignalSourcePaths(CustomSignalDefinition definition)
+    {
+        foreach (var variable in definition.Variables)
+        {
+            if (!string.IsNullOrWhiteSpace(variable.SourcePath))
+            {
+                yield return variable.SourcePath;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(definition.SourcePath))
+        {
+            yield return definition.SourcePath;
+        }
+
+        if (!string.IsNullOrWhiteSpace(definition.SourcePath2))
+        {
+            yield return definition.SourcePath2;
+        }
+
+        if (!string.IsNullOrWhiteSpace(definition.SourcePath3))
+        {
+            yield return definition.SourcePath3;
+        }
     }
 
     private void RefreshOpenEditorDialogChoiceOptions()
@@ -3694,6 +4041,15 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                         ? []
                         : field.Definition.OptionsFactory(item);
                     field.RefreshTargetTreeOptions(targetOptions);
+                    continue;
+                }
+
+                if (field.IsChartSeriesList)
+                {
+                    var chartOptions = field.Definition.OptionsFactory is null
+                        ? []
+                        : field.Definition.OptionsFactory(item);
+                    field.RefreshChartSeriesOptions(chartOptions);
                     continue;
                 }
 
@@ -3936,6 +4292,16 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             if (footerField is not null)
             {
                 footerField.Value = GetCommandDescription(field.Value);
+            }
+        }
+
+        if (_editorDialogItem.Kind is ControlKind.Signal or ControlKind.ItemModel
+            && field.Key is "TargetPath" or "HistorySeconds" or "RefreshRateMs" or "Enabled")
+        {
+            var owningPage = FindOwningPage(_editorDialogItem) ?? SelectedFolder;
+            if (owningPage is not null)
+            {
+                SyncSignalHistory(owningPage);
             }
         }
 
@@ -4636,17 +5002,36 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             {
                 var section = new EditorDialogSection(
                     sectionBinding.Title,
-                    isExpanded: string.Equals(sectionBinding.Title, "Identity", StringComparison.Ordinal)
-                        || string.Equals(sectionBinding.Title, "Widget", StringComparison.Ordinal)
-                        || string.Equals(sectionBinding.Title, "Properties", StringComparison.Ordinal));
+                    isExpanded: string.Equals(sectionBinding.Title, "Identity", StringComparison.Ordinal));
+                section.FieldsLoaded += () => QueueDeferredEditorDialogChoiceRefresh(item);
                 foreach (var binding in sectionBinding.Bindings)
                 {
-                    section.Fields.Add(binding.CreateField(item));
+                    section.AddFieldFactory(() => CreateConfiguredEditorDialogField(item, binding));
                 }
 
                 return section;
             })
             .ToList();
+    }
+
+    private EditorDialogField CreateConfiguredEditorDialogField(FolderItemModel item, EditorDialogBindingDefinition binding)
+    {
+        var field = binding.CreateField(item);
+        field.IsVisible = ShouldShowEditorDialogField(item, field.Key);
+        if (_editorDialogMode == EditorDialogMode.Edit
+            && string.Equals(field.Key, "Name", StringComparison.Ordinal))
+        {
+            field.IsReadOnly = true;
+        }
+
+        if (string.Equals(field.Key, "ControlCaption", StringComparison.Ordinal) && item.SyncText)
+        {
+            field.IsReadOnly = true;
+        }
+
+        field.OwnerWorkspaceDirectory = ResolveWorkspaceDirectory(item);
+        field.PropertyChanged += OnEditorDialogFieldChanged;
+        return field;
     }
 
     private IReadOnlyList<EditorDialogField> BuildActionFieldsForItem(FolderItemModel item)
@@ -4779,7 +5164,8 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                     BindChoice("TargetPropertyFormatKind", "Format", current => SplitPropertyFormat(current.TargetPropertyFormat).Kind, (current, value) => { current.TargetPropertyFormat = ComposePropertyFormat(value, SplitPropertyFormat(current.TargetPropertyFormat).Parameter); return null; }, _ => ParameterFormatOptions),
                     BindText("TargetPropertyFormatProperty", "FormatProperty", current => SplitPropertyFormat(current.TargetPropertyFormat).Parameter, (current, value) => { current.TargetPropertyFormat = ComposePropertyFormat(SplitPropertyFormat(current.TargetPropertyFormat).Kind, value); return null; }, EditorPropertyType.Text, GetFormatPropertyToolTip),
                     BindChoice("IsReadOnly", "Readonly", current => current.IsReadOnly ? "True" : "False", (current, value) => { current.IsReadOnly = string.Equals(value, "True", StringComparison.OrdinalIgnoreCase); return null; }, _ => new[] { "False", "True" }),
-                    BindInt("RefreshRateMs", "RefreshRate ms", current => current.RefreshRateMs, (current, value) => current.RefreshRateMs = value)
+                    BindInt("RefreshRateMs", "RefreshRate ms", current => current.RefreshRateMs, (current, value) => current.RefreshRateMs = value),
+                    BindInt("HistorySeconds", "History s", current => current.HistorySeconds, (current, value) => current.HistorySeconds = value)
                 }));
                 break;
             case ControlKind.Signal:
@@ -4790,7 +5176,8 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                     BindChoice("TargetPropertyFormatKind", "Format", current => SplitPropertyFormat(current.TargetPropertyFormat).Kind, (current, value) => { current.TargetPropertyFormat = ComposePropertyFormat(value, SplitPropertyFormat(current.TargetPropertyFormat).Parameter); return null; }, _ => ParameterFormatOptions),
                     BindText("TargetPropertyFormatProperty", "FormatProperty", current => SplitPropertyFormat(current.TargetPropertyFormat).Parameter, (current, value) => { current.TargetPropertyFormat = ComposePropertyFormat(SplitPropertyFormat(current.TargetPropertyFormat).Kind, value); return null; }, EditorPropertyType.Text, GetFormatPropertyToolTip),
                     BindChoice("IsReadOnly", "Readonly", current => current.IsReadOnly ? "True" : "False", (current, value) => { current.IsReadOnly = string.Equals(value, "True", StringComparison.OrdinalIgnoreCase); return null; }, _ => new[] { "False", "True" }),
-                    BindInt("RefreshRateMs", "RefreshRate ms", current => current.RefreshRateMs, (current, value) => current.RefreshRateMs = value)
+                    BindInt("RefreshRateMs", "RefreshRate ms", current => current.RefreshRateMs, (current, value) => current.RefreshRateMs = value),
+                    BindInt("HistorySeconds", "History s", current => current.HistorySeconds, (current, value) => current.HistorySeconds = value)
                 }));
                 sections.Add(("SourceMeta", new List<EditorDialogBindingDefinition>
                 {
@@ -4804,7 +5191,6 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                 {
                     BindChartSeriesList("ChartSeriesDefinitions", "Series", current => current.ChartSeriesDefinitions, (current, value) => { current.ChartSeriesDefinitions = value; return null; }, GetChartSeriesToolTip, GetChartSeriesTargetOptions),
                     BindInt("RefreshRateMs", "RefreshRate ms", current => current.RefreshRateMs, (current, value) => current.RefreshRateMs = value),
-                    BindInt("HistorySeconds", "History s", current => current.HistorySeconds, (current, value) => current.HistorySeconds = value),
                     BindInt("ViewSeconds", "View s", current => current.ViewSeconds, (current, value) => current.ViewSeconds = value)
                 }));
                 break;
@@ -4948,6 +5334,21 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             case ControlKind.EnhancedSignals:
             case ControlKind.ControllerWidget:
                 sections.Add(("Properties", new List<EditorDialogBindingDefinition>()));
+                break;
+            case ControlKind.MonitorView:
+                sections.Add(("Properties", new List<EditorDialogBindingDefinition>
+                {
+                    BindMonitorSelectionList("SelectedMonitorIds", "Selected monitor rules", current => current.SelectedMonitorIds, (current, value) =>
+                    {
+                        current.SelectedMonitorIds = MonitorRegistry.SerializeSelectedIds(MonitorRegistry.ParseSelectedIds(value));
+                        return null;
+                    }, current => GetMonitorSelectionOptions(current), current => "Select stable monitor rule names from the folder registry. Persisted selections stay on rule names, not EventId values."),
+                    BindText("OnActiveColor", "OnActiveColor", current => current.OnActiveColor, (current, value) =>
+                    {
+                        current.OnActiveColor = value?.Trim() ?? string.Empty;
+                        return null;
+                    }, EditorPropertyType.Color)
+                }));
                 break;
         }
 
@@ -5423,6 +5824,15 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
     private static EditorDialogBindingDefinition BindMultiline(string key, string label, Func<FolderItemModel, string> read, Func<FolderItemModel, string, string?> apply, Func<FolderItemModel, string>? toolTipFactory = null)
         => new(key, label, EditorPropertyType.MultilineText, read, apply, toolTipFactory: toolTipFactory);
 
+    private static EditorDialogBindingDefinition BindMonitorSelectionList(
+        string key,
+        string label,
+        Func<FolderItemModel, string> read,
+        Func<FolderItemModel, string, string?> apply,
+        Func<FolderItemModel, IEnumerable<string>> optionsFactory,
+        Func<FolderItemModel, string>? toolTipFactory = null)
+        => new(key, label, EditorPropertyType.MonitorSelectionList, read, apply, optionsFactory: optionsFactory, toolTipFactory: toolTipFactory);
+
     private static EditorDialogBindingDefinition BindChartSeriesList(
         string key,
         string label,
@@ -5515,6 +5925,13 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             .ToArray();
 
         return options;
+    }
+
+    private IEnumerable<string> GetMonitorSelectionOptions(FolderItemModel item)
+    {
+        return MonitorRegistry.CreateSelectionOptions(GetMonitorRegistryEntries(item))
+            .Select(MonitorRegistry.SerializeSelectionOption)
+            .ToArray();
     }
 
     private string GetViewOptionLabel(FolderItemModel item)
@@ -5796,7 +6213,41 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             .Where(static item => item.IsEnhancedSignals)
             .ToArray();
 
-        if (enhancedSignalItems.Length == 0)
+        var folderDirectory = ResolveFolderWorkspaceDirectory(page);
+        var fileEntries = LoadEnhancedSignalFileEntries(page, folderDirectory);
+        var fileEntriesByName = new Dictionary<string, EnhancedSignalFileEntry>(StringComparer.OrdinalIgnoreCase);
+        foreach (var fileEntry in fileEntries)
+        {
+            if (!fileEntriesByName.TryAdd(fileEntry.Definition.Name, fileEntry))
+            {
+                ReportEnhancedSignalWarning($"Duplicate enhanced signal file definition '{fileEntry.Definition.Name}' was ignored.", fileEntry.FilePath);
+            }
+        }
+
+        var legacyOwnerByDefinitionName = new Dictionary<string, FolderItemModel>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in enhancedSignalItems)
+        {
+            foreach (var definition in ExtendedSignalDefinitionCodec.ParseDefinitions(item.EnhancedSignalDefinitions))
+            {
+                if (string.IsNullOrWhiteSpace(definition.Name))
+                {
+                    continue;
+                }
+
+                if (fileEntriesByName.ContainsKey(definition.Name))
+                {
+                    ReportEnhancedSignalWarning($"Enhanced signal '{definition.Name}' is defined in both file and legacy widget data. The file definition is preferred.", item.FolderLayoutPath);
+                    continue;
+                }
+
+                if (!legacyOwnerByDefinitionName.TryAdd(definition.Name, item))
+                {
+                    ReportEnhancedSignalWarning($"Duplicate legacy enhanced signal definition '{definition.Name}' was ignored.", item.FolderLayoutPath);
+                }
+            }
+        }
+
+        if (enhancedSignalItems.Length == 0 && fileEntriesByName.Count == 0)
         {
             EnhancedSignalRuntimeManager.ReleaseFolder(page.Name);
             return Array.Empty<EnhancedSignalRuntime>();
@@ -5804,8 +6255,14 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
 
         string BuildCombinedRawDefinitions()
         {
-            var definitions = enhancedSignalItems
-                .SelectMany(item => ExtendedSignalDefinitionCodec.ParseDefinitions(item.EnhancedSignalDefinitions))
+            var definitions = fileEntriesByName.Values
+                .Select(entry => entry.Definition.Clone())
+                .Concat(enhancedSignalItems
+                    .SelectMany(item => ExtendedSignalDefinitionCodec.ParseDefinitions(item.EnhancedSignalDefinitions))
+                    .Where(definition => !string.IsNullOrWhiteSpace(definition.Name) && !fileEntriesByName.ContainsKey(definition.Name))
+                    .Select(static definition => definition.Clone()))
+                .GroupBy(definition => definition.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
                 .ToArray();
 
             return ExtendedSignalDefinitionCodec.SerializeDefinitions(definitions);
@@ -5813,13 +6270,6 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
 
         void ApplyCombinedRawDefinitions(string rawDefinitions)
         {
-            var currentOwnerByDefinitionName = enhancedSignalItems
-                .SelectMany(item => ExtendedSignalDefinitionCodec.ParseDefinitions(item.EnhancedSignalDefinitions)
-                    .Select(definition => (item, definition.Name)))
-                .Where(entry => !string.IsNullOrWhiteSpace(entry.Name))
-                .GroupBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(group => group.Key, group => group.First().item, StringComparer.OrdinalIgnoreCase);
-
             var updatedDefinitions = ExtendedSignalDefinitionCodec.ParseDefinitions(rawDefinitions);
             var updatedRawByItem = enhancedSignalItems.ToDictionary(
                 item => item,
@@ -5827,13 +6277,25 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
 
             foreach (var definition in updatedDefinitions)
             {
-                if (string.IsNullOrWhiteSpace(definition.Name)
-                    || !currentOwnerByDefinitionName.TryGetValue(definition.Name, out var ownerItem))
+                if (string.IsNullOrWhiteSpace(definition.Name))
                 {
                     continue;
                 }
 
-                updatedRawByItem[ownerItem].Add(definition);
+                if (fileEntriesByName.TryGetValue(definition.Name, out var fileEntry))
+                {
+                    if (!string.IsNullOrWhiteSpace(folderDirectory))
+                    {
+                        _enhancedSignalFileCodec.SaveDefinition(folderDirectory, page.Name, definition, fileEntry.FilePath);
+                    }
+
+                    continue;
+                }
+
+                if (legacyOwnerByDefinitionName.TryGetValue(definition.Name, out var ownerItem))
+                {
+                    updatedRawByItem[ownerItem].Add(definition);
+                }
             }
 
             foreach (var item in enhancedSignalItems)
@@ -5859,6 +6321,24 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             });
     }
 
+    private IReadOnlyList<EnhancedSignalFileEntry> LoadEnhancedSignalFileEntries(FolderModel page, string? folderDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(folderDirectory) || !Directory.Exists(folderDirectory))
+        {
+            return Array.Empty<EnhancedSignalFileEntry>();
+        }
+
+        try
+        {
+            return _enhancedSignalFileCodec.LoadFolder(folderDirectory, page.Name);
+        }
+        catch (Exception ex)
+        {
+            ReportEnhancedSignalWarning($"Could not load enhanced signal files: {ex.Message}", folderDirectory);
+            return Array.Empty<EnhancedSignalFileEntry>();
+        }
+    }
+
     public IReadOnlyList<EnhancedSignalRuntime> GetEnhancedSignalRuntimes(FolderItemModel ownerItem, bool forceRecreate = false)
     {
         ArgumentNullException.ThrowIfNull(ownerItem);
@@ -5874,6 +6354,11 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             .Where(static name => !string.IsNullOrWhiteSpace(name))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+        if (IsEnhancedSignalsBrowserOwner(ownerItem))
+        {
+            return SyncEnhancedSignals(page, forceRecreate);
+        }
+
         if (ownerDefinitionNames.Count == 0)
         {
             SyncEnhancedSignals(page, forceRecreate);
@@ -5885,13 +6370,383 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             .ToArray();
     }
 
+    private static bool IsEnhancedSignalsBrowserOwner(FolderItemModel ownerItem)
+        => ownerItem.IsEnhancedSignals
+            && string.Equals(ownerItem.Name, "EnhancedSignalsBrowser", StringComparison.OrdinalIgnoreCase);
+
+    private void SyncMonitors(FolderModel page, bool forceRecreate = false)
+    {
+        var folderDirectory = ResolveFolderWorkspaceDirectory(page);
+        var definitions = MonitorRegistry.EnumerateEntries(
+                folderDirectory: folderDirectory,
+                folderName: page.Name,
+                legacyMonitorItems: EnumeratePageItems(page.Items).Where(static candidate => candidate.Kind == ControlKind.Monitor))
+            .Select(static entry => entry.Definition.Clone())
+            .ToArray();
+
+        MonitorRuntimeManager.SyncDefinitions(page.Name, definitions, forceRecreate);
+    }
+
+    private void SyncSignalHistory(FolderModel page)
+    {
+        var definitions = EnumeratePageItems(page.Items)
+            .Where(static item => item.Kind is ControlKind.Signal or ControlKind.ItemModel)
+            .Where(static item => item.Enabled)
+            .Where(static item => !string.IsNullOrWhiteSpace(item.TargetPath))
+            .Where(static item => item.HistorySeconds > 0 && item.RefreshRateMs > 0)
+            .Select(item => SignalHistoryRuntimeManager.SignalHistorySourceDefinition.Create(
+                targetPath: item.TargetPath,
+                pageName: page.Name,
+                displayName: !string.IsNullOrWhiteSpace(item.Name) ? item.Name : item.Title,
+                historySeconds: item.HistorySeconds,
+                refreshRateMs: item.RefreshRateMs))
+            .ToArray();
+
+        SignalHistoryRuntimeManager.SyncDefinitions(page.Name, definitions);
+    }
+
+    private IReadOnlyList<CustomSignalDefinition> SyncCustomSignals(FolderModel page, bool preserveComputedSchedule = false)
+    {
+        var definitions = GetCustomSignalDefinitions(page);
+        var nextPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var definition in definitions)
+        {
+            var registryPath = CustomSignalsControl.BuildRegistryPath(page.Name, definition);
+            nextPaths.Add(registryPath);
+            if (definition.Mode == CustomSignalMode.Computed && definition.Trigger == CustomSignalComputationTrigger.Manual)
+            {
+                nextPaths.Add(CustomSignalsControl.BuildManualTriggerPath(registryPath));
+            }
+        }
+
+        if (_customSignalPublishedPathsByFolder.TryGetValue(page.Name, out var previousPaths))
+        {
+            foreach (var stalePath in previousPaths.Where(path => !nextPaths.Contains(path)).ToArray())
+            {
+                HostRegistries.Data.Remove(stalePath);
+                _customSignalLastComputedTimes.Remove(stalePath);
+            }
+        }
+
+        _isPublishingCustomSignals = true;
+        try
+        {
+            foreach (var definition in definitions)
+            {
+                var registryPath = CustomSignalsControl.BuildRegistryPath(page.Name, definition);
+                var value = EvaluateCustomSignalValue(page.Name, definition, registryPath, preserveComputedSchedule);
+                PublishCustomSignalSnapshot(page.Name, definition, registryPath, value);
+                PublishCustomSignalManualTriggerSnapshot(definition, registryPath);
+            }
+        }
+        finally
+        {
+            _isPublishingCustomSignals = false;
+        }
+
+        _customSignalPublishedPathsByFolder[page.Name] = nextPaths;
+        UpdateCustomSignalTimerState(page.Name, definitions);
+        return definitions;
+    }
+
+    private IReadOnlyList<CustomSignalDefinition> GetCustomSignalDefinitions(FolderModel page)
+    {
+        var folderDirectory = ResolveFolderWorkspaceDirectory(page);
+        var fileEntries = LoadCustomSignalFileEntries(page, folderDirectory);
+        var fileDefinitionsByName = new HashSet<string>(fileEntries.Select(entry => entry.Definition.Name), StringComparer.OrdinalIgnoreCase);
+        var legacyDefinitions = EnumeratePageItems(page.Items)
+            .Where(static item => item.IsCustomSignals)
+            .SelectMany(static item => CustomSignalDefinitionCodec.ParseDefinitions(item.CustomSignalDefinitions))
+            .Where(definition => !string.IsNullOrWhiteSpace(definition.Name) && !fileDefinitionsByName.Contains(definition.Name))
+            .ToArray();
+
+        return fileEntries
+            .Select(static entry => entry.Definition.Clone())
+            .Concat(legacyDefinitions.Select(static definition => definition.Clone()))
+            .GroupBy(definition => definition.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(static group => group.First())
+            .ToArray();
+    }
+
+    private void UpdateCustomSignalTimerState(string folderName, IReadOnlyCollection<CustomSignalDefinition> definitions)
+    {
+        if (definitions.Any(static definition => definition.Mode == CustomSignalMode.Computed && definition.Trigger == CustomSignalComputationTrigger.Timer))
+        {
+            _customSignalTimerFolders.Add(folderName);
+        }
+        else
+        {
+            _customSignalTimerFolders.Remove(folderName);
+        }
+
+        UpdateCustomSignalTimerEnabled();
+    }
+
+    private void UpdateCustomSignalTimerEnabled()
+    {
+        if (_customSignalTimerFolders.Count > 0)
+        {
+            _customSignalEvaluationTimer ??= new System.Threading.Timer(OnCustomSignalEvaluationTimerTick);
+            _customSignalEvaluationTimer.Change(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+            return;
+        }
+
+        StopCustomSignalTimer();
+    }
+
+    private void OnCustomSignalEvaluationTimerTick(object? state)
+    {
+        Dispatcher.UIThread.Post(RefreshComputedCustomSignals, DispatcherPriority.Background);
+    }
+
+    private void StopCustomSignalTimer()
+    {
+        if (_customSignalEvaluationTimer is null)
+        {
+            return;
+        }
+
+        _customSignalEvaluationTimer.Dispose();
+        _customSignalEvaluationTimer = null;
+    }
+
+    public IReadOnlyList<CustomSignalDefinition> GetCustomSignalDefinitions(FolderItemModel ownerItem)
+    {
+        ArgumentNullException.ThrowIfNull(ownerItem);
+
+        var page = FindOwningPage(ownerItem) ?? Folders.FirstOrDefault(candidate => string.Equals(candidate.Name, ownerItem.FolderName, StringComparison.Ordinal));
+        if (page is null)
+        {
+            return CustomSignalDefinitionCodec.ParseDefinitions(ownerItem.CustomSignalDefinitions);
+        }
+
+        var fileDefinitions = GetCustomSignalDefinitions(page);
+        var fileDefinitionsByName = new HashSet<string>(fileDefinitions.Select(definition => definition.Name), StringComparer.OrdinalIgnoreCase);
+        var legacyDefinitions = CustomSignalDefinitionCodec.ParseDefinitions(ownerItem.CustomSignalDefinitions)
+            .Where(definition => !string.IsNullOrWhiteSpace(definition.Name) && !fileDefinitionsByName.Contains(definition.Name))
+            .ToArray();
+
+        return fileDefinitions
+            .Concat(legacyDefinitions)
+            .ToArray();
+    }
+
+    private void ReleaseCustomSignals(string folderName)
+    {
+        if (!_customSignalPublishedPathsByFolder.Remove(folderName, out var paths))
+        {
+            return;
+        }
+
+        foreach (var path in paths)
+        {
+            HostRegistries.Data.Remove(path);
+            _customSignalLastComputedTimes.Remove(path);
+        }
+
+        _customSignalTimerFolders.Remove(folderName);
+        UpdateCustomSignalTimerEnabled();
+    }
+
+    private object? EvaluateCustomSignalValue(
+        string folderName,
+        CustomSignalDefinition definition,
+        string registryPath,
+        bool preserveComputedSchedule)
+    {
+        if (definition.Mode == CustomSignalMode.Input)
+        {
+            if (HostRegistries.Data.TryGet(registryPath, out var existing) && existing is not null)
+            {
+                return CustomSignalsControl.ConvertToDataType(
+                    GetCustomSignalRegistryValue(existing),
+                    definition.DataType);
+            }
+
+            return CustomSignalsControl.ParseLiteral(definition.ValueText, definition.DataType);
+        }
+
+        if (preserveComputedSchedule && !ShouldEvaluateCustomSignal(definition, registryPath))
+        {
+            return ReadCustomSignalValue(registryPath, definition);
+        }
+
+        if (CustomSignalFormulaEngine.TryEvaluate(
+            definition,
+            variableName => ResolveCustomSignalVariableValue(folderName, definition, variableName),
+            out var value,
+            out _))
+        {
+            _customSignalLastComputedTimes[registryPath] = DateTimeOffset.UtcNow;
+            return value;
+        }
+
+        return definition.DataType switch
+        {
+            CustomSignalDataType.Boolean => false,
+            CustomSignalDataType.Text => string.Empty,
+            _ => 0d
+        };
+    }
+
+    private bool ShouldEvaluateCustomSignal(CustomSignalDefinition definition, string registryPath)
+    {
+        if (definition.Trigger == CustomSignalComputationTrigger.Manual)
+        {
+            return !HostRegistries.Data.TryGet(registryPath, out _);
+        }
+
+        if (definition.Trigger != CustomSignalComputationTrigger.Timer)
+        {
+            return true;
+        }
+
+        var interval = Math.Max(1, definition.TriggerIntervalSeconds);
+        return !_customSignalLastComputedTimes.TryGetValue(registryPath, out var lastComputed)
+            || DateTimeOffset.UtcNow - lastComputed >= TimeSpan.FromSeconds(interval);
+    }
+
+    private static object? ReadCustomSignalValue(string registryPath, CustomSignalDefinition definition)
+    {
+        if (HostRegistries.Data.TryGet(registryPath, out var existing) && existing is not null)
+        {
+            return CustomSignalsControl.ConvertToDataType(
+                GetCustomSignalRegistryValue(existing),
+                definition.DataType);
+        }
+
+        return definition.DataType switch
+        {
+            CustomSignalDataType.Boolean => false,
+            CustomSignalDataType.Text => string.Empty,
+            _ => 0d
+        };
+    }
+
+    private static object? ResolveCustomSignalVariableValue(string folderName, CustomSignalDefinition definition, string variableName)
+    {
+        var variable = definition.Variables.FirstOrDefault(candidate => string.Equals(candidate.Name, variableName, StringComparison.OrdinalIgnoreCase));
+        if (variable is not null && !string.IsNullOrWhiteSpace(variable.SourcePath))
+        {
+            return ResolveCustomSignalSourceValue(folderName, variable.SourcePath);
+        }
+
+        return variableName.ToUpperInvariant() switch
+        {
+            "A" => ResolveCustomSignalSourceValue(folderName, definition.SourcePath),
+            "B" => ResolveCustomSignalSourceValue(folderName, definition.SourcePath2),
+            "C" => ResolveCustomSignalSourceValue(folderName, definition.SourcePath3),
+            _ => null
+        };
+    }
+
+    private static object? ResolveCustomSignalSourceValue(string folderName, string? sourcePath)
+    {
+        if (string.IsNullOrWhiteSpace(sourcePath))
+        {
+            return null;
+        }
+
+        foreach (var candidate in TargetPathHelper.EnumerateResolutionCandidates(sourcePath, folderName))
+        {
+            if (!HostRegistries.Data.TryGet(candidate, out var item) || item is null)
+            {
+                continue;
+            }
+
+            return GetCustomSignalRegistryValue(item);
+        }
+
+        return null;
+    }
+
+    private static object? GetCustomSignalRegistryValue(ItemModel item)
+        => item.Value ?? (item.Properties.Has("value") ? item.Properties["value"].Value : null);
+
+    private static void PublishCustomSignalSnapshot(string folderName, CustomSignalDefinition definition, string registryPath, object? value)
+    {
+        var segments = TargetPathHelper.SplitPathSegments(registryPath);
+        var name = segments.LastOrDefault() ?? definition.Name;
+        var parentPath = segments.Count > 1 ? string.Join('.', segments.Take(segments.Count - 1)) : null;
+
+        var item = new ItemModel(name, value, parentPath);
+        item.Properties["kind"].Value = "CustomSignal";
+        item.Properties["title"].Value = definition.Name;
+        item.Properties["text"].Value = definition.Name;
+        item.Properties["unit"].Value = definition.Unit;
+        item.Properties["format"].Value = definition.Format;
+        item.Properties["mode"].Value = definition.Mode.ToString();
+        item.Properties["type"].Value = definition.DataType switch
+        {
+            CustomSignalDataType.Boolean => "bool",
+            CustomSignalDataType.Text => "string",
+            _ => "float"
+        };
+        item.Properties["writable"].Value = definition.Mode == CustomSignalMode.Input && definition.IsWritable;
+        item.Properties["write_path"].Value = definition.Mode == CustomSignalMode.Input ? definition.WritePath : string.Empty;
+        item.Properties["write_mode"].Value = definition.WriteMode.ToString();
+        item.Properties["owner"].Value = $"signals.custom.{folderName}";
+        item.Properties["value"].Value = value ?? string.Empty;
+        HostRegistries.Data.UpsertSnapshot(registryPath, item, DataRegistryItemMetadata.PublicData());
+    }
+
+    private static void PublishCustomSignalManualTriggerSnapshot(CustomSignalDefinition definition, string registryPath)
+    {
+        if (definition.Mode != CustomSignalMode.Computed || definition.Trigger != CustomSignalComputationTrigger.Manual)
+        {
+            return;
+        }
+
+        var triggerPath = CustomSignalsControl.BuildManualTriggerPath(registryPath);
+        var item = new ItemModel("trigger", false, registryPath);
+        item.Properties["kind"].Value = "CustomSignalManualTrigger";
+        item.Properties["title"].Value = $"{definition.Name} Trigger";
+        item.Properties["text"].Value = "Trigger";
+        item.Properties["mode"].Value = definition.Mode.ToString();
+        item.Properties["type"].Value = "bool";
+        item.Properties["writable"].Value = true;
+        item.Properties["owner"].Value = "signals.custom";
+        item.Properties["value"].Value = false;
+        HostRegistries.Data.UpsertSnapshot(triggerPath, item, DataRegistryItemMetadata.PublicCommand());
+    }
+
+    private IReadOnlyList<CustomSignalFileEntry> LoadCustomSignalFileEntries(FolderModel page, string? folderDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(folderDirectory) || !Directory.Exists(folderDirectory))
+        {
+            return Array.Empty<CustomSignalFileEntry>();
+        }
+
+        try
+        {
+            return _customSignalFileCodec.LoadFolder(folderDirectory, page.Name);
+        }
+        catch (Exception ex)
+        {
+            ReportEnhancedSignalWarning($"Could not load custom signal files: {ex.Message}", folderDirectory);
+            return Array.Empty<CustomSignalFileEntry>();
+        }
+    }
+
     private IReadOnlyList<PidControllerRuntime> SyncControllers(FolderModel page, bool forceRecreate = false)
     {
         var controllerItems = EnumeratePageItems(page.Items)
             .Where(static item => item.IsControllerWidget)
             .ToArray();
 
-        if (controllerItems.Length == 0)
+        var folderDirectory = ResolveFolderWorkspaceDirectory(page);
+        var fileEntries = LoadControllerFileEntries(page, folderDirectory);
+        var fileEntriesByName = new Dictionary<string, ControllerFileEntry>(StringComparer.OrdinalIgnoreCase);
+        foreach (var fileEntry in fileEntries)
+        {
+            if (!fileEntriesByName.TryAdd(fileEntry.Definition.Name, fileEntry))
+            {
+                ReportEnhancedSignalWarning($"Duplicate controller file definition '{fileEntry.Definition.Name}' was ignored.", fileEntry.FilePath);
+            }
+        }
+
+        if (controllerItems.Length == 0 && fileEntriesByName.Count == 0)
         {
             ControllerRuntimeManager.ReleaseFolder(page.Name);
             return Array.Empty<PidControllerRuntime>();
@@ -5899,14 +6754,167 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
 
         string BuildCombinedRawDefinitions()
         {
-            var definitions = controllerItems
+            var fileDefinitions = fileEntriesByName.Values
+                .Select(entry => entry.Definition.Clone());
+
+            var legacyDefinitions = controllerItems
                 .SelectMany(item => ControllerDefinitionCodec.ParseDefinitions(item.ControllerDefinitions))
+                .Where(definition => !string.IsNullOrWhiteSpace(definition.Name) && !fileEntriesByName.ContainsKey(definition.Name))
+                .Select(static definition => definition.Clone());
+
+            var merged = fileDefinitions.Concat(legacyDefinitions)
+                .GroupBy(definition => definition.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
                 .ToArray();
 
-            return ControllerDefinitionCodec.SerializeDefinitions(definitions);
+            return ControllerDefinitionCodec.SerializeDefinitions(merged);
         }
 
         return ControllerRuntimeManager.SyncDefinitions(page.Name, BuildCombinedRawDefinitions(), forceRecreate);
+    }
+
+    private IReadOnlyList<UdlClientRuntime> SyncUdlClients(FolderModel page, bool forceRecreate = false)
+    {
+        var udlClientItems = EnumeratePageItems(page.Items)
+            .Where(static item => item.IsUdlClientControl)
+            .ToArray();
+
+        var folderDirectory = ResolveFolderWorkspaceDirectory(page);
+        var fileEntries = LoadUdlClientFileEntries(folderDirectory);
+        var fileEntriesByClientId = new Dictionary<string, UdlClientFileEntry>(StringComparer.OrdinalIgnoreCase);
+        foreach (var fileEntry in fileEntries)
+        {
+            if (!fileEntriesByClientId.TryAdd(fileEntry.Definition.ClientId, fileEntry))
+            {
+                ReportEnhancedSignalWarning($"Duplicate UDL client file definition '{fileEntry.Definition.ClientId}' was ignored.", fileEntry.FilePath);
+            }
+        }
+
+        foreach (var item in udlClientItems)
+        {
+            var clientId = UdlPathHelper.NormalizeClientName(item.Name);
+            if (fileEntriesByClientId.TryGetValue(clientId, out var fileEntry))
+            {
+                ApplyFileBackedUdlClientDefinition(item, fileEntry.Definition);
+            }
+        }
+
+        if (udlClientItems.Length == 0 && fileEntriesByClientId.Count == 0)
+        {
+            UdlClientRuntimeManager.ReleaseFolder(page.Name);
+            return Array.Empty<UdlClientRuntime>();
+        }
+
+        var legacyDefinitions = udlClientItems
+            .Where(item => !string.IsNullOrWhiteSpace(item.Name) && !fileEntriesByClientId.ContainsKey(UdlPathHelper.NormalizeClientName(item.Name)))
+            .Select(CreateLegacyUdlClientDefinition);
+
+        var mergedDefinitions = fileEntriesByClientId.Values
+            .Select(entry => entry.Definition)
+            .Concat(legacyDefinitions)
+            .GroupBy(definition => definition.ClientId, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToArray();
+
+        return UdlClientRuntimeManager.SyncDefinitions(page.Name, mergedDefinitions, forceRecreate);
+    }
+
+    private IReadOnlyList<UdlClientFileEntry> LoadUdlClientFileEntries(string? folderDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(folderDirectory) || !Directory.Exists(folderDirectory))
+        {
+            return Array.Empty<UdlClientFileEntry>();
+        }
+
+        try
+        {
+            var entries = _udlClientFileCodec.LoadFolder(folderDirectory);
+            HostLogger.Log.Information("[UdlClientFiles] Loaded {Count} UDL client definition files from {FolderDirectory}.", entries.Count, folderDirectory);
+            return entries;
+        }
+        catch (Exception ex)
+        {
+            ReportEnhancedSignalWarning($"Could not load UDL client files: {ex.Message}", folderDirectory);
+            return Array.Empty<UdlClientFileEntry>();
+        }
+    }
+
+    private static UdlClientDefinition CreateLegacyUdlClientDefinition(FolderItemModel item)
+    {
+        return new UdlClientDefinition
+        {
+            ClientId = UdlPathHelper.NormalizeClientName(item.Name),
+            Text = item.ControlCaption,
+            Host = item.UdlClientHost,
+            Port = item.UdlClientPort,
+            AutoConnect = item.UdlClientAutoConnect,
+            DebugLogging = item.UdlClientDebugLogging,
+            Enabled = item.Enabled,
+            DemoEnabled = item.UdlClientDemoEnabled,
+            AttachedItemPaths = ParseLegacyUdlAttachedItemPaths(item.UdlAttachedItemPaths),
+            DemoModuleDefinitions = item.UdlDemoModuleDefinitions
+        };
+    }
+
+    private static void ApplyFileBackedUdlClientDefinition(FolderItemModel item, UdlClientDefinition definition)
+    {
+        item.UdlClientHost = definition.Host;
+        item.UdlClientPort = definition.Port;
+        item.UdlClientAutoConnect = definition.AutoConnect;
+        item.UdlClientDebugLogging = definition.DebugLogging;
+        item.Enabled = definition.Enabled;
+        item.UdlClientDemoEnabled = definition.DemoEnabled;
+        item.UdlAttachedItemPaths = SerializeLegacyUdlAttachedItemPaths(definition.AttachedItemPaths);
+        item.UdlDemoModuleDefinitions = definition.DemoModuleDefinitions;
+    }
+
+    private static IReadOnlyList<string> ParseLegacyUdlAttachedItemPaths(string? serialized)
+    {
+        if (string.IsNullOrWhiteSpace(serialized))
+        {
+            return Array.Empty<string>();
+        }
+
+        return serialized
+            .Split(['\r', '\n', ';', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(TargetPathHelper.NormalizeConfiguredTargetPath)
+            .Where(static path => !string.IsNullOrWhiteSpace(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static string SerializeLegacyUdlAttachedItemPaths(IEnumerable<string>? attachedItemPaths)
+    {
+        if (attachedItemPaths is null)
+        {
+            return string.Empty;
+        }
+
+        return string.Join(
+            Environment.NewLine,
+            attachedItemPaths
+                .Where(static path => !string.IsNullOrWhiteSpace(path))
+                .Select(TargetPathHelper.NormalizeConfiguredTargetPath)
+                .Where(static path => !string.IsNullOrWhiteSpace(path))
+                .Distinct(StringComparer.OrdinalIgnoreCase));
+    }
+
+    private IReadOnlyList<ControllerFileEntry> LoadControllerFileEntries(FolderModel page, string? folderDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(folderDirectory) || !Directory.Exists(folderDirectory))
+        {
+            return Array.Empty<ControllerFileEntry>();
+        }
+
+        try
+        {
+            return _controllerFileCodec.LoadFolder(folderDirectory);
+        }
+        catch (Exception ex)
+        {
+            ReportEnhancedSignalWarning($"Could not load controller files: {ex.Message}", folderDirectory);
+            return Array.Empty<ControllerFileEntry>();
+        }
     }
 
     public IReadOnlyList<PidControllerRuntime> GetControllerRuntimes(FolderItemModel ownerItem, bool forceRecreate = false)
@@ -5917,6 +6925,11 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
         if (page is null)
         {
             return Array.Empty<PidControllerRuntime>();
+        }
+
+        if (IsControllersBrowserOwner(ownerItem))
+        {
+            return SyncControllers(page, forceRecreate);
         }
 
         var ownerDefinitionNames = ControllerDefinitionCodec.ParseDefinitions(ownerItem.ControllerDefinitions)
@@ -5935,9 +6948,26 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             .ToArray();
     }
 
+    private static bool IsControllersBrowserOwner(FolderItemModel ownerItem)
+        => ownerItem.IsControllerWidget
+            && string.Equals(ownerItem.Name, "ControllersBrowser", StringComparison.OrdinalIgnoreCase);
+
+    public string? GetControllerFolderDirectory(FolderItemModel ownerItem)
+    {
+        ArgumentNullException.ThrowIfNull(ownerItem);
+
+        var page = FindOwningPage(ownerItem) ?? Folders.FirstOrDefault(candidate => string.Equals(candidate.Name, ownerItem.FolderName, StringComparison.Ordinal));
+        if (page is null)
+        {
+            return null;
+        }
+
+        return ResolveFolderWorkspaceDirectory(page);
+    }
+
     private static IEnumerable<FolderItemModel> EnumeratePageItems(IEnumerable<FolderItemModel> items)
     {
-        foreach (var item in items)
+        foreach (var item in items.ToArray())
         {
             yield return item;
             foreach (var child in EnumeratePageItems(item.Items))
@@ -6059,12 +7089,14 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             EnhancedSignals = ExtendedSignalDefinitionCodec.ToDocuments(item.EnhancedSignalDefinitions, item.FolderName),
             ControllerDefinitions = ControllerDefinitionCodec.ToDocuments(item.ControllerDefinitions),
             MonitorDefinitions = MonitorDefinitionCodec.ToDocuments(item.MonitorDefinitions, item.FolderName),
+            SelectedMonitorIds = MonitorRegistry.ParseSelectedIds(item.SelectedMonitorIds).ToList(),
+            OnActiveColor = string.IsNullOrWhiteSpace(item.OnActiveColor) ? null : item.OnActiveColor,
             ApplicationAutoStart = item.ApplicationAutoStart,
             Unit = item.Unit,
             TargetLog = item.Kind == ControlKind.LogControl ? null : item.TargetLog,
             AutoCreateLog = item.Kind != ControlKind.LogControl && item.AutoCreateLog,
             RefreshRateMs = item.RefreshRateMs,
-            HistorySeconds = item.HistorySeconds,
+            HistorySeconds = item.Kind is ControlKind.Signal or ControlKind.ItemModel ? item.HistorySeconds : 0,
             ViewSeconds = item.ViewSeconds,
             ChartSeriesDefinitions = TargetPathHelper.ToPersistedChartSeriesDefinitions(item.ChartSeriesDefinitions, item.FolderName),
             InteractionRules = ToInteractionRuleDocuments(item.InteractionRules, item.FolderName),
@@ -6210,12 +7242,16 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             EnhancedSignalDefinitions = enhancedSignalDefinitions,
             ControllerDefinitions = controllerDefinitions,
             MonitorDefinitions = MonitorDefinitionCodec.FromDocuments(item.MonitorDefinitions, null),
+            SelectedMonitorIds = MonitorRegistry.SerializeSelectedIds(item.SelectedMonitorIds),
+            OnActiveColor = item.OnActiveColor ?? string.Empty,
             ApplicationAutoStart = item.ApplicationAutoStart || item.LegacyPythonEnvAutoStart,
             Unit = item.Unit,
             TargetLog = item.TargetLog ?? string.Empty,
             AutoCreateLog = item.AutoCreateLog,
-            RefreshRateMs = item.RefreshRateMs,
-            HistorySeconds = item.HistorySeconds,
+            RefreshRateMs = item.Kind is ControlKind.Signal or ControlKind.ItemModel
+                ? (item.LegacyRecordingIntervalMs is > 0 ? item.LegacyRecordingIntervalMs.Value : item.RefreshRateMs)
+                : item.RefreshRateMs,
+            HistorySeconds = item.Kind is ControlKind.Signal or ControlKind.ItemModel ? item.HistorySeconds : 0,
             ViewSeconds = item.ViewSeconds,
             ChartSeriesDefinitions = TargetPathHelper.NormalizeChartSeriesDefinitions(item.ChartSeriesDefinitions),
             InteractionRules = FromInteractionRuleDocuments(item.InteractionRules),
@@ -6287,6 +7323,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                 ControlKind.EnhancedSignals => 420,
                 ControlKind.ControllerWidget => 420,
                 ControlKind.Monitor => 420,
+                ControlKind.MonitorView => 420,
                 ControlKind.Functions => 420,
                 ControlKind.DialogWidget => 420,
                 _ => 140
@@ -6309,6 +7346,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                 ControlKind.EnhancedSignals => 180,
                 ControlKind.ControllerWidget => 180,
                 ControlKind.Monitor => 180,
+                ControlKind.MonitorView => 180,
                 ControlKind.Functions => 180,
                 ControlKind.DialogWidget => 260,
                 _ => 72
@@ -6340,6 +7378,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
                 ControlKind.EnhancedSignals => "EnhancedSignals",
                 ControlKind.ControllerWidget => "ControllerWidget",
                 ControlKind.Monitor => "Monitor",
+                ControlKind.MonitorView => "MonitorView",
                 ControlKind.Functions => "Functions",
                 ControlKind.DialogWidget => "DialogWidget",
                 ControlKind.ItemModel or ControlKind.Signal => "Signal",
@@ -6751,6 +7790,7 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             ControlKind.EnhancedSignals => "enhanced_signals",
             ControlKind.ControllerWidget => "controller_widget",
             ControlKind.Monitor => "monitor",
+            ControlKind.MonitorView => "monitor_view",
             ControlKind.Functions => "workflow_widget",
             ControlKind.DialogWidget => "dialog_widget",
             ControlKind.ItemModel or ControlKind.Signal => "signal",
@@ -7251,11 +8291,11 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             : Folders;
 
         return pages
-            .SelectMany(page => EnumeratePageItems(page.Items))
-            .Where(candidate => candidate.Kind == ControlKind.Monitor)
-            .SelectMany(candidate => MonitorDefinitionCodec.ParseDefinitions(candidate.MonitorDefinitions)
-                .Where(static definition => !string.IsNullOrWhiteSpace(definition.Name))
-                .Select(definition => HornetStudio.Editor.Widgets.MonitorRuleRow.BuildRegistryPath(candidate.FolderName, candidate.Name, definition.Name)))
+            .SelectMany(page => MonitorRegistry.EnumerateEntries(
+                folderDirectory: ResolveFolderWorkspaceDirectory(page),
+                folderName: page.Name,
+                legacyMonitorItems: EnumeratePageItems(page.Items).Where(static candidate => candidate.Kind == ControlKind.Monitor))
+                .Select(entry => MonitorRegistry.BuildRulePath(page.Name, entry.Name)))
             .Where(static path => !string.IsNullOrWhiteSpace(path))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
@@ -7670,17 +8710,34 @@ public class MainWindowViewModel : ObservableObject, IEditorUiHost
             return;
         }
 
-        foreach (var item in EnumeratePageItems(page.Items))
+        if (!_refreshingFolderBindings.Add(page.Name))
         {
-            item.ResolveTarget();
-            item.RefreshTargetBindings();
+            return;
         }
 
-        SyncEnhancedSignals(page, forceRecreate: false);
-
-        if (IsEditorDialogOpen && _editorDialogItem is not null && string.Equals(_editorDialogItem.FolderName, pageName, StringComparison.Ordinal))
+        try
         {
-            RefreshEditorDialogChoiceOptions(_editorDialogItem);
+            foreach (var item in EnumeratePageItems(page.Items))
+            {
+                item.ResolveTarget();
+                item.RefreshTargetBindings();
+            }
+
+            SyncCustomSignals(page);
+            SyncSignalHistory(page);
+            SyncUdlClients(page, forceRecreate: false);
+            SyncEnhancedSignals(page, forceRecreate: false);
+            SyncMonitors(page, forceRecreate: false);
+            SyncControllers(page, forceRecreate: false);
+
+            if (IsEditorDialogOpen && _editorDialogItem is not null && string.Equals(_editorDialogItem.FolderName, pageName, StringComparison.Ordinal))
+            {
+                RefreshEditorDialogChoiceOptions(_editorDialogItem);
+            }
+        }
+        finally
+        {
+            _refreshingFolderBindings.Remove(page.Name);
         }
     }
 }

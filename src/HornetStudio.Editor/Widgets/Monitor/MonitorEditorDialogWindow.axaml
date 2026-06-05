@@ -19,9 +19,9 @@
     <Style Selector="Button.dialog-button">
       <Setter Property="FontSize" Value="12" />
       <Setter Property="Padding" Value="12,7" />
-      <Setter Property="Background" Value="{Binding ButtonBackground}" />
-      <Setter Property="BorderBrush" Value="{Binding ButtonBorderBrush}" />
-      <Setter Property="Foreground" Value="{Binding ButtonForeground}" />
+      <Setter Property="Background" Value="{Binding #Root.DataContext.ButtonBackground}" />
+      <Setter Property="BorderBrush" Value="{Binding #Root.DataContext.ButtonBorderBrush}" />
+      <Setter Property="Foreground" Value="{Binding #Root.DataContext.ButtonForeground}" />
     </Style>
 
     <Style Selector="Button.icon-button">
@@ -30,90 +30,90 @@
       <Setter Property="Padding" Value="0" />
       <Setter Property="HorizontalContentAlignment" Value="Center" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
-      <Setter Property="Background" Value="{Binding ButtonBackground}" />
-      <Setter Property="BorderBrush" Value="{Binding ButtonBorderBrush}" />
-      <Setter Property="Foreground" Value="{Binding ButtonForeground}" />
+      <Setter Property="Background" Value="{Binding #Root.DataContext.ButtonBackground}" />
+      <Setter Property="BorderBrush" Value="{Binding #Root.DataContext.ButtonBorderBrush}" />
+      <Setter Property="Foreground" Value="{Binding #Root.DataContext.ButtonForeground}" />
     </Style>
 
     <Style Selector="TextBox.dialog-field">
       <Setter Property="FontSize" Value="12" />
       <Setter Property="MinHeight" Value="30" />
       <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="Background" Value="{Binding EditorBackground}" />
-      <Setter Property="BorderBrush" Value="{Binding BorderColor}" />
-      <Setter Property="Foreground" Value="{Binding EditorForeground}" />
-      <Setter Property="CaretBrush" Value="{Binding EditorForeground}" />
-      <Setter Property="SelectionBrush" Value="{Binding ParameterHoverColor}" />
-      <Setter Property="SelectionForegroundBrush" Value="{Binding EditorForeground}" />
+      <Setter Property="Background" Value="{Binding #Root.DataContext.EditorBackground}" />
+      <Setter Property="BorderBrush" Value="{Binding #Root.DataContext.BorderColor}" />
+      <Setter Property="Foreground" Value="{Binding #Root.DataContext.EditorForeground}" />
+      <Setter Property="CaretBrush" Value="{Binding #Root.DataContext.EditorForeground}" />
+      <Setter Property="SelectionBrush" Value="{Binding #Root.DataContext.ParameterHoverColor}" />
+      <Setter Property="SelectionForegroundBrush" Value="{Binding #Root.DataContext.EditorForeground}" />
     </Style>
 
     <Style Selector="TextBox.dialog-field:pointerover">
-      <Setter Property="Background" Value="{Binding EditorBackground}" />
-      <Setter Property="Foreground" Value="{Binding EditorForeground}" />
-      <Setter Property="BorderBrush" Value="{Binding ParameterHoverColor}" />
+      <Setter Property="Background" Value="{Binding #Root.DataContext.EditorBackground}" />
+      <Setter Property="Foreground" Value="{Binding #Root.DataContext.EditorForeground}" />
+      <Setter Property="BorderBrush" Value="{Binding #Root.DataContext.ParameterHoverColor}" />
     </Style>
 
     <Style Selector="TextBox.dialog-field:focus">
-      <Setter Property="Background" Value="{Binding EditorBackground}" />
-      <Setter Property="Foreground" Value="{Binding EditorForeground}" />
-      <Setter Property="CaretBrush" Value="{Binding EditorForeground}" />
-      <Setter Property="BorderBrush" Value="{Binding ParameterHoverColor}" />
+      <Setter Property="Background" Value="{Binding #Root.DataContext.EditorBackground}" />
+      <Setter Property="Foreground" Value="{Binding #Root.DataContext.EditorForeground}" />
+      <Setter Property="CaretBrush" Value="{Binding #Root.DataContext.EditorForeground}" />
+      <Setter Property="BorderBrush" Value="{Binding #Root.DataContext.ParameterHoverColor}" />
     </Style>
 
     <Style Selector="ComboBox.dialog-field">
       <Setter Property="FontSize" Value="12" />
       <Setter Property="MinHeight" Value="30" />
       <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="Background" Value="{Binding EditorBackground}" />
-      <Setter Property="BorderBrush" Value="{Binding BorderColor}" />
-      <Setter Property="Foreground" Value="{Binding EditorForeground}" />
+      <Setter Property="Background" Value="{Binding #Root.DataContext.EditorBackground}" />
+      <Setter Property="BorderBrush" Value="{Binding #Root.DataContext.BorderColor}" />
+      <Setter Property="Foreground" Value="{Binding #Root.DataContext.EditorForeground}" />
     </Style>
 
     <Style Selector="ComboBox.dialog-field:pointerover">
-      <Setter Property="Background" Value="{Binding EditorBackground}" />
-      <Setter Property="Foreground" Value="{Binding EditorForeground}" />
-      <Setter Property="BorderBrush" Value="{Binding ParameterHoverColor}" />
+      <Setter Property="Background" Value="{Binding #Root.DataContext.EditorBackground}" />
+      <Setter Property="Foreground" Value="{Binding #Root.DataContext.EditorForeground}" />
+      <Setter Property="BorderBrush" Value="{Binding #Root.DataContext.ParameterHoverColor}" />
     </Style>
 
     <Style Selector="ComboBox.dialog-field:focus">
-      <Setter Property="Background" Value="{Binding EditorBackground}" />
-      <Setter Property="Foreground" Value="{Binding EditorForeground}" />
-      <Setter Property="BorderBrush" Value="{Binding ParameterHoverColor}" />
+      <Setter Property="Background" Value="{Binding #Root.DataContext.EditorBackground}" />
+      <Setter Property="Foreground" Value="{Binding #Root.DataContext.EditorForeground}" />
+      <Setter Property="BorderBrush" Value="{Binding #Root.DataContext.ParameterHoverColor}" />
     </Style>
 
     <Style Selector="TextBox.dialog-field /template/ Border">
-      <Setter Property="Background" Value="{Binding EditorBackground}" />
-      <Setter Property="BorderBrush" Value="{Binding BorderColor}" />
+      <Setter Property="Background" Value="{Binding #Root.DataContext.EditorBackground}" />
+      <Setter Property="BorderBrush" Value="{Binding #Root.DataContext.BorderColor}" />
     </Style>
 
     <Style Selector="TextBox.dialog-field:pointerover /template/ Border">
-      <Setter Property="Background" Value="{Binding EditorBackground}" />
-      <Setter Property="BorderBrush" Value="{Binding ParameterHoverColor}" />
+      <Setter Property="Background" Value="{Binding #Root.DataContext.EditorBackground}" />
+      <Setter Property="BorderBrush" Value="{Binding #Root.DataContext.ParameterHoverColor}" />
     </Style>
 
     <Style Selector="TextBox.dialog-field:focus /template/ Border">
-      <Setter Property="Background" Value="{Binding EditorBackground}" />
-      <Setter Property="BorderBrush" Value="{Binding ParameterHoverColor}" />
+      <Setter Property="Background" Value="{Binding #Root.DataContext.EditorBackground}" />
+      <Setter Property="BorderBrush" Value="{Binding #Root.DataContext.ParameterHoverColor}" />
     </Style>
 
     <Style Selector="TextBox.dialog-field /template/ ScrollViewer">
-      <Setter Property="Background" Value="{Binding EditorBackground}" />
-      <Setter Property="Foreground" Value="{Binding EditorForeground}" />
+      <Setter Property="Background" Value="{Binding #Root.DataContext.EditorBackground}" />
+      <Setter Property="Foreground" Value="{Binding #Root.DataContext.EditorForeground}" />
     </Style>
 
     <Style Selector="ComboBox.dialog-field /template/ Border">
-      <Setter Property="Background" Value="{Binding EditorBackground}" />
-      <Setter Property="BorderBrush" Value="{Binding BorderColor}" />
+      <Setter Property="Background" Value="{Binding #Root.DataContext.EditorBackground}" />
+      <Setter Property="BorderBrush" Value="{Binding #Root.DataContext.BorderColor}" />
     </Style>
 
     <Style Selector="ComboBox.dialog-field:pointerover /template/ Border">
-      <Setter Property="Background" Value="{Binding EditorBackground}" />
-      <Setter Property="BorderBrush" Value="{Binding ParameterHoverColor}" />
+      <Setter Property="Background" Value="{Binding #Root.DataContext.EditorBackground}" />
+      <Setter Property="BorderBrush" Value="{Binding #Root.DataContext.ParameterHoverColor}" />
     </Style>
 
     <Style Selector="ComboBox.dialog-field:focus /template/ Border">
-      <Setter Property="Background" Value="{Binding EditorBackground}" />
-      <Setter Property="BorderBrush" Value="{Binding ParameterHoverColor}" />
+      <Setter Property="Background" Value="{Binding #Root.DataContext.EditorBackground}" />
+      <Setter Property="BorderBrush" Value="{Binding #Root.DataContext.ParameterHoverColor}" />
     </Style>
 
     <Style Selector="TextBox.template-field">
@@ -207,9 +207,17 @@
       <Setter Property="VerticalContentAlignment" Value="Center" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="Background" Value="{Binding ButtonBackground}" />
-      <Setter Property="BorderBrush" Value="{Binding ButtonBorderBrush}" />
-      <Setter Property="Foreground" Value="{Binding ButtonForeground}" />
+      <Setter Property="Background" Value="{Binding #Root.DataContext.ButtonBackground}" />
+      <Setter Property="BorderBrush" Value="{Binding #Root.DataContext.ButtonBorderBrush}" />
+      <Setter Property="Foreground" Value="{Binding #Root.DataContext.ButtonForeground}" />
+    </Style>
+
+    <Style Selector="TabItem">
+      <Setter Property="Foreground" Value="{Binding #Root.DataContext.SecondaryTextBrush}" />
+    </Style>
+
+    <Style Selector="TabItem:selected">
+      <Setter Property="Foreground" Value="{Binding #Root.DataContext.PrimaryTextBrush}" />
     </Style>
 
   </Window.Styles>

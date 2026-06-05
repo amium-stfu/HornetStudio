@@ -6,6 +6,8 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.VisualTree;
+using HornetStudio.Editor.Models;
+using HornetStudio.Editor.ViewModels;
 
 namespace HornetStudio.Editor.Controls;
 
@@ -25,6 +27,11 @@ public partial class EditorTemplateControl : EditorShellControl
 
     private IEditorUiHost? _host;
     private INotifyPropertyChanged? _hostNotifier;
+    private MainWindowViewModel? _browserActivityViewModel;
+    private INotifyPropertyChanged? _browserActivityNotifier;
+    private bool _isAttachedToVisualTree;
+    private bool _isBrowserRefreshActive;
+    private bool _isBrowserRefreshDirty;
     private bool _hostIsEditMode;
     private string? _hostPrimaryTextBrush = "#111827";
 
@@ -63,6 +70,10 @@ public partial class EditorTemplateControl : EditorShellControl
 
     protected IEditorUiHost? Host => _host;
 
+    protected bool IsBrowserRefreshActive => _isBrowserRefreshActive;
+
+    protected bool HasPendingBrowserRefresh => _isBrowserRefreshDirty;
+
     protected void HandleInteractivePointerPressed(PointerPressedEventArgs e)
     {
         e.Handled = true;
@@ -84,14 +95,76 @@ public partial class EditorTemplateControl : EditorShellControl
         e.Handled = true;
     }
 
+    protected bool TryRunBrowserRefresh(Action refreshAction)
+    {
+        if (!IsBrowserRefreshActive)
+        {
+            _isBrowserRefreshDirty = true;
+            return false;
+        }
+
+        _isBrowserRefreshDirty = false;
+        refreshAction();
+        return true;
+    }
+
+    protected void MarkBrowserRefreshDirty()
+    {
+        _isBrowserRefreshDirty = true;
+    }
+
+    protected void RefreshBrowserActivityState()
+    {
+        UpdateBrowserActivityViewModel();
+        UpdateBrowserRefreshActivity();
+    }
+
+    protected static string BuildBrowserDiagnosticsSource(string baseName, FolderItemModel? item)
+    {
+        if (item is null)
+        {
+            return baseName;
+        }
+
+        var scope = !string.IsNullOrWhiteSpace(item.FolderName)
+            ? item.FolderName
+            : !string.IsNullOrWhiteSpace(item.Name)
+                ? item.Name
+                : item.Path;
+
+        return string.IsNullOrWhiteSpace(scope)
+            ? baseName
+            : $"{baseName}[{scope}]";
+    }
+
+    protected virtual void OnBrowserRefreshActivated()
+    {
+    }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+
+        if (change.Property == IsVisibleProperty)
+        {
+            UpdateBrowserRefreshActivity();
+        }
+    }
+
     private void OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
+        _isAttachedToVisualTree = true;
         ResolveHost();
+        UpdateBrowserActivityViewModel();
+        UpdateBrowserRefreshActivity();
     }
 
     private void OnDetachedFromVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
+        _isAttachedToVisualTree = false;
         AttachToHost(null);
+        AttachToBrowserActivityViewModel(null);
+        UpdateBrowserRefreshActivity();
     }
 
     private void OnInteractivePointerPressed(object? sender, PointerPressedEventArgs e)
@@ -175,11 +248,80 @@ public partial class EditorTemplateControl : EditorShellControl
         HostPrimaryTextBrush = string.IsNullOrWhiteSpace(_host?.PrimaryTextBrush) ? "#111827" : _host.PrimaryTextBrush;
     }
 
+    private void UpdateBrowserActivityViewModel()
+    {
+        var viewModel = TopLevel.GetTopLevel(this)?.DataContext as MainWindowViewModel;
+        AttachToBrowserActivityViewModel(viewModel);
+    }
+
+    private void AttachToBrowserActivityViewModel(MainWindowViewModel? viewModel)
+    {
+        if (ReferenceEquals(_browserActivityViewModel, viewModel))
+        {
+            return;
+        }
+
+        if (_browserActivityNotifier is not null)
+        {
+            _browserActivityNotifier.PropertyChanged -= OnBrowserActivityViewModelPropertyChanged;
+        }
+
+        _browserActivityViewModel = viewModel;
+        _browserActivityNotifier = viewModel as INotifyPropertyChanged;
+
+        if (_browserActivityNotifier is not null)
+        {
+            _browserActivityNotifier.PropertyChanged += OnBrowserActivityViewModelPropertyChanged;
+        }
+    }
+
+    private void OnBrowserActivityViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(e.PropertyName)
+            || e.PropertyName == nameof(MainWindowViewModel.SelectedFolder))
+        {
+            UpdateBrowserRefreshActivity();
+        }
+    }
+
+    private void UpdateBrowserRefreshActivity()
+    {
+        var isActive = ComputeBrowserRefreshActive();
+        if (_isBrowserRefreshActive == isActive)
+        {
+            return;
+        }
+
+        var wasActive = _isBrowserRefreshActive;
+        _isBrowserRefreshActive = isActive;
+        if (!wasActive && isActive && _isBrowserRefreshDirty)
+        {
+            OnBrowserRefreshActivated();
+        }
+    }
+
+    private bool ComputeBrowserRefreshActive()
+    {
+        if (!_isAttachedToVisualTree || !IsVisible)
+        {
+            return false;
+        }
+
+        var folderHost = this.FindAncestorOfType<HornetStudio.Editor.Widgets.FolderEditorControl>();
+        if (folderHost?.Folder is null)
+        {
+            return true;
+        }
+
+        var selectedFolder = _browserActivityViewModel?.SelectedFolder;
+        return selectedFolder is null || ReferenceEquals(folderHost.Folder, selectedFolder);
+    }
+
     private static async Task<bool> ShowDeleteDialogAsync(Window owner)
     {
         var dialog = new Window
         {
-            Title = "Löschen",
+            Title = "Lï¿½schen",
             Width = 320,
             Height = 140,
             CanResize = false,
@@ -190,7 +332,7 @@ public partial class EditorTemplateControl : EditorShellControl
 
         var text = new TextBlock
         {
-            Text = "Wirklich löschen?",
+            Text = "Wirklich lï¿½schen?",
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Left
         };

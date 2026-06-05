@@ -1,0 +1,20 @@
+<Window
+    x:Class="HornetStudio.Editor.Widgets.PropertyDialogWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:HornetStudio.Editor.Widgets"
+    Width="648"
+    MinWidth="648"
+    MaxWidth="648"
+    Height="820"
+    MinHeight="560"
+    CanResize="True"
+    ShowInTaskbar="False"
+    SystemDecorations="Full"
+    WindowStartupLocation="CenterOwner"
+    Title="{Binding EditorDialogTitle}"
+    Background="{Binding DialogBackground}">
+  <Grid Margin="16">
+    <controls:EditorPropertyDialog />
+  </Grid>
+</Window>

@@ -9,7 +9,7 @@ using ItemModel = Amium.Items.Item;
 namespace HornetStudio.Host;
 
 /// <summary>
-/// Publishes and executes a runtime PID controller for a controller widget definition.
+/// Publishes and executes a runtime PID controller for a folder-local controller definition.
 /// </summary>
 public sealed class PidControllerRuntime : IDisposable
 {
@@ -30,13 +30,14 @@ public sealed class PidControllerRuntime : IDisposable
     private double _secondPreviousError;
     private double _previousInternalOutput;
     private double _filteredDerivativeTimeSeconds;
-    private double? _lastOutputValue;
+    private double? _lastOutputPercent;
+    private double? _lastScaledOutputValue;
     private DateTimeOffset? _lastOutputPublishedAt;
     private double? _currentSourceValue;
     private double? _currentSetpointValue;
     private object? _ownedSetpointRequest;
     private string _currentState = "Stopped";
-    private string _currentAlert = string.Empty;
+    private bool _currentAlert;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PidControllerRuntime"/> class.
@@ -63,13 +64,14 @@ public sealed class PidControllerRuntime : IDisposable
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
         _ownedSetpointRequest = ResolveInitialSetpointRequest(legacySetpointCandidates, _definition.Pid);
-        _snapshot = ItemExtension.CreateWithPath(_registryPath, false);
+        _snapshot = CreateSnapshot();
 
         _timer = new ATimer($"PidControllerRuntime-{folderName}-{_definition.Name}", Math.Max(1, _definition.Pid.ComputeIntervalMs));
         _timer.Tick += OnTimerTick;
         HostRegistries.Data.ItemChanged += OnRegistryItemChanged;
+        HostRegistries.Data.UpsertSnapshot(_registryPath, _snapshot, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
+        RefreshInputState();
         PublishSnapshot();
-        _timer.Start();
     }
 
     /// <summary>
@@ -100,7 +102,7 @@ public sealed class PidControllerRuntime : IDisposable
     /// <summary>
     /// Gets the last calculated output value.
     /// </summary>
-    public double? CurrentOutputValue => _lastOutputValue;
+    public double? CurrentOutputValue => _lastScaledOutputValue;
 
     /// <summary>
     /// Gets the current runtime state text.
@@ -108,9 +110,9 @@ public sealed class PidControllerRuntime : IDisposable
     public string CurrentStateValue => _currentState;
 
     /// <summary>
-    /// Gets the current runtime alert text.
+    /// Gets a value indicating whether the runtime is currently in a fault state.
     /// </summary>
-    public string CurrentAlertValue => _currentAlert;
+    public bool CurrentAlertValue => _currentAlert;
 
     /// <summary>
     /// Builds the runtime registry path for a controller definition.
@@ -124,7 +126,7 @@ public sealed class PidControllerRuntime : IDisposable
         ArgumentNullException.ThrowIfNull(definition);
         var normalizedFolder = EnhancedSignalPathHelper.NormalizeConfiguredTargetPath(folderName).Replace('/', '.');
         var normalizedName = EnhancedSignalPathHelper.NormalizeConfiguredTargetPath(definition.Name).Replace('/', '.');
-        return $"studio.{normalizedFolder}.controller_widget.{normalizedName}";
+        return $"studio.{normalizedFolder}.controller.{normalizedName}";
     }
 
     /// <summary>
@@ -185,6 +187,13 @@ public sealed class PidControllerRuntime : IDisposable
         {
             _ownedSetpointRequest = ReadSetpointRequest(e.ItemModel, preferLegacyWrite: IsWritePropertyChange(e));
             PublishSnapshot();
+            return;
+        }
+
+        if (IsSourceCandidateChange(e))
+        {
+            RefreshInputState();
+            PublishSnapshot();
         }
     }
 
@@ -201,33 +210,28 @@ public sealed class PidControllerRuntime : IDisposable
     private void EvaluateController()
     {
         SynchronizeRunState();
-
-        var sourceAvailable = TryResolveNumericValue(_sourceCandidates, out var sourceValue);
-        var setpointAvailable = TryReadOwnedSetpointValue(out var setpointValue);
-
-        _currentSourceValue = sourceAvailable ? sourceValue : null;
-        _currentSetpointValue = setpointAvailable ? setpointValue : null;
+        RefreshInputState();
 
         if (!_run)
         {
             _currentState = "Stopped";
-            _currentAlert = string.Empty;
+            _currentAlert = false;
             PublishSnapshot();
             return;
         }
 
-        if (!sourceAvailable)
+        if (!_currentSourceValue.HasValue)
         {
-            _currentState = "Waiting for source";
-            _currentAlert = "Source value must be numeric and readable.";
+            _currentState = "Waiting for source: Source value must be numeric and readable.";
+            _currentAlert = true;
             PublishSnapshot();
             return;
         }
 
-        if (!setpointAvailable)
+        if (!_currentSetpointValue.HasValue)
         {
-            _currentState = "Waiting for setpoint";
-            _currentAlert = "Setpoint value must be numeric.";
+            _currentState = "Waiting for setpoint: Setpoint value must be numeric.";
+            _currentAlert = true;
             PublishSnapshot();
             return;
         }
@@ -235,24 +239,27 @@ public sealed class PidControllerRuntime : IDisposable
         var derived = ComputeDerivedParameters(_definition.Pid, out var derivedAlert);
         if (derived is null)
         {
-            _currentState = "Invalid parameters";
-            _currentAlert = derivedAlert;
+            _currentState = $"Invalid parameters: {derivedAlert}";
+            _currentAlert = true;
             PublishSnapshot();
             return;
         }
 
+        var sourceValue = _currentSourceValue.Value;
+        var setpointValue = _currentSetpointValue.Value;
+
         if (!IsValidNumber(sourceValue))
         {
-            _currentState = "Waiting for source";
-            _currentAlert = "Source value must be finite.";
+            _currentState = "Waiting for source: Source value must be finite.";
+            _currentAlert = true;
             PublishSnapshot(derived);
             return;
         }
 
         if (!IsValidNumber(setpointValue))
         {
-            _currentState = "Waiting for setpoint";
-            _currentAlert = "Setpoint value must be finite.";
+            _currentState = "Waiting for setpoint: Setpoint value must be finite.";
+            _currentAlert = true;
             PublishSnapshot(derived);
             return;
         }
@@ -282,11 +289,14 @@ public sealed class PidControllerRuntime : IDisposable
             _secondPreviousError = _previousError;
             _previousError = error;
 
-            var outputValue = ScaleOutput(internalOutput, _definition.Pid);
-            if (!IsValidNumber(outputValue))
+            var scaledOutputValue = ScaleOutput(internalOutput, _definition.Pid);
+            _lastOutputPercent = internalOutput;
+            _lastScaledOutputValue = scaledOutputValue;
+
+            if (!IsValidNumber(scaledOutputValue))
             {
-                _currentState = "Invalid output";
-                _currentAlert = "Calculated output must be finite.";
+                _currentState = "Invalid output: Calculated output must be finite.";
+                _currentAlert = true;
                 PublishSnapshot(derived);
                 return;
             }
@@ -296,11 +306,10 @@ public sealed class PidControllerRuntime : IDisposable
 
             if (shouldPublishOutput)
             {
-                if (!TryWriteValue(_outputCandidates, outputValue, timestamp: null))
+                if (!TryWriteValue(_outputCandidates, scaledOutputValue, timestamp: null))
                 {
-                    _currentState = "Output unavailable";
-                    _currentAlert = "Output target not found or not writable.";
-                    _lastOutputValue = outputValue;
+                    _currentState = "Output unavailable: Output target not found or not writable.";
+                    _currentAlert = true;
                     PublishSnapshot(derived);
                     return;
                 }
@@ -308,35 +317,73 @@ public sealed class PidControllerRuntime : IDisposable
                 _lastOutputPublishedAt = DateTimeOffset.UtcNow;
             }
 
-            _lastOutputValue = outputValue;
             _currentState = "Running";
-            _currentAlert = string.Empty;
+            _currentAlert = false;
             PublishSnapshot(derived);
         }
     }
 
     private void PublishSnapshot(DerivedPidParameters? derived = null)
     {
-        var snapshot = _snapshot;
         var setpointDisplayValue = TryConvertToDouble(_ownedSetpointRequest, out var requestedSetpointValue)
             ? requestedSetpointValue
             : _currentSetpointValue ?? _definition.Pid.SetMin;
+        EnsureSnapshotExists();
+
+        _isUpdating = true;
+        try
+        {
+            PublishChannelValue(_runPath, _run);
+            PublishChannelValue($"{_registryPath}.read", _currentSourceValue);
+            PublishChannelValue(_setRuntimePath, setpointDisplayValue);
+            PublishChannelValue($"{_registryPath}.out", _lastOutputPercent);
+            PublishChannelValue($"{_registryPath}.out.scaled", _lastScaledOutputValue);
+            PublishChannelValue($"{_registryPath}.state", _currentState);
+            PublishChannelValue($"{_registryPath}.alert", _currentAlert);
+            PublishValue($"{_registryPath}.parameters.ks", _definition.Pid.Ks);
+            PublishValue($"{_registryPath}.parameters.tu", _definition.Pid.Tu);
+            PublishValue($"{_registryPath}.parameters.tg", _definition.Pid.Tg);
+            PublishValue($"{_registryPath}.parameters.d_filter_tau_ms", _definition.Pid.DFilterTauMs);
+            PublishValue($"{_registryPath}.parameters.set_min", _definition.Pid.SetMin);
+            PublishValue($"{_registryPath}.parameters.set_max", _definition.Pid.SetMax);
+            PublishValue($"{_registryPath}.parameters.out_min", _definition.Pid.OutMin);
+            PublishValue($"{_registryPath}.parameters.out_max", _definition.Pid.OutMax);
+            PublishValue($"{_registryPath}.parameters.compute_interval_ms", _definition.Pid.ComputeIntervalMs);
+            PublishValue($"{_registryPath}.parameters.output_interval_ms", _definition.Pid.OutputIntervalMs);
+            PublishValue($"{_registryPath}.parameters.kr", derived?.Kr ?? 0.0);
+            PublishValue($"{_registryPath}.parameters.tn_s", derived?.TnSeconds ?? 0.0);
+            PublishValue($"{_registryPath}.parameters.tv_s", derived?.TvSeconds ?? 0.0);
+            PublishValue($"{_registryPath}.parameters.kp", derived?.Kr ?? 0.0);
+            PublishValue($"{_registryPath}.parameters.ti_s", derived?.TnSeconds ?? 0.0);
+            PublishValue($"{_registryPath}.parameters.td_s", derived?.TvSeconds ?? 0.0);
+        }
+        finally
+        {
+            _isUpdating = false;
+        }
+    }
+
+    private ItemModel CreateSnapshot()
+    {
+        var snapshot = ItemExtension.CreateWithPath(_registryPath, false);
         snapshot.Properties["kind"].Value = "PidControllerRuntime";
         snapshot.Properties["title"].Value = _definition.Name;
         snapshot.Properties["text"].Value = _definition.Name;
         snapshot.Properties["controller_type"].Value = _definition.Type.ToString();
-        snapshot["run"].Value = _run;
-        snapshot["run"].Properties["read"].Value = _run;
-        snapshot["source"].Value = _currentSourceValue!;
-        snapshot["source"].Properties["read"].Value = _currentSourceValue!;
-        snapshot["set"].Value = setpointDisplayValue;
-        snapshot["set"].Properties["read"].Value = setpointDisplayValue;
-        snapshot["out"].Value = _lastOutputValue!;
-        snapshot["out"].Properties["read"].Value = _lastOutputValue!;
+        snapshot["run"].Value = false;
+        snapshot["run"].Properties["read"].Value = false;
+        snapshot["read"].Value = 0.0;
+        snapshot["read"].Properties["read"].Value = 0.0;
+        snapshot["set"].Value = _definition.Pid.SetMin;
+        snapshot["set"].Properties["read"].Value = _definition.Pid.SetMin;
+        snapshot["out"].Value = 0.0;
+        snapshot["out"].Properties["read"].Value = 0.0;
+        snapshot["out"]["scaled"].Value = 0.0;
+        snapshot["out"]["scaled"].Properties["read"].Value = 0.0;
         snapshot["state"].Value = _currentState;
         snapshot["state"].Properties["read"].Value = _currentState;
-        snapshot["alert"].Value = _currentAlert;
-        snapshot["alert"].Properties["read"].Value = _currentAlert;
+        snapshot["alert"].Value = false;
+        snapshot["alert"].Properties["read"].Value = false;
         snapshot["parameters"]["ks"].Value = _definition.Pid.Ks;
         snapshot["parameters"]["tu"].Value = _definition.Pid.Tu;
         snapshot["parameters"]["tg"].Value = _definition.Pid.Tg;
@@ -347,22 +394,56 @@ public sealed class PidControllerRuntime : IDisposable
         snapshot["parameters"]["out_max"].Value = _definition.Pid.OutMax;
         snapshot["parameters"]["compute_interval_ms"].Value = _definition.Pid.ComputeIntervalMs;
         snapshot["parameters"]["output_interval_ms"].Value = _definition.Pid.OutputIntervalMs;
-        snapshot["parameters"]["kr"].Value = derived?.Kr ?? 0.0;
-        snapshot["parameters"]["tn_s"].Value = derived?.TnSeconds ?? 0.0;
-        snapshot["parameters"]["tv_s"].Value = derived?.TvSeconds ?? 0.0;
-        snapshot["parameters"]["kp"].Value = derived?.Kr ?? 0.0;
-        snapshot["parameters"]["ti_s"].Value = derived?.TnSeconds ?? 0.0;
-        snapshot["parameters"]["td_s"].Value = derived?.TvSeconds ?? 0.0;
+        snapshot["parameters"]["kr"].Value = 0.0;
+        snapshot["parameters"]["tn_s"].Value = 0.0;
+        snapshot["parameters"]["tv_s"].Value = 0.0;
+        snapshot["parameters"]["kp"].Value = 0.0;
+        snapshot["parameters"]["ti_s"].Value = 0.0;
+        snapshot["parameters"]["td_s"].Value = 0.0;
+        return snapshot;
+    }
 
-        _isUpdating = true;
-        try
+    private void EnsureSnapshotExists()
+    {
+        if (HostRegistries.Data.TryResolve(_registryPath, out var existing) && existing is not null)
         {
-            HostRegistries.Data.UpsertSnapshot(_registryPath, snapshot, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
+            return;
         }
-        finally
+
+        HostRegistries.Data.UpsertSnapshot(_registryPath, _snapshot, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
+    }
+
+    private static void PublishValue(string path, object? value)
+    {
+        HostRegistries.Data.UpdateValue(path, value);
+    }
+
+    private static void PublishChannelValue(string path, object? value)
+    {
+        HostRegistries.Data.UpdateValue(path, value);
+        HostRegistries.Data.UpdateProperty(path, "read", value);
+    }
+
+    private void RefreshInputState()
+    {
+        var sourceAvailable = TryResolveNumericValue(_sourceCandidates, out var sourceValue);
+        var setpointAvailable = TryReadOwnedSetpointValue(out var setpointValue);
+        _currentSourceValue = sourceAvailable ? sourceValue : null;
+        _currentSetpointValue = setpointAvailable ? setpointValue : null;
+    }
+
+    private bool IsSourceCandidateChange(DataChangedEventArgs e)
+    {
+        foreach (var candidate in _sourceCandidates)
         {
-            _isUpdating = false;
+            if (EnhancedSignalPathHelper.PathsEqual(e.Key, candidate)
+                || EnhancedSignalPathHelper.IsDescendantPath(candidate, e.Key))
+            {
+                return true;
+            }
         }
+
+        return false;
     }
 
     private void SynchronizeRunState()
@@ -409,9 +490,11 @@ public sealed class PidControllerRuntime : IDisposable
             _run = requestedRun;
             if (_run)
             {
+                _timer.Start();
                 return;
             }
 
+            _timer.Stop();
             ResetControllerState();
         }
     }
@@ -518,7 +601,19 @@ public sealed class PidControllerRuntime : IDisposable
     {
         foreach (var candidate in candidates)
         {
-            if (HostRegistries.Data.UpdateValue(candidate, value, timestamp))
+            if (!HostRegistries.Data.TryResolve(candidate, out var target) || target is null)
+            {
+                continue;
+            }
+
+            if (target.Properties.Has("write"))
+            {
+                if (HostRegistries.Data.UpdateProperty(candidate, "write", value, timestamp))
+                {
+                    return true;
+                }
+            }
+            else if (HostRegistries.Data.UpdateValue(candidate, value, timestamp))
             {
                 return true;
             }
@@ -584,6 +679,11 @@ public sealed class PidControllerRuntime : IDisposable
 
     private static object? ExtractValue(ItemModel item)
     {
+        if (item.Value is not null)
+        {
+            return item.Value;
+        }
+
         if (TryExtractChildChannelValue(item, "read", out var readValue))
         {
             return readValue;
@@ -594,17 +694,14 @@ public sealed class PidControllerRuntime : IDisposable
             return outValue;
         }
 
-        if (TryGetPropertyValue(item, "value", out var valuePropertyValue))
-        {
-            return valuePropertyValue;
-        }
-
         if (TryGetPropertyValue(item, "read", out var readPropertyValue))
         {
             return readPropertyValue;
         }
 
-        return item.Value;
+        return TryGetPropertyValue(item, "value", out var valuePropertyValue)
+            ? valuePropertyValue
+            : null;
     }
 
     private static bool TryExtractChildChannelValue(ItemModel item, string childName, out object? value)

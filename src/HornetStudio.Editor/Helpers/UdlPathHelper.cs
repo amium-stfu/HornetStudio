@@ -71,6 +71,30 @@ internal static class UdlPathHelper
             || normalizedPath.StartsWith("runtime.UdlClient.", StringComparison.OrdinalIgnoreCase);
     }
 
+    public static bool TryGetRuntimeClientName(string? fullPath, out string clientName)
+    {
+        clientName = string.Empty;
+        if (string.IsNullOrWhiteSpace(fullPath))
+        {
+            return false;
+        }
+
+        var segments = TargetPathHelper.SplitPathSegments(fullPath);
+        for (var index = 0; index < segments.Count - 2; index++)
+        {
+            if (!string.Equals(segments[index], "runtime", StringComparison.OrdinalIgnoreCase)
+                || !IsUdlClientRuntimeSegment(segments[index + 1]))
+            {
+                continue;
+            }
+
+            clientName = NormalizeClientName(segments[index + 2]);
+            return !string.IsNullOrWhiteSpace(clientName);
+        }
+
+        return false;
+    }
+
     public static string GetRelativeRuntimePath(string? fullPath)
     {
         if (string.IsNullOrWhiteSpace(fullPath))

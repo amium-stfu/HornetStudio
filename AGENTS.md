@@ -32,6 +32,7 @@ All files under `agents/` except [agents/solution.md](agents/solution.md) must r
 ## Modules
 
 - [agents/planning.md](agents/planning.md) -> PLAN, TODO, workitems, and handoffs
+- [agents/done.md](agents/done.md) -> DONE workflow queue completion
 - [agents/implementation.md](agents/implementation.md) -> implementation, build workflow, and change-scope rules
 - [agents/fix.md](agents/fix.md) -> lightweight defect fixes without workitem/debug-report overhead
 - [agents/clean.md](agents/clean.md) -> CLEAN workflow and cleanup constraints
@@ -53,12 +54,14 @@ Preferred command syntax:
 - `[MODE: STRUCTURE]`
 - `[MODE: PLAN]`
 - `[MODE: TODO]`
+- `[MODE: DONE]`
 - `[MODE: IMPLEMENT]`
 - `[MODE: FIX]`
 - `[MODE: DEBUG]`
 - `[MODE: CLEAN]`
 - `[MODE: BUILD]`
 - `[MODE: PUBLISH]`
+- `[MODE: BENCH]`
 
 Supported short syntax:
 
@@ -66,12 +69,14 @@ Supported short syntax:
 - `#struct` -> `[MODE: STRUCTURE]`
 - `#plan` -> `[MODE: PLAN]`
 - `#todo` -> `[MODE: TODO]`
+- `#done` -> `[MODE: DONE]`
 - `#impl` -> `[MODE: IMPLEMENT]`
 - `#fix` -> `[MODE: FIX]`
 - `#debug` -> `[MODE: DEBUG]`
 - `#clean` -> `[MODE: CLEAN]`
 - `#build` -> `[MODE: BUILD]`
 - `#publish` -> `[MODE: PUBLISH]`
+- `#bench` -> `[MODE: BENCH]`
 
 Mode routing is case-insensitive.
 
@@ -83,9 +88,11 @@ A short `#` mode command is valid only when the first non-empty token is exactly
 - `STRUCTURE` -> [agents/architecture.md](agents/architecture.md)
 - `PLAN` -> [agents/planning.md](agents/planning.md)
 - `TODO` -> [agents/planning.md](agents/planning.md)
+- `DONE` -> [agents/done.md](agents/done.md)
 - `IMPLEMENT` -> [agents/implementation.md](agents/implementation.md), [agents/naming.md](agents/naming.md), [agents/documentation.md](agents/documentation.md), [agents/testing.md](agents/testing.md)
 - `FIX` -> [agents/fix.md](agents/fix.md), [agents/naming.md](agents/naming.md), [agents/documentation.md](agents/documentation.md), [agents/testing.md](agents/testing.md)
 - `DEBUG` -> [agents/debugging.md](agents/debugging.md), [agents/testing.md](agents/testing.md)
 - `CLEAN` -> [agents/clean.md](agents/clean.md), [agents/testing.md](agents/testing.md)
 - `BUILD` -> [agents/implementation.md](agents/implementation.md) Build section only, [agents/testing.md](agents/testing.md)
 - `PUBLISH` -> [agents/release.md](agents/release.md)
+- `BENCH` -> [agents/benchmark.md](agents/benchmark.md), [agents/testing.md](agents/testing.md)

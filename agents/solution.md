@@ -45,3 +45,37 @@
 - Prioritize clear, consistent architectural rules over mixed patterns for easier documentation later.
 - For the planned logger file splitting, ensure that a new file is rotated at the configured time, even if the current file is nearly empty.
 - Remove all instances of `FilteredSignals`, as it is deprecated legacy code. Use `EnhancedSignal` as the replacement.
+
+## Registry and Browser Controls
+
+- Browser-hosted controls and widgets must not react to all `HostRegistries.Data.ItemChanged` events globally.
+- Browser-hosted controls, manager windows, and browser-style client views must be subscription-scoped, not registry-scanning controls.
+- Registry event handlers must first filter by owned runtime paths, configured source paths, command paths, displayed row paths, selected item paths, attach-option paths, or explicitly relevant descendant/ancestor paths.
+- Registry event filtering must happen before `Dispatcher.UIThread.Post(...)`, `Dispatcher.UIThread.InvokeAsync(...)`, `QueueRuntimeRefresh(...)`, `RefreshAll`, `Rebuild`, or any equivalent UI-thread work is scheduled.
+- Unknown or unrelated registry events must be ignored on the calling thread and must not enqueue UI work.
+- Browser controls must maintain a cheap relevance snapshot when needed, updated on the UI thread when the folder, owner item, visible rows, configured sources, or selected items change.
+- High-frequency registry paths must use both relevance filtering and coalescing/debouncing; coalescing alone is not sufficient if irrelevant events still enqueue work.
+- Folder/browser changes must rebuild the relevance snapshot before the control starts reacting to registry events for the new context.
+- Future client browser views must scope registry reactions to their own client runtime root, configured publish/subscribe paths, attach-option paths, and explicit selections only.
+- Client browser views must not react broadly to `studio.*`, `runtime.*`, or other global registry prefixes unless the prefix is an explicitly owned runtime root.
+- Temporary browser owner items must never clear, release, or overwrite folder runtimes when they contain no embedded legacy definitions.
+- File-backed browser resources are the authoritative source for browser-managed definitions; legacy widget definitions are compatibility input only.
+
+## Runtime and UI Ownership
+
+- Visual controls must not own long-running runtime lifecycles such as connect, receive loops, timers, writeback loops, simulation loops, or folder-wide runtime services.
+- Runtime services must be scoped by folder, client, or system identity and must be usable without Avalonia controls.
+- UI controls may start, stop, configure, and observe runtime services, but they must not be the runtime owner.
+- Runtime events, receive frames, timer ticks, and value updates must not directly enqueue UI work unless a cheap relevance and change-type check has proven that visible UI structure needs an update.
+- High-frequency runtime value changes must update runtime state only; UI structure refreshes are allowed only for structural changes such as new module, removed module, attach, detach, configuration change, or explicit user selection change.
+- HostRegistry publishing from runtime adapters must be explicit and scoped. Receiving data must not create public HostRegistry items unless the user or persisted configuration explicitly attaches or publishes them.
+- Diagnostics that run on background or runtime threads must not read Avalonia UI objects. UI context collection must happen only on the UI thread or return a non-UI fallback snapshot.
+
+## Development Migration Policy
+
+- HornetStudio is still in active pre-release development and does not need to preserve real user project data yet.
+- Repository sample/demo projects should represent the current target architecture, not legacy compatibility.
+- When moving a concept out of `Folder.yaml` into folder-local resource files, update `samples/HornetStudioDemo/` immediately to the new structure.
+- Do not keep duplicated demo definitions in both `Folder.yaml` and the new resource files unless a focused test explicitly needs legacy coverage.
+- Legacy loading compatibility should be covered by focused tests, not by keeping the main demo project in a legacy state.
+- Remove or revise this section before the first release that supports real user project migration.

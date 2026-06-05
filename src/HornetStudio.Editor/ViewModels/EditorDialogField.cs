@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using Avalonia.Media;
 using HornetStudio.Editor.Functions;
+using HornetStudio.Editor.Monitoring;
 using HornetStudio.Host;
 using HornetStudio.Host.Python.Client;
 using HornetStudio.Editor.Widgets;
@@ -260,6 +261,8 @@ public sealed class EditorDialogField : ObservableObject
 
     public bool IsMultilineText => PropertyType == EditorPropertyType.MultilineText && !IsApplicationExplorerPicker;
 
+    public bool IsMonitorSelectionList => PropertyType == EditorPropertyType.MonitorSelectionList;
+
     public bool IsChartSeriesList => PropertyType == EditorPropertyType.ChartSeriesList;
 
     public bool IsAttachItemList => PropertyType == EditorPropertyType.AttachItemList;
@@ -279,10 +282,13 @@ public sealed class EditorDialogField : ObservableObject
     public bool IsApplicationExplorerPicker => string.Equals(Key, "ApplicationDefinitions", StringComparison.Ordinal)
                                               || string.Equals(Key, "PythonEnvDefinitions", StringComparison.Ordinal);
 
+    public bool DefersInitialOptionLoad => IsTargetTree || IsAttachItemList || IsChartSeriesList;
+
     public bool IsTextInput => !IsChoice
                                && !IsTargetTree
                                && !IsReadOnly
                                && !IsMultilineText
+                               && !IsMonitorSelectionList
                                && !IsChartSeriesList
                                && !IsAttachItemList
                                && !IsInteractionRuleList
@@ -311,6 +317,7 @@ public sealed class EditorDialogField : ObservableObject
         EditorPropertyType.TargetTree => string.IsNullOrWhiteSpace(Value)
             ? "No target selected"
             : Value,
+        EditorPropertyType.MonitorSelectionList => GetMonitorSelectionSummary(),
         EditorPropertyType.ChartSeriesList => ChartSeriesEntries.Count == 0
             ? "No series configured"
             : $"{ChartSeriesEntries.Count} series configured",
@@ -337,6 +344,24 @@ public sealed class EditorDialogField : ObservableObject
         _ => string.Empty
     };
 
+    public void InitializeDeferredState()
+    {
+        if (IsChartSeriesList)
+        {
+            RebuildChartSeriesEntries();
+        }
+
+        if (IsAttachItemList)
+        {
+            RebuildAttachItemEntries();
+        }
+
+        if (IsInteractionRuleList)
+        {
+            RebuildInteractionRuleEntries();
+        }
+    }
+
     public bool IsIconPathSelector => string.Equals(Key, "ButtonIcon", StringComparison.Ordinal);
 
     public bool IsFolderSelector => string.Equals(Key, "CsvDirectory", StringComparison.Ordinal);
@@ -354,6 +379,42 @@ public sealed class EditorDialogField : ObservableObject
                 ? new SolidColorBrush(color)
                 : Brushes.Transparent;
         }
+    }
+
+    public IReadOnlyList<MonitorSelectionOption> GetMonitorSelectionOptions()
+    {
+        if (!IsMonitorSelectionList)
+        {
+            return [];
+        }
+
+        return Options
+            .Select(option => MonitorRegistry.TryParseSelectionOption(option, out var parsed) ? parsed : null)
+            .Where(static option => option is not null)
+            .Cast<MonitorSelectionOption>()
+            .ToArray();
+    }
+
+    private string GetMonitorSelectionSummary()
+    {
+        var selectedIds = MonitorRegistry.ParseSelectedIds(Value);
+        if (selectedIds.Count == 0)
+        {
+            return "No monitor rules selected";
+        }
+
+        var availableNames = GetMonitorSelectionOptions()
+            .Select(static option => option.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var missingCount = selectedIds.Count(selectedId => !availableNames.Contains(selectedId));
+        if (missingCount > 0)
+        {
+            return $"{selectedIds.Count} monitor rules selected ({missingCount} missing)";
+        }
+
+        return selectedIds.Count == 1
+            ? "1 monitor rule selected"
+            : $"{selectedIds.Count} monitor rules selected";
     }
 
     public void InitializeChartSeriesEditor()
@@ -410,6 +471,22 @@ public sealed class EditorDialogField : ObservableObject
 
         RebuildChartSeriesEntries();
         RaisePropertyChanged(nameof(StructuredEditorSummary));
+    }
+
+    public void RefreshChartSeriesOptions(IEnumerable<string> options)
+    {
+        if (!IsChartSeriesList)
+        {
+            return;
+        }
+
+        Options.Clear();
+        foreach (var option in options.Where(static option => !string.IsNullOrWhiteSpace(option)).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            Options.Add(option);
+        }
+
+        InitializeChartSeriesEditor();
     }
 
     public void InitializeAttachItemEditor()

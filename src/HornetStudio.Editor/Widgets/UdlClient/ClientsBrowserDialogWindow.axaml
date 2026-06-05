@@ -1,0 +1,454 @@
+<Window
+    x:Class="HornetStudio.Editor.Widgets.ClientsBrowserDialogWindow"
+  x:CompileBindings="False"
+  x:Name="Root"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:viewModels="using:HornetStudio.Editor.Widgets"
+    Width="1180"
+    Height="780"
+    MinWidth="960"
+    MinHeight="620"
+    ShowInTaskbar="False"
+    WindowStartupLocation="CenterOwner"
+    Title="Clients Browser"
+    Background="{Binding DialogBackground}">
+  <Window.Styles>
+    <Style Selector="Button.dialog-button">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Padding" Value="12,6" />
+      <Setter Property="Background" Value="{Binding ButtonBackground}" />
+      <Setter Property="BorderBrush" Value="{Binding ButtonBorderBrush}" />
+      <Setter Property="Foreground" Value="{Binding PrimaryTextBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.dialog-button">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Padding" Value="8,2" />
+      <Setter Property="Background" Value="{Binding ButtonBackground}" />
+      <Setter Property="BorderBrush" Value="{Binding ButtonBorderBrush}" />
+      <Setter Property="Foreground" Value="{Binding PrimaryTextBrush}" />
+    </Style>
+  </Window.Styles>
+  <Grid Margin="16" RowDefinitions="Auto,*">
+    <TextBlock FontSize="13"
+               Foreground="{Binding SecondaryTextBrush}"
+               Text="Browse folder-local clients from Clients/. The first supported type is UDL via Clients/Udl/*.yaml. Runtime ownership stays outside this browser."
+               TextWrapping="Wrap" />
+
+    <Border Grid.Row="1"
+            Margin="0,12,0,0"
+            Padding="12"
+            Background="{Binding PanelBackground}"
+            BorderBrush="{Binding BorderColor}"
+            BorderThickness="1"
+            CornerRadius="12">
+      <Grid ColumnDefinitions="320,16,*">
+        <Border Background="{Binding DialogBackground}"
+                BorderBrush="{Binding BorderColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="10">
+          <Grid RowDefinitions="Auto,Auto,*">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="2">
+                <TextBlock FontSize="16"
+                           FontWeight="SemiBold"
+                           Foreground="{Binding PrimaryTextBrush}"
+                           Text="Clients" />
+                <TextBlock FontSize="12"
+                           Foreground="{Binding SecondaryTextBrush}"
+                           Text="Folder-local client definitions" />
+              </StackPanel>
+
+                    <Button Grid.Column="1"
+                      Classes="dialog-button"
+                      Click="OnRefreshClicked"
+                      Content="Refresh" />
+            </Grid>
+
+            <TextBlock Grid.Row="1"
+                       Margin="0,10,0,0"
+                       FontSize="12"
+                       Foreground="{Binding SecondaryTextBrush}"
+                       Text="{Binding ClientsSummaryText}" />
+
+            <Border Grid.Row="2"
+                    Margin="0,10,0,0"
+                    BorderBrush="{Binding BorderColor}"
+                    BorderThickness="1"
+                    CornerRadius="8">
+              <ListBox ItemsSource="{Binding Clients}"
+                       SelectedItem="{Binding SelectedClient}"
+                       Background="Transparent"
+                       BorderThickness="0">
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="viewModels:ClientBrowserEntry">
+                    <Border Padding="10,8"
+                            BorderBrush="{Binding BorderColor, ElementName=Root}"
+                            BorderThickness="0,0,0,1">
+                      <Grid ColumnDefinitions="Auto,*,Auto"
+                            RowDefinitions="Auto,Auto,Auto">
+                        <Border Width="10"
+                                Height="10"
+                                Margin="0,4,10,0"
+                                Background="{Binding StatusBrush}"
+                                CornerRadius="5" />
+
+                        <TextBlock Grid.Column="1"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   Foreground="{Binding PrimaryTextBrush, ElementName=Root}"
+                                   Text="{Binding Text}" />
+
+                        <TextBlock Grid.Column="2"
+                                   FontSize="11"
+                                   Foreground="{Binding SecondaryTextBrush, ElementName=Root}"
+                                   Text="{Binding StatusBadgeText}" />
+
+                        <TextBlock Grid.Row="1"
+                                   Grid.Column="1"
+                                   Margin="0,4,0,0"
+                                   FontSize="12"
+                                   Foreground="{Binding SecondaryTextBrush, ElementName=Root}"
+                                   Text="{Binding ClientType}" />
+
+                        <TextBlock Grid.Row="2"
+                                   Grid.Column="1"
+                                   Margin="0,2,0,0"
+                                   FontSize="12"
+                                   Foreground="{Binding SecondaryTextBrush, ElementName=Root}"
+                                   Text="{Binding SocketText}" />
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </Border>
+          </Grid>
+        </Border>
+
+        <Border Grid.Column="2"
+                Background="{Binding DialogBackground}"
+                BorderBrush="{Binding BorderColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="14">
+          <Grid>
+            <Grid IsVisible="{Binding HasSelectedClient}" RowDefinitions="Auto,12,Auto,12,*,12,Auto">
+                <Border Padding="12"
+                    Background="{Binding SectionBackground}"
+                      BorderBrush="{Binding BorderColor}"
+                      BorderThickness="1"
+                      CornerRadius="8">
+                  <Grid ColumnDefinitions="*,16,Auto"
+                    RowDefinitions="Auto,Auto">
+                  <StackPanel Spacing="2">
+                    <TextBlock FontSize="22"
+                               FontWeight="SemiBold"
+                               Foreground="{Binding PrimaryTextBrush}"
+                               Text="{Binding SelectedClientDisplayName}" />
+                    <TextBlock FontSize="12"
+                               Foreground="{Binding SecondaryTextBrush}"
+                               Text="{Binding SelectedClientId}" />
+                    <TextBlock FontSize="12"
+                               Foreground="{Binding SecondaryTextBrush}"
+                               Text="{Binding SelectedClientModeAndSocketText}" />
+                    <TextBlock FontSize="12"
+                               Foreground="{Binding SecondaryTextBrush}"
+                               Text="{Binding SelectedClientConnectionText}" />
+                  </StackPanel>
+
+                      <StackPanel Grid.Column="2"
+                            Grid.RowSpan="2"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Spacing="8">
+                        <Border HorizontalAlignment="Right"
+                          Padding="10,4"
+                          Background="{Binding DialogBackground}"
+                          BorderBrush="{Binding BorderColor}"
+                          BorderThickness="1"
+                          CornerRadius="6">
+                          <TextBlock FontSize="11"
+                         FontWeight="SemiBold"
+                         Foreground="{Binding PrimaryTextBrush}"
+                         Text="{Binding SelectedClientStatusBadgeText}" />
+                        </Border>
+
+                        <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Spacing="8">
+                          <Button Classes="dialog-button"
+                            Click="OnConnectClicked"
+                            Content="Connect"
+                            IsEnabled="{Binding CanConnectSelectedClient}" />
+
+                          <Button Classes="dialog-button"
+                            Click="OnDisconnectClicked"
+                            Content="Disconnect"
+                            IsEnabled="{Binding CanDisconnectSelectedClient}" />
+                        </StackPanel>
+                      </StackPanel>
+                </Grid>
+              </Border>
+
+              <Border Grid.Row="2"
+                      Padding="12"
+                          Background="{Binding SectionBackground}"
+                      BorderBrush="{Binding BorderColor}"
+                      BorderThickness="1"
+                      CornerRadius="8">
+                <Grid ColumnDefinitions="140,*,140,*"
+                      RowDefinitions="Auto,10,Auto,10,Auto,10,Auto,10,Auto">
+                  <TextBlock Grid.ColumnSpan="4"
+                             FontSize="15"
+                             FontWeight="SemiBold"
+                             Foreground="{Binding PrimaryTextBrush}"
+                             Text="Settings" />
+
+                  <TextBlock Grid.Row="2"
+                             FontWeight="SemiBold"
+                             Foreground="{Binding PrimaryTextBrush}"
+                             Text="Text" />
+                  <TextBox Grid.Row="2"
+                           Grid.Column="1"
+                           Background="{Binding EditorBackground}"
+                           BorderBrush="{Binding BorderColor}"
+                           Foreground="{Binding EditorForeground}"
+                           Text="{Binding EditableText}" />
+
+                  <TextBlock Grid.Row="2"
+                             Grid.Column="2"
+                             FontWeight="SemiBold"
+                             Foreground="{Binding PrimaryTextBrush}"
+                             Text="Client ID" />
+                  <TextBox Grid.Row="2"
+                           Grid.Column="3"
+                           Background="{Binding EditorBackground}"
+                           BorderBrush="{Binding BorderColor}"
+                           Foreground="{Binding EditorForeground}"
+                           IsReadOnly="True"
+                           Text="{Binding EditableClientId}" />
+
+                  <TextBlock Grid.Row="4"
+                             FontWeight="SemiBold"
+                             Foreground="{Binding PrimaryTextBrush}"
+                             Text="Host" />
+                  <TextBox Grid.Row="4"
+                           Grid.Column="1"
+                           Background="{Binding EditorBackground}"
+                           BorderBrush="{Binding BorderColor}"
+                           Foreground="{Binding EditorForeground}"
+                           Text="{Binding EditableHost}" />
+
+                  <TextBlock Grid.Row="4"
+                             Grid.Column="2"
+                             FontWeight="SemiBold"
+                             Foreground="{Binding PrimaryTextBrush}"
+                             Text="Port" />
+                  <NumericUpDown Grid.Row="4"
+                                 Grid.Column="3"
+                                 Background="{Binding EditorBackground}"
+                                 BorderBrush="{Binding BorderColor}"
+                                 Foreground="{Binding EditorForeground}"
+                                 Minimum="1"
+                                 Maximum="65535"
+                                 Value="{Binding EditablePort}" />
+
+                  <CheckBox Grid.Row="6" Content="Enabled" IsChecked="{Binding EditableEnabled}" />
+                  <CheckBox Grid.Row="6" Grid.Column="1" Content="Auto connect" IsChecked="{Binding EditableAutoConnect}" />
+                  <CheckBox Grid.Row="6" Grid.Column="2" Content="Debug logging" IsChecked="{Binding EditableDebugLogging}" />
+                  <CheckBox Grid.Row="6" Grid.Column="3" Content="Demo enabled" IsChecked="{Binding EditableDemoEnabled}" />
+
+                  <StackPanel Grid.Row="8"
+                              Grid.ColumnSpan="4"
+                              Orientation="Horizontal"
+                              HorizontalAlignment="Right"
+                              Spacing="8">
+                    <Button Classes="dialog-button" Click="OnReloadSelectedClicked" Content="Reload" />
+                    <Button Classes="dialog-button" Click="OnSaveClicked" Content="Save" />
+                  </StackPanel>
+                </Grid>
+              </Border>
+
+              <Grid Grid.Row="4" ColumnDefinitions="*,12,*">
+                <Border Padding="12"
+                  Background="{Binding SectionBackground}"
+                        BorderBrush="{Binding BorderColor}"
+                        BorderThickness="1"
+                        CornerRadius="8">
+                  <Grid RowDefinitions="Auto,*">
+                    <Grid ColumnDefinitions="*,Auto,Auto" MinHeight="32">
+                      <TextBlock FontSize="15"
+                                 FontWeight="SemiBold"
+                                 Foreground="{Binding PrimaryTextBrush}"
+                                 Text="Received" />
+                            <Button Grid.Column="1"
+                              Classes="dialog-button"
+                              Margin="6,0,0,0"
+                              Click="OnAddDemoClicked"
+                              Content="AddDemo"
+                              IsEnabled="{Binding CanAddDemo}"
+                              IsVisible="{Binding CanAddDemo}" />
+                      <ToggleButton Grid.Column="2"
+                              Classes="dialog-button"
+                                    Margin="6,0,0,0"
+                                    Click="OnToggleAllReceivedItemsClicked"
+                                    IsChecked="{Binding AreAllReceivedItemsAttached}"
+                                    IsEnabled="{Binding CanToggleAllReceivedItems}">
+                        <TextBlock FontSize="11" Text="All visible" />
+                      </ToggleButton>
+                    </Grid>
+
+                    <ScrollViewer Grid.Row="1" Margin="0,10,0,0" VerticalScrollBarVisibility="Auto">
+                      <ItemsControl ItemsSource="{Binding ReceivedItems}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="viewModels:ClientDetailRow">
+                            <Border Margin="0,0,0,6"
+                                    Padding="6,4"
+                                    BorderBrush="{Binding BorderColor, ElementName=Root}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    ToolTip.Tip="{Binding ToolTipText}">
+                              <Grid ColumnDefinitions="Auto,*,Auto">
+                                <Border Width="10"
+                                        Height="10"
+                                        Margin="0,0,8,0"
+                                        CornerRadius="999"
+                                        Background="{Binding StatusIndicatorBrush}" />
+                                <TextBlock Grid.Column="1"
+                                           FontSize="12"
+                                           Foreground="{Binding PrimaryTextBrush, ElementName=Root}"
+                                           Text="{Binding PathText}" />
+                                <Button Grid.Column="2"
+                                  Classes="dialog-button"
+                                        Click="OnAttachReceivedItemClicked"
+                                        CommandParameter="{Binding .}"
+                                        IsEnabled="{Binding CanExecuteAction}">
+                                  <TextBlock FontSize="11" Text="{Binding ActionText}" />
+                                </Button>
+                              </Grid>
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </ScrollViewer>
+                  </Grid>
+                </Border>
+
+                <Border Grid.Column="2"
+                  Padding="12"
+                  Background="{Binding SectionBackground}"
+                        BorderBrush="{Binding BorderColor}"
+                        BorderThickness="1"
+                        CornerRadius="8">
+                  <Grid RowDefinitions="Auto,*">
+                    <Grid MinHeight="32">
+                      <TextBlock FontSize="15"
+                                 FontWeight="SemiBold"
+                                 Foreground="{Binding PrimaryTextBrush}"
+                                 Text="Attached" />
+                    </Grid>
+
+                    <ScrollViewer Grid.Row="1" Margin="0,10,0,0" VerticalScrollBarVisibility="Auto">
+                      <ItemsControl ItemsSource="{Binding AttachedItems}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="viewModels:ClientDetailRow">
+                            <Border Margin="0,0,0,6"
+                                    Padding="6,4"
+                                    BorderBrush="{Binding BorderColor, ElementName=Root}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    ToolTip.Tip="{Binding ToolTipText}">
+                              <Grid ColumnDefinitions="Auto,*,Auto">
+                                <Border Width="10"
+                                        Height="10"
+                                        Margin="0,0,8,0"
+                                        CornerRadius="999"
+                                        Background="{Binding StatusIndicatorBrush}" />
+                                <TextBlock Grid.Column="1"
+                                           FontSize="12"
+                                           Foreground="{Binding PrimaryTextBrush, ElementName=Root}"
+                                           Text="{Binding PathText}" />
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+                                    <Button Classes="dialog-button"
+                                          Click="OnEditAttachedItemClicked"
+                                          CommandParameter="{Binding .}"
+                                          IsEnabled="{Binding CanEdit}">
+                                    <TextBlock FontSize="11" Text="Edit" />
+                                  </Button>
+                                    <Button Classes="dialog-button"
+                                          Click="OnDetachAttachedItemClicked"
+                                          CommandParameter="{Binding .}"
+                                          IsEnabled="{Binding CanDetach}">
+                                    <TextBlock FontSize="11" Text="Detach" />
+                                  </Button>
+                                </StackPanel>
+                              </Grid>
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </ScrollViewer>
+                  </Grid>
+                </Border>
+              </Grid>
+
+                    <Border Grid.Row="6"
+                      Padding="12"
+                      Background="{Binding SectionBackground}"
+                      BorderBrush="{Binding BorderColor}"
+                      BorderThickness="1"
+                      CornerRadius="8">
+                <Grid ColumnDefinitions="*,16,*">
+                  <StackPanel Spacing="4">
+                    <TextBlock FontSize="15"
+                               FontWeight="SemiBold"
+                               Foreground="{Binding PrimaryTextBrush}"
+                               Text="Diagnostics" />
+                    <TextBlock Foreground="{Binding SecondaryTextBrush}" Text="{Binding DiagnosticsLine1}" TextWrapping="Wrap" />
+                    <TextBlock Foreground="{Binding SecondaryTextBrush}" Text="{Binding DiagnosticsLine2}" TextWrapping="Wrap" />
+                    <TextBlock Foreground="{Binding SecondaryTextBrush}" Text="{Binding DiagnosticsLine3}" TextWrapping="Wrap" />
+                  </StackPanel>
+
+                  <StackPanel Grid.Column="2" Spacing="4">
+                    <TextBlock FontSize="15"
+                               FontWeight="SemiBold"
+                               Foreground="{Binding PrimaryTextBrush}"
+                               Text="Paths" />
+                    <TextBlock Foreground="{Binding SecondaryTextBrush}" Text="{Binding PathsLine1}" TextWrapping="Wrap" />
+                    <TextBlock Foreground="{Binding SecondaryTextBrush}" Text="{Binding PathsLine2}" TextWrapping="Wrap" />
+                    <TextBlock Foreground="{Binding SecondaryTextBrush}" Text="{Binding PathsLine3}" TextWrapping="Wrap" />
+                  </StackPanel>
+                </Grid>
+              </Border>
+            </Grid>
+
+            <Border IsVisible="{Binding IsSelectionEmpty}"
+                    Background="{Binding PanelBackground}"
+                    BorderBrush="{Binding BorderColor}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="20">
+              <StackPanel HorizontalAlignment="Center"
+                          VerticalAlignment="Center"
+                          Spacing="8">
+                <TextBlock HorizontalAlignment="Center"
+                           FontSize="20"
+                           FontWeight="SemiBold"
+                           Foreground="{Binding PrimaryTextBrush}"
+                           Text="No client selected" />
+                <TextBlock HorizontalAlignment="Center"
+                           FontSize="13"
+                           Foreground="{Binding SecondaryTextBrush}"
+                           Text="Select a folder-local client from the list to inspect its definition and runtime state."
+                           TextAlignment="Center"
+                           TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+          </Grid>
+        </Border>
+      </Grid>
+    </Border>
+  </Grid>
+</Window>

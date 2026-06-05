@@ -63,6 +63,7 @@
                   <widgets:EnhancedSignalsControl Width="{Binding Width}" Height="{Binding Height}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" DataContext="{Binding}" IsVisible="{Binding IsEnhancedSignals}" />
                   <widgets:ControllerControl Width="{Binding Width}" Height="{Binding Height}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" DataContext="{Binding}" IsVisible="{Binding IsControllerWidget}" />
                   <widgets:MonitorControl Width="{Binding Width}" Height="{Binding Height}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" DataContext="{Binding}" IsVisible="{Binding IsMonitor}" />
+                  <widgets:MonitorViewControl Width="{Binding Width}" Height="{Binding Height}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" DataContext="{Binding}" IsVisible="{Binding IsMonitorView}" />
                   <widgets:FunctionsControl Width="{Binding Width}" Height="{Binding Height}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" DataContext="{Binding}" IsVisible="{Binding IsFunctions}" />
 
                   <!-- Auswahlrahmen nur im EditMode anzeigen -->

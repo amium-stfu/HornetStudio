@@ -1,0 +1,70 @@
+<editorUi:EditorTemplateControl
+    x:Class="HornetStudio.Editor.Widgets.MonitorViewControl"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:HornetStudio.Editor.Widgets"
+    xmlns:editorUi="using:HornetStudio.Editor.Controls">
+  <controls:MonitorViewControl.BodyContent>
+    <Border Padding="10,8"
+            Background="{Binding EffectiveBodyBackgroundBrush}"
+            BorderBrush="{Binding EffectiveBodyBorderBrush}"
+            BorderThickness="{Binding EffectiveBodyBorderThickness}"
+            CornerRadius="10">
+      <Grid RowDefinitions="*,Auto">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+          <ItemsControl ItemsSource="{Binding DisplayRows, RelativeSource={RelativeSource AncestorType=controls:MonitorViewControl}}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border Margin="0,0,0,6"
+                        Padding="6,4"
+                        CornerRadius="6"
+                        Background="{Binding RowBackground}"
+                        BorderBrush="{Binding RowBorderBrush}"
+                        BorderThickness="1"
+                        ToolTip.Tip="{Binding RowTooltip}">
+                  <Grid ColumnDefinitions="Auto,*"
+                    RowDefinitions="Auto">
+                  <TextBlock Grid.Column="0"
+                               Margin="0,0,8,0"
+                               MinWidth="40"
+                               VerticalAlignment="Center"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               Foreground="{Binding SecondaryForeground}"
+                               Text="{Binding EventIdText}"
+                               TextWrapping="NoWrap" />
+
+                    <TextBlock Grid.Column="1"
+                               Margin="0,0,8,0"
+                               VerticalAlignment="Center"
+                               FontSize="12"
+                               Foreground="{Binding PrimaryForeground}"
+                               Text="{Binding EventDisplayText}"
+                               TextTrimming="CharacterEllipsis"
+                               TextWrapping="NoWrap" />
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+
+        <TextBlock Grid.Row="1"
+                   FontSize="11"
+                   Foreground="{Binding EffectiveMutedForegroundBrush}"
+                   Text="No monitor rules selected. Use the picker in Selected monitor rules to choose registry entries."
+                   IsVisible="{Binding HasNoRows, RelativeSource={RelativeSource AncestorType=controls:MonitorViewControl}}" />
+      </Grid>
+    </Border>
+  </controls:MonitorViewControl.BodyContent>
+
+  <controls:MonitorViewControl.FooterContent>
+    <Border Padding="8,4">
+      <TextBlock FontSize="11"
+                 Foreground="{Binding EffectiveFooterForegroundBrush}"
+                 Text="{Binding Footer}"
+                 TextWrapping="Wrap" />
+    </Border>
+  </controls:MonitorViewControl.FooterContent>
+</editorUi:EditorTemplateControl>

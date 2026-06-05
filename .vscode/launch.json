@@ -12,6 +12,37 @@
       "stopAtEntry": false,
       "console": "integratedTerminal",
       "justMyCode": false
+    },
+    {
+      "name": ".NET Launch (HornetStudio Diagnostics)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build-hornetstudio-debug",
+      "program": "${workspaceFolder}/src/HornetStudio/bin/Debug/net9.0-windows/HornetStudio.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/HornetStudio/bin/Debug/net9.0-windows",
+      "stopAtEntry": false,
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {
+        "HORNETSTUDIO_UI_DIAGNOSTICS": "1"
+      }
+    },
+    {
+      "name": ".NET Launch (HornetStudio UI Benchmark)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build-hornetstudio-debug",
+      "program": "${workspaceFolder}/src/HornetStudio/bin/Debug/net9.0-windows/HornetStudio.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/HornetStudio/bin/Debug/net9.0-windows",
+      "stopAtEntry": false,
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {
+        "HORNETSTUDIO_UI_BENCHMARK": "1",
+        "HORNETSTUDIO_UI_DIAGNOSTICS": "1"
+      }
     }
   ]
 }

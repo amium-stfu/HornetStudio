@@ -14,6 +14,7 @@
     x:DataType="viewModels:MainWindowViewModel"
     Width="1280"
     Height="820"
+    WindowState="Maximized"
     MinWidth="1024"
     MinHeight="720"
     Background="{Binding WindowBackground}"
@@ -397,7 +398,8 @@
             </ItemsControl>
 
             <Border Grid.Column="1" IsVisible="{Binding IsRightTabStripPlacement}" Background="Transparent">
-              <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+              <Grid RowDefinitions="*,Auto">
+              <ScrollViewer Grid.Row="0" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                 <StackPanel Orientation="Vertical">
                   <ItemsControl ItemsSource="{Binding Folders}">
                     <ItemsControl.ItemsPanel>
@@ -637,6 +639,179 @@
                   </Border>
                 </StackPanel>
               </ScrollViewer>
+
+              <StackPanel Grid.Row="1"
+                          Margin="0,8,0,0"
+                          Orientation="Vertical"
+                          IsVisible="{Binding IsAdminBrowserVisible}">
+                <Grid ColumnDefinitions="48,16,40,168,32">
+                  <Border Grid.ColumnSpan="5" Background="{Binding TabBackColor}" />
+                  <Border Grid.Column="0" Background="{Binding TabNumerBackColor}" MinHeight="34" />
+                  <TextBlock Grid.Column="3"
+                             Margin="4,8,2,4"
+                             FontSize="13"
+                             FontWeight="SemiBold"
+                             Foreground="{Binding TabForeColor}"
+                             Text="Browser" />
+                </Grid>
+
+                <Button Background="Transparent"
+                        BorderThickness="0"
+                        Padding="0"
+                        Margin="0"
+                        Click="OnOpenEnhancedSignalsBrowserClicked"
+                        ToolTip.Tip="Open enhanced signals browser">
+                  <Grid ColumnDefinitions="48,16,40,168,32">
+                    <Border Grid.ColumnSpan="5" Background="{Binding TabBackColor}" />
+                    <Border Grid.Column="0" Background="{Binding TabNumerBackColor}" MinHeight="44" />
+                    <editorUi:ThemeSvgIcon Grid.Column="2"
+                                           Width="22"
+                                           Height="22"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           IconPath="avares://HornetStudio.Editor/EditorIcons/list.svg"
+                                           TintColor="{Binding TabForeColor}" />
+                    <TextBlock Grid.Column="3"
+                               Margin="4,4,2,4"
+                               VerticalAlignment="Center"
+                               FontSize="15"
+                               FontWeight="SemiBold"
+                               Foreground="{Binding TabForeColor}"
+                               Text="Enhanced Signals" />
+                  </Grid>
+                </Button>
+
+                <Button Background="Transparent"
+                        BorderThickness="0"
+                        Padding="0"
+                        Margin="0"
+                        Click="OnOpenCustomSignalsBrowserClicked"
+                        ToolTip.Tip="Open custom signals browser">
+                  <Grid ColumnDefinitions="48,16,40,168,32">
+                    <Border Grid.ColumnSpan="5" Background="{Binding TabBackColor}" />
+                    <Border Grid.Column="0" Background="{Binding TabNumerBackColor}" MinHeight="44" />
+                    <editorUi:ThemeSvgIcon Grid.Column="2"
+                                           Width="22"
+                                           Height="22"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           IconPath="avares://HornetStudio.Editor/EditorIcons/list.svg"
+                                           TintColor="{Binding TabForeColor}" />
+                    <TextBlock Grid.Column="3"
+                               Margin="4,4,2,4"
+                               VerticalAlignment="Center"
+                               FontSize="15"
+                               FontWeight="SemiBold"
+                               Foreground="{Binding TabForeColor}"
+                               Text="Custom Signals" />
+                  </Grid>
+                </Button>
+
+                <Button Background="Transparent"
+                        BorderThickness="0"
+                        Padding="0"
+                        Margin="0"
+                        Click="OnOpenControllersBrowserClicked"
+                        ToolTip.Tip="Open controllers browser">
+                  <Grid ColumnDefinitions="48,16,40,168,32">
+                    <Border Grid.ColumnSpan="5" Background="{Binding TabBackColor}" />
+                    <Border Grid.Column="0" Background="{Binding TabNumerBackColor}" MinHeight="44" />
+                    <editorUi:ThemeSvgIcon Grid.Column="2"
+                                           Width="22"
+                                           Height="22"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           IconPath="avares://HornetStudio.Editor/EditorIcons/list.svg"
+                                           TintColor="{Binding TabForeColor}" />
+                    <TextBlock Grid.Column="3"
+                               Margin="4,4,2,4"
+                               VerticalAlignment="Center"
+                               FontSize="15"
+                               FontWeight="SemiBold"
+                               Foreground="{Binding TabForeColor}"
+                               Text="Controllers" />
+                  </Grid>
+                </Button>
+
+                <Button Background="Transparent"
+                        BorderThickness="0"
+                        Padding="0"
+                        Margin="0"
+                        Click="OnOpenMonitorBrowserClicked"
+                        ToolTip.Tip="Open monitor browser">
+                  <Grid ColumnDefinitions="48,16,40,168,32">
+                    <Border Grid.ColumnSpan="5" Background="{Binding TabBackColor}" />
+                    <Border Grid.Column="0" Background="{Binding TabNumerBackColor}" MinHeight="44" />
+                    <editorUi:ThemeSvgIcon Grid.Column="2"
+                                           Width="22"
+                                           Height="22"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           IconPath="avares://HornetStudio.Editor/EditorIcons/list.svg"
+                                           TintColor="{Binding TabForeColor}" />
+                    <TextBlock Grid.Column="3"
+                               Margin="4,4,2,4"
+                               VerticalAlignment="Center"
+                               FontSize="15"
+                               FontWeight="SemiBold"
+                               Foreground="{Binding TabForeColor}"
+                               Text="Monitor" />
+                  </Grid>
+                </Button>
+
+                <Button Background="Transparent"
+                        BorderThickness="0"
+                        Padding="0"
+                        Margin="0"
+                        Click="OnOpenUdlClientsBrowserClicked"
+                        ToolTip.Tip="Open UDL clients browser">
+                  <Grid ColumnDefinitions="48,16,40,168,32">
+                    <Border Grid.ColumnSpan="5" Background="{Binding TabBackColor}" />
+                    <Border Grid.Column="0" Background="{Binding TabNumerBackColor}" MinHeight="44" />
+                    <editorUi:ThemeSvgIcon Grid.Column="2"
+                                           Width="22"
+                                           Height="22"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           IconPath="avares://HornetStudio.Editor/EditorIcons/list.svg"
+                                           TintColor="{Binding TabForeColor}" />
+                    <TextBlock Grid.Column="3"
+                               Margin="4,4,2,4"
+                               VerticalAlignment="Center"
+                               FontSize="15"
+                               FontWeight="SemiBold"
+                               Foreground="{Binding TabForeColor}"
+                               Text="UDL Clients" />
+                  </Grid>
+                </Button>
+
+                <Button Background="Transparent"
+                        BorderThickness="0"
+                        Padding="0"
+                        Margin="0"
+                        Click="OnOpenFunctionBrowserClicked"
+                        ToolTip.Tip="Open function browser">
+                  <Grid ColumnDefinitions="48,16,40,168,32">
+                    <Border Grid.ColumnSpan="5" Background="{Binding TabBackColor}" />
+                    <Border Grid.Column="0" Background="{Binding TabNumerBackColor}" MinHeight="44" />
+                    <editorUi:ThemeSvgIcon Grid.Column="2"
+                                           Width="22"
+                                           Height="22"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           IconPath="avares://HornetStudio.Editor/EditorIcons/list.svg"
+                                           TintColor="{Binding TabForeColor}" />
+                    <TextBlock Grid.Column="3"
+                               Margin="4,4,2,4"
+                               VerticalAlignment="Center"
+                               FontSize="15"
+                               FontWeight="SemiBold"
+                               Foreground="{Binding TabForeColor}"
+                               Text="Functions" />
+                  </Grid>
+                </Button>
+              </StackPanel>
+              </Grid>
             </Border>
           </Grid>
         </Grid>

@@ -7,8 +7,8 @@
 - Instead, list the open questions in a concise, structured way and stop after clarification is requested.
 - `PLAN` always creates or reuses a matching folder under `docs/workitems/<yyyy.MM.dd.HHmm>-<slug>/`.
 - `PLAN` always creates a dedicated implementation handoff in `handoffs/`.
-- After successfully creating or reusing the workitem and creating the handoff, `PLAN` always overwrites `docs/workitems/active.md`.
-- `PLAN` must not modify `docs/workitems/active.md` when planning stops because required information is missing.
+- After successfully creating or reusing the workitem and creating the handoff, `PLAN` always appends the workitem to `docs/workitems/active.yaml`.
+- `PLAN` must not modify `docs/workitems/active.yaml` when planning stops because required information is missing.
 - Never overwrite an existing handoff file. Create a new timestamped file instead.
 - Keep the handoff concise, self-contained, and optimized for a new chat with minimal context.
 - Do not create a separate `plan.md` file unless the user explicitly asks for one.
@@ -22,27 +22,27 @@
 
 ## Required Active Workitem File
 
-- `docs/workitems/active.md`
+- `docs/workitems/active.yaml`
 
 ## Active Workitem Requirements
 
-- Keep `docs/workitems/active.md` minimal and optimized for handoff between planning and implementation tools.
-- Overwrite the file on every successful `PLAN`.
+- Keep `docs/workitems/active.yaml` minimal and optimized for handoff between planning and implementation tools.
+- Treat `docs/workitems/active.yaml` as a FIFO queue.
+- Create `docs/workitems/active.yaml` with `queue: []` if it does not exist.
+- Append one queue entry on every successful `PLAN`.
+- Do not overwrite, reorder, or remove existing queue entries during `PLAN`.
 - Store repository-relative paths only.
-- Include the active workitem folder path.
-- Include the active implementation handoff path.
-- The active implementation handoff path must point to the handoff created by the current successful `PLAN`.
+- Each queue entry must include the workitem folder path.
+- Each queue entry must include the implementation handoff path.
+- The implementation handoff path in the appended queue entry must point to the handoff created by the current successful `PLAN`.
+- Do not store summaries, status fields, timestamps, priorities, history, or done entries in `docs/workitems/active.yaml`.
 
 ## Required Active Workitem Structure
 
-```md
-# Active Workitem
-
-## Workitem
-docs/workitems/<yyyy.MM.dd.HHmm>-<slug>/
-
-## Implementation Handoff
-docs/workitems/<yyyy.MM.dd.HHmm>-<slug>/handoffs/<yyyy.MM.dd.HHmm>-implementation-handoff.md
+```yaml
+queue:
+  - workitem: docs/workitems/<yyyy.MM.dd.HHmm>-<slug>/
+    handoff: docs/workitems/<yyyy.MM.dd.HHmm>-<slug>/handoffs/<yyyy.MM.dd.HHmm>-implementation-handoff.md
 ```
 
 ## PLAN Requirements
@@ -51,7 +51,7 @@ docs/workitems/<yyyy.MM.dd.HHmm>-<slug>/handoffs/<yyyy.MM.dd.HHmm>-implementatio
 - If blockers exist, output only the open questions needed to proceed.
 - Create or reuse the workitem before presenting the completed plan.
 - Put the planning detail into the implementation handoff.
-- Update `docs/workitems/active.md` only after the handoff has been created successfully.
+- Update `docs/workitems/active.yaml` only after the handoff has been created successfully.
 - Keep the chat response short and avoid duplicating the handoff content.
 - Use a separate `plans/` folder or `plan.md` file only when explicitly requested.
 

@@ -165,7 +165,7 @@
                           BorderBrush="{Binding CardBorderBrush, ElementName=Root}"
                           BorderThickness="1"
                           CornerRadius="8">
-                        <ItemsControl ItemsSource="{Binding Fields}">
+                        <ItemsControl ItemsSource="{Binding VisibleFields}">
                           <ItemsControl.ItemTemplate>
                             <DataTemplate DataType="viewModels:EditorDialogField">
                               <Grid ColumnDefinitions="118,*,Auto,Auto,Auto" Margin="0,0,0,6" IsVisible="{Binding IsVisible}">
@@ -226,6 +226,34 @@
                                               Margin="10,0,0,0"
                                               Classes="dialog-button"
                                               ToolTip.Tip="Browse targets"
+                                              Click="OnEditStructuredFieldClicked">
+                                        <controls:ThemeSvgIcon
+                                            Width="14"
+                                            Height="14"
+                                            IconPath="avares://HornetStudio.Editor/EditorIcons/list.svg"
+                                            TintColor="{Binding PrimaryTextBrush, ElementName=Root}" />
+                                      </Button>
+                                    </Grid>
+                                  </StackPanel>
+                                </Border>
+
+                                <Border
+                                    Grid.Column="1"
+                                    Grid.ColumnSpan="3"
+                                    IsVisible="{Binding IsMonitorSelectionList}"
+                                    Padding="10"
+                                    Background="{Binding ParameterEditBackgrundColor, ElementName=Root}"
+                                    BorderBrush="{Binding CardBorderBrush, ElementName=Root}"
+                                    BorderThickness="1"
+                                    CornerRadius="8">
+                                  <StackPanel Spacing="8">
+                                    <TextBlock IsVisible="{Binding HasToolTipText}" FontSize="12" Foreground="{Binding SecondaryTextBrush, ElementName=Root}" Text="{Binding ToolTipText}" TextWrapping="Wrap" />
+                                    <Grid ColumnDefinitions="*,Auto">
+                                      <TextBlock FontSize="12" VerticalAlignment="Center" Foreground="{Binding PrimaryTextBrush, ElementName=Root}" Text="{Binding StructuredEditorSummary}" TextWrapping="Wrap" />
+                                      <Button Grid.Column="1"
+                                              Margin="10,0,0,0"
+                                              Classes="dialog-button"
+                                              ToolTip.Tip="Select monitor rules"
                                               Click="OnEditStructuredFieldClicked">
                                         <controls:ThemeSvgIcon
                                             Width="14"

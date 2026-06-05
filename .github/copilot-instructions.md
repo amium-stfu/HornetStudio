@@ -20,17 +20,19 @@ Use this file only as Copilot-specific routing and execution context. Do not tre
 ## Mode Routing
 
 - Recognize mode commands only when they are the first non-empty token of the user message, following the rules in root `AGENTS.md`.
-- Supported short mode commands include `#ask`, `#struct`, `#plan`, `#todo`, `#impl`, `#fix`, `#debug`, `#clean`, `#build`, and `#publish`.
+- Supported short mode commands include `#ask`, `#struct`, `#plan`, `#todo`, `#done`, `#impl`, `#fix`, `#debug`, `#clean`, `#build`, and `#publish`.
 - When a mode is recognized, read root `AGENTS.md`, the referenced mode module, any task-relevant supporting modules, and `agents/solution.md` before answering or changing files.
 - Do not answer from this Copilot instructions file alone when a mode has a referenced module.
 
 ## Active Workitem Handoff
 
-- Treat `docs/workitems/active.md` as the repository-relative pointer from planning to implementation.
+- Treat `docs/workitems/active.yaml` as the repository-relative FIFO queue from planning to implementation.
 - The path is relative to the workspace root that contains root `AGENTS.md`; do not resolve it relative to the current editor file, project file, or solution folder.
-- For `#impl` / `IMPLEMENT`, read `docs/workitems/active.md` before making implementation decisions.
-- If `docs/workitems/active.md` exists and contains a workitem path and an implementation handoff path, read the referenced handoff and use it as the primary execution source.
-- If `docs/workitems/active.md` is missing, malformed, or points to missing files, stop and ask for clarification instead of searching for a different active handoff.
+- For `#impl` / `IMPLEMENT`, read `docs/workitems/active.yaml` before making implementation decisions.
+- The first `queue` entry is the active implementation workitem.
+- If the first `queue` entry contains a workitem path and an implementation handoff path, read the referenced handoff and use it as the primary execution source.
+- If `docs/workitems/active.yaml` is missing, malformed, empty, or points to missing files, stop and ask for clarification instead of searching for a different active handoff.
+- For `#done` / `DONE`, remove only the first `queue` entry from `docs/workitems/active.yaml`; do not implement code, edit workitem history, or remove any other queue entry.
 - If the current user request gives explicit implementation instructions, those instructions take priority over the active handoff unless they conflict with it.
 - If the current request conflicts with the active handoff, stop and ask which source should be followed.
 

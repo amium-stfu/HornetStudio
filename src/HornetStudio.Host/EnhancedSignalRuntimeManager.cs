@@ -8,7 +8,7 @@ namespace HornetStudio.Host;
 public static class EnhancedSignalRuntimeManager
 {
     private static readonly object Sync = new();
-    private static readonly Dictionary<string, Dictionary<string, EnhancedSignalRuntime>> RuntimesByFolder = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, Dictionary<string, RuntimeSlot>> RuntimesByFolder = new(StringComparer.OrdinalIgnoreCase);
     private static readonly Dictionary<string, DefinitionStore> DefinitionStores = new(StringComparer.OrdinalIgnoreCase);
 
     public static IReadOnlyList<EnhancedSignalRuntime> SyncDefinitions(string folderName, string? rawDefinitions)
@@ -40,7 +40,7 @@ public static class EnhancedSignalRuntimeManager
 
             if (!RuntimesByFolder.TryGetValue(normalizedFolder, out var runtimes))
             {
-                runtimes = new Dictionary<string, EnhancedSignalRuntime>(StringComparer.OrdinalIgnoreCase);
+                runtimes = new Dictionary<string, RuntimeSlot>(StringComparer.OrdinalIgnoreCase);
                 RuntimesByFolder[normalizedFolder] = runtimes;
             }
 
@@ -48,25 +48,28 @@ public static class EnhancedSignalRuntimeManager
             foreach (var definition in definitions)
             {
                 var path = EnhancedSignalRuntime.BuildRegistryPath(normalizedFolder, definition);
+                var definitionKey = CreateDefinitionKey(definition);
                 desiredPaths.Add(path);
 
                 if (runtimes.TryGetValue(path, out var existing))
                 {
-                    if (!forceRecreate && DefinitionsEqual(existing.Definition, definition))
+                    if (!forceRecreate && string.Equals(existing.DefinitionKey, definitionKey, StringComparison.Ordinal))
                     {
                         continue;
                     }
 
-                    existing.Dispose();
+                    existing.Runtime.Dispose();
                     runtimes.Remove(path);
                 }
 
-                runtimes[path] = new EnhancedSignalRuntime(normalizedFolder, definition);
+                runtimes[path] = new RuntimeSlot(
+                    Runtime: new EnhancedSignalRuntime(normalizedFolder, definition),
+                    DefinitionKey: definitionKey);
             }
 
             foreach (var stale in runtimes.Keys.Where(path => !desiredPaths.Contains(path)).ToArray())
             {
-                runtimes[stale].Dispose();
+                runtimes[stale].Runtime.Dispose();
                 runtimes.Remove(stale);
             }
 
@@ -76,7 +79,10 @@ public static class EnhancedSignalRuntimeManager
                 return Array.Empty<EnhancedSignalRuntime>();
             }
 
-            return runtimes.Values.OrderBy(runtime => runtime.Definition.Name, StringComparer.OrdinalIgnoreCase).ToArray();
+            return runtimes.Values
+                .Select(static slot => slot.Runtime)
+                .OrderBy(runtime => runtime.Definition.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
         }
     }
 
@@ -97,7 +103,7 @@ public static class EnhancedSignalRuntimeManager
 
             foreach (var runtime in runtimes.Values)
             {
-                runtime.Dispose();
+                runtime.Runtime.Dispose();
             }
 
             RuntimesByFolder.Remove(normalizedFolder);
@@ -148,7 +154,7 @@ public static class EnhancedSignalRuntimeManager
             {
                 if (folder.TryGetValue(registryPath, out var found))
                 {
-                    runtime = found;
+                    runtime = found.Runtime;
                     return true;
                 }
             }
@@ -158,11 +164,10 @@ public static class EnhancedSignalRuntimeManager
         return false;
     }
 
-    private static bool DefinitionsEqual(ExtendedSignalDefinition left, ExtendedSignalDefinition right)
-    {
-        return ExtendedSignalDefinitionJsonCodec.SerializeDefinitions([left])
-            .Equals(ExtendedSignalDefinitionJsonCodec.SerializeDefinitions([right]), StringComparison.Ordinal);
-    }
+    private static string CreateDefinitionKey(ExtendedSignalDefinition definition)
+        => ExtendedSignalDefinitionJsonCodec.SerializeDefinitions([definition.Clone().NormalizeLegacyFields()]);
 
     private sealed record DefinitionStore(Func<string?> RawDefinitionsGetter, Action<string> RawDefinitionsSetter);
+
+    private sealed record RuntimeSlot(EnhancedSignalRuntime Runtime, string DefinitionKey);
 }

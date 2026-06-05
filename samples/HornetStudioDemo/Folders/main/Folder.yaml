@@ -1,0 +1,2235 @@
+﻿Caption: 'main'
+Screens:
+  1: 'HomeScreen'
+  9: 'Assets'
+  30: 'ResourcesScreen'
+Controls:
+  -
+    Type: 'UdlClientControl'
+    Screen: '30'
+    Enabled: true
+    Identity:
+      Name: 'udl1'
+      Text: 'Udl1'
+      Path: 'udl1'
+      Id: '62ed150e6b754e8b810d32aa6d9b4c38'
+    Bounds:
+      X: 18
+      Y: 94
+      Width: 389
+      Height: 262
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: ''
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: ''
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 0
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_1'
+      Text: 'signal_1'
+      Path: 'signal_1'
+      Id: '09018f8d7f354f8491afc333eba95129'
+    Bounds:
+      X: 227.79999999999995
+      Y: 7
+      Width: 237
+      Height: 81
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'Signal'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: true
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    VisualRules:
+      -
+        SourceKind: 'MonitorRule'
+        SourcePath: 'monitor.monitor_1.monitor_rule_1'
+        Target: 'Body'
+        Property: 'BodyBackColor'
+        Effect: 'None'
+        ActiveValue: '#FF1A1A'
+        InactiveValue: ''
+    Properties:
+      Unit: 'ppm'
+      Uri: 'udl1.m001.read'
+      Parameter: 'read'
+      Format: 'numeric:0.##'
+      IsReadOnly: false
+      RefreshRateMs: '1000'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_1_set'
+      Text: 'Set'
+      Path: 'signal_1_set'
+      Id: '9273dd4ef6844e60962b2059dee12cf9'
+    Bounds:
+      X: 8.599999999999994
+      Y: 6
+      Width: 206.60000000000002
+      Height: 82
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'Signal'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: true
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: 'ppm'
+      Uri: 'udl1.m001.set'
+      Parameter: 'read'
+      Format: 'numeric'
+      IsReadOnly: false
+      RefreshRateMs: '1000'
+  -
+    Type: 'ChartControl'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'chart_control_1'
+      Text: 'chart_control_1'
+      Path: 'chart_control_1'
+      Id: 'fd61e39cd5dd4c98a222dde972e1b250'
+    Bounds:
+      X: 227.79999999999995
+      Y: 182.60000000000002
+      Width: 791.8000000000001
+      Height: 398.4
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: ''
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'Chart'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: true
+      BodyCornerRadius: 0
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: true
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      RefreshRateMs: '100'
+      HistorySeconds: '120'
+      ViewSeconds: '30'
+      ChartSeriesDefinitions:
+        - 'enhanced_signals.filtered_1.set|Y1'
+        - 'enhanced_signals.filtered_1|Y1'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_2'
+      Text: 'signal_2'
+      Path: 'signal_2'
+      Id: 'b1793fa6cf1148619c5ba03ec6d98971'
+    Bounds:
+      X: 8.600000000000023
+      Y: 101
+      Width: 206.6
+      Height: 75.60000000000002
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'Signal'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: true
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'enhanced_signals.filtered_1'
+      Parameter: 'read'
+      Format: 'numeric'
+      IsReadOnly: false
+      RefreshRateMs: '1000'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_2_set'
+      Text: 'signal_2_set'
+      Path: 'signal_2_set'
+      Id: '472672a71c3e43ddbe5eb19680bf23c6'
+    Bounds:
+      X: 740.6
+      Y: 88
+      Width: 279
+      Height: 94.60000000000002
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'Signal'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: true
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'enhanced_signals.filtered_1.set'
+      Parameter: 'read'
+      Format: 'numeric'
+      IsReadOnly: false
+      RefreshRateMs: '1000'
+  -
+    Type: 'ItemClient'
+    Screen: '30'
+    Enabled: true
+    Identity:
+      Name: 'item_client_1'
+      Text: 'item_client_1'
+      Path: 'item_client_1'
+      Id: '6acd08fe8a4149dab9ae380fccf6a8c4'
+    Bounds:
+      X: 847.8
+      Y: 77.6
+      Width: 321
+      Height: 448
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: ''
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'Item Client'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: true
+      BodyCornerRadius: 0
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: true
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      BrokerHost: '127.0.0.1'
+      BrokerPort: '1883'
+      BrokerBaseTopic: ''
+      ServerClientId: 'hornet-studio-bdad28f7'
+      BrokerMode: 'External'
+      BrokerAutoConnect: true
+      BrokerAttachedItemPaths: 'item_client_1.edm1.pressure\nitem_client_1.edm1.temperature'
+      BrokerPublishedItemPaths:
+        -
+          LocalPath: 'studio.main.custom_signals.demo_number'
+          LocalRootPath: 'studio.main.custom_signals.demo_number'
+          BrokerPath: 'studio.main.custom_signals.demo_number'
+          Active: true
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: true
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.adjustment'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.adjustment'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.adjustment.enabled'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.adjustment.enabled'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.adjustment.gain'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.adjustment.gain'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.adjustment.mapping_mode'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.adjustment.mapping_mode'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.adjustment.offset'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.adjustment.offset'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.adjustment.spline'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.adjustment.spline'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.adjustment.spline_interpolation_mode'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.adjustment.spline_interpolation_mode'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.adjustment.supports_inverse_mapping'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.adjustment.supports_inverse_mapping'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.adjustment.write'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.adjustment.write'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.alert'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.alert'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.command'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.command'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.config'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.config'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.dynamic'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.dynamic'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.dynamic.active'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.dynamic.active'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.dynamic.angle_deg'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.dynamic.angle_deg'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.dynamic.effective_reference_value'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.dynamic.effective_reference_value'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.dynamic.noise_reference_value'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.dynamic.noise_reference_value'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.dynamic.normalization_mode'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.dynamic.normalization_mode'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.dynamic.raw_angle_deg'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.dynamic.raw_angle_deg'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.dynamic.reference_value'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.dynamic.reference_value'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.dynamic.relative_change'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.dynamic.relative_change'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.dynamic.remaining_hold_ms'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.dynamic.remaining_hold_ms'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.dynamic.residual'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.dynamic.residual'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.dynamic.residual_weight'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.dynamic.residual_weight'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.dynamic.slope'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.dynamic.slope'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.kalman'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.kalman'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.kalman.adaptive_q_active'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.kalman.adaptive_q_active'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.kalman.adaptive_q_hold_remaining_ms'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.kalman.adaptive_q_hold_remaining_ms'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.kalman.adaptive_q_intensity'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.kalman.adaptive_q_intensity'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.kalman.dynamic_angle_deg'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.kalman.dynamic_angle_deg'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.kalman.dynamic_effective_reference_value'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.kalman.dynamic_effective_reference_value'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.kalman.dynamic_max_angle_deg'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.kalman.dynamic_max_angle_deg'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.kalman.dynamic_max_slope'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.kalman.dynamic_max_slope'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.kalman.dynamic_noise_reference_value'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.kalman.dynamic_noise_reference_value'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.kalman.dynamic_normalization_mode'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.kalman.dynamic_normalization_mode'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.kalman.dynamic_raw_angle_deg'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.kalman.dynamic_raw_angle_deg'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.kalman.dynamic_reference_value'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.kalman.dynamic_reference_value'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.kalman.dynamic_residual_weight'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.kalman.dynamic_residual_weight'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.kalman.dynamic_slope_ratio'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.kalman.dynamic_slope_ratio'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.kalman.dynamic_trend_confidence'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.kalman.dynamic_trend_confidence'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.kalman.dynamic_trigger_active'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.kalman.dynamic_trigger_active'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.kalman.effective_process_noise_q'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.kalman.effective_process_noise_q'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.kalman.estimate'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.kalman.estimate'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.kalman.innovation_abs'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.kalman.innovation_abs'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.kalman.measurement_noise_r'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.kalman.measurement_noise_r'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.kalman.process_noise_q'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.kalman.process_noise_q'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.kalman.write'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.kalman.write'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.out'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.out'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.raw'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.raw'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.read'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.read'
+          Active: true
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.set'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.set'
+          Active: true
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: true
+        -
+          LocalPath: 'studio.main.enhanced_signals.filtered_1.state'
+          LocalRootPath: 'studio.main.enhanced_signals.filtered_1'
+          BrokerPath: 'studio.main.enhanced_signals.filtered_1.state'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.udl1.m001.alert'
+          LocalRootPath: 'studio.main.udl1.m001'
+          BrokerPath: 'studio.main.udl1.m001.alert'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.udl1.m001.out'
+          LocalRootPath: 'studio.main.udl1.m001'
+          BrokerPath: 'studio.main.udl1.m001.out'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.udl1.m001.read'
+          LocalRootPath: 'studio.main.udl1.m001'
+          BrokerPath: 'studio.main.udl1.m001.read'
+          Active: true
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.udl1.m001.set'
+          LocalRootPath: 'studio.main.udl1.m001'
+          BrokerPath: 'studio.main.udl1.m001.set'
+          Active: true
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+        -
+          LocalPath: 'studio.main.udl1.m001.state'
+          LocalRootPath: 'studio.main.udl1.m001'
+          BrokerPath: 'studio.main.udl1.m001.state'
+          Active: false
+          PublishMode: 'OnChanged'
+          PublishIntervalMs: '1000'
+          Writable: false
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_3'
+      Text: 'signal_3'
+      Path: 'signal_3'
+      Id: '124fd19b9f4b4d24aa151f71fe6651ae'
+    Bounds:
+      X: 238.39999999999992
+      Y: 596.6
+      Width: 323
+      Height: 140
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'Signal'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: true
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: 'hPa'
+      Uri: 'item_client_1.edm1.pressure'
+      Parameter: 'read'
+      Format: ''
+      IsReadOnly: false
+      RefreshRateMs: '1000'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_4'
+      Text: 'signal_4'
+      Path: 'signal_4'
+      Id: '148867bbe04849118d168a8ae2b3ec3e'
+    Bounds:
+      X: 227.79999999999995
+      Y: 104
+      Width: 237
+      Height: 72.60000000000002
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'Signal'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: true
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'custom_signals.demo_number'
+      Parameter: 'read'
+      Format: ''
+      IsReadOnly: false
+      RefreshRateMs: '1000'
+  -
+    Type: 'ApplicationExplorer'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'application_explorer_1'
+      Text: 'application_explorer_1'
+      Path: 'application_explorer_1'
+      Id: 'ccba51c4dc7c41f7955ecb2ae27139d5'
+    Bounds:
+      X: 475
+      Y: 88
+      Width: 265.6
+      Height: 93
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'ApplicationExplorer'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: ''
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 0
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: true
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Applications: 'raw | Applications/Python/raw/main.py'
+      ApplicationAutoStart: true
+  -
+    Type: 'Button'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'btn_start_loop'
+      Text: 'btn_start_loop'
+      Path: 'btn_start_loop'
+      Id: 'e513ed47634943c690e03d5084c200e9'
+    Bounds:
+      X: 8.600000000000023
+      Y: 290
+      Width: 206.6
+      Height: 77
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: ''
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'Button'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    InteractionRules:
+      -
+        Event: 'BodyLeftClick'
+        Action: 'InvokePythonFunction'
+        TargetPath: 'application_explorer_1:raw'
+        Argument: ''
+        FunctionName: 'start_loop'
+    Properties:
+      ButtonText: 'Start Loop'
+      ButtonIcon: ''
+      ButtonIconColor: ''
+      ButtonBackColor: ''
+      ButtonOnlyIcon: false
+      ButtonIconAlign: 'Left'
+      ButtonTextAlign: 'Center'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_5'
+      Text: 'signal_5'
+      Path: 'signal_5'
+      Id: 'ffa227ad4bee4c93946151cf8d515c51'
+    Bounds:
+      X: 8.600000000000023
+      Y: 182.60000000000002
+      Width: 206.6
+      Height: 94.4
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'Signal'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: true
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: 'V'
+      Uri: 'applications.python.raw.raw_a'
+      Parameter: 'read'
+      Format: ''
+      IsReadOnly: false
+      RefreshRateMs: '1000'
+  -
+    Type: 'CsvLoggerControl'
+    Screen: '9'
+    Enabled: true
+    Identity:
+      Name: 'csv_logger_control_1'
+      Text: 'csv_logger_control_1'
+      Path: 'csv_logger_control_1'
+      Id: '10f373e6ebe0418e9bc900511ac04e4d'
+    Bounds:
+      X: 11
+      Y: 19
+      Width: 275.4
+      Height: 120
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'CsvLogger'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: '20260519_212250_Dummy3.csv'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 0
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: true
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      CsvDirectory: 'Logs/main/csv'
+      CsvFilename: 'Dummy3.csv'
+      CsvAddTimestamp: true
+      CsvIntervalMs: '1000'
+      CsvSignalPaths: 'signal_1_set|udl1.m001.set|ppm|1000\nsignal_1|udl1.m001.read|ppm|1000\nsignal_2_set|enhanced_signals.filtered_1.set||1000\nsignal_2|enhanced_signals.filtered_1||1000\nsignal_3|item_client_1.edm1.pressure|hPa|1000\nsignal_4|custom_signals.demo_number||1000\nsignal_5|applications.python.raw.raw_a|V|1000'
+      CsvSplitDaily: false
+      CsvSplitDailyTime: '00:00:00'
+      CsvSplitMaxFileSizeMb: '0'
+      CsvPersistenceMode: 'Balanced'
+      CsvFlushIntervalMs: '0'
+      CsvFlushBatchSize: '0'
+  -
+    Type: 'SqlLoggerControl'
+    Screen: '9'
+    Enabled: true
+    Identity:
+      Name: 'sql_logger_control_1'
+      Text: 'sql_logger_control_1'
+      Path: 'sql_logger_control_1'
+      Id: '47f51ceb08634fa797eb057f7253bff4'
+    Bounds:
+      X: 11
+      Y: 157
+      Width: 319
+      Height: 120
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'SqlLogger'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: '20260515_224711_dummy.db'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 0
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: true
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      CsvDirectory: 'Logs/main/csv'
+      CsvFilename: 'dummy.db'
+      CsvAddTimestamp: true
+      CsvIntervalMs: '1000'
+      CsvSignalPaths: 'signal_1_set|udl1.m001.set|ppm|1000\nsignal_1|udl1.m001.read|ppm|1000\nsignal_2_set|enhanced_signals.filtered_1.set||1000\nsignal_2|enhanced_signals.filtered_1||1000\nsignal_3|item_client_1.edm1.pressure|hPa|1000\nsignal_4|custom_signals.demo_number||1000\nsignal_5|applications.python.raw.raw_a|V|1000'
+      CsvSplitDaily: false
+      CsvSplitDailyTime: '00:00:00'
+      CsvSplitMaxFileSizeMb: '0'
+      CsvPersistenceMode: 'Balanced'
+      CsvFlushIntervalMs: '0'
+      CsvFlushBatchSize: '0'
+  -
+    Type: 'LogControl'
+    Screen: '9'
+    Enabled: true
+    Identity:
+      Name: 'my_log'
+      Text: 'log_control_1'
+      Path: 'my_log'
+      Id: '10f32033e6ff405c930a8df85a598fb2'
+    Bounds:
+      X: 651.5999999999999
+      Y: 320.60000000000014
+      Width: 415.20000000000005
+      Height: 220
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'Log'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: ''
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 0
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: true
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_8'
+      Text: 'signal_8'
+      Path: 'signal_8'
+      Id: 'a89e43fa8a50428ab4a1cf901f0a1753'
+    Bounds:
+      X: 28.200000000000017
+      Y: 390
+      Width: 187
+      Height: 83
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'Signal'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: true
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'custom_signals.demo_trigger'
+      Parameter: 'read'
+      Format: ''
+      IsReadOnly: false
+      RefreshRateMs: '1000'
+  -
+    Type: 'Signal'
+    Screen: '9'
+    Enabled: true
+    Identity:
+      Name: 'signal_9'
+      Text: 'signal_9'
+      Path: 'signal_9'
+      Id: '6a92f00d558f41d6b54790710611905a'
+    Bounds:
+      X: 10
+      Y: 290
+      Width: 311
+      Height: 128
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'Signal'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: true
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'logger_runtime.csv_logger_control_1.record'
+      Parameter: 'read'
+      Format: ''
+      IsReadOnly: false
+      RefreshRateMs: '1000'
+  -
+    Type: 'Monitor'
+    Screen: '9'
+    Enabled: true
+    Identity:
+      Name: 'monitor_1'
+      Text: 'monitor_1'
+      Path: 'monitor_1'
+      Id: '2217e1d79d774aaeb759a68fdd5f78c6'
+    Bounds:
+      X: 354.2
+      Y: 88
+      Width: 268
+      Height: 162.5999999999999
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'Monitor'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: ''
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 0
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: true
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+  -
+    Type: 'LogControl'
+    Screen: '9'
+    Enabled: true
+    Identity:
+      Name: 'test_log'
+      Text: 'test_log'
+      Path: 'test_log'
+      Id: '15b3668c92364a95b6fb107d92aad6a0'
+    Bounds:
+      X: 651.5999999999999
+      Y: 88
+      Width: 415.20000000000005
+      Height: 220
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'Log'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: ''
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 0
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: true
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_6'
+      Text: 'signal_6'
+      Path: 'signal_6'
+      Id: '4ef1da1d13814966b01586d076fc7c2e'
+    Bounds:
+      X: 34.400000000000006
+      Y: 496.80000000000007
+      Width: 177.6
+      Height: 72
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'Signal'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: true
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'controller_widget.pid_controller_1.set'
+      Parameter: 'read'
+      Format: 'numeric:0.##'
+      IsReadOnly: false
+      RefreshRateMs: '1000'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_7'
+      Text: 'signal_7'
+      Path: 'signal_7'
+      Id: '7213922200cf427c80a568fa030100af'
+    Bounds:
+      X: 31.2
+      Y: 585.6
+      Width: 165.6
+      Height: 72
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'Signal'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: true
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'controller_widget.pid_controller_1.run'
+      Parameter: 'read'
+      Format: 'bool'
+      IsReadOnly: false
+      RefreshRateMs: '1000'
+  -
+    Type: 'DialogWidget'
+    Screen: '30'
+    Enabled: true
+    Identity:
+      Name: 'dialog_widget_1'
+      Text: 'Demo Dialog'
+      Path: 'dialog_widget_1'
+      Id: '68f8eaaa54b74ef5b2f5c787468e0cb5'
+    Bounds:
+      X: 378
+      Y: 608
+      Width: 432
+      Height: 308
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'DialogWidget'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'Dialog content'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 0
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: true
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Rows: '3'
+      Columns: '3'
+      Cells:
+        -
+          Row: '1'
+          Column: '1'
+          RowSpan: '1'
+          ColumnSpan: '3'
+          Child:
+            Type: 'Signal'
+            Screen: '30'
+            Enabled: true
+            Identity:
+              Name: 'dialog_1'
+              Text: 'Dialog'
+              Path: 'dialog_1'
+              Id: 'fe6a819af3f7424bb2789406e0e3aeaa'
+            Bounds:
+              X: 0
+              Y: 0
+              Width: 348
+              Height: 205.33333333333334
+            Design:
+              CornerRadius: 12
+              BorderWidth: 1
+              BorderColor: null
+              BackColor: null
+              ToolTip: ''
+            Header:
+              ControlCaption: 'Signal'
+              SyncText: true
+              HeaderForeColor: null
+              CaptionVisible: true
+              HeaderCornerRadius: 6
+              HeaderBorderWidth: 0
+              HeaderBorderColor: null
+              HeaderBackColor: null
+            Body:
+              BodyCaption: 'read'
+              BodyCaptionPosition: 'Top'
+              BodyForeColor: null
+              BodyCaptionVisible: false
+              BodyCornerRadius: 8
+              BodyBorderWidth: 0
+              BodyBorderColor: null
+              BodyBackColor: null
+            Footer:
+              ShowFooter: false
+              FooterCornerRadius: 6
+              FooterBorderWidth: 0
+              FooterBorderColor: null
+              FooterBackColor: null
+            Properties:
+              Unit: ''
+              Uri: 'enhanced_signals.filtered_1.read'
+              Parameter: 'read'
+              Format: ''
+              IsReadOnly: false
+              RefreshRateMs: '1000'
+        -
+          Row: '2'
+          Column: '1'
+          RowSpan: '1'
+          ColumnSpan: '3'
+          Child:
+            Type: 'Button'
+            Screen: '30'
+            Enabled: true
+            Identity:
+              Name: 'btn_close_dialog'
+              Text: 'btn_close_dialog'
+              Path: 'btn_close_dialog'
+              Id: 'd4470b73598e4b109eb7b0e0320c6ded'
+            Bounds:
+              X: 0
+              Y: 0
+              Width: 348
+              Height: 102.66666666666667
+            Design:
+              CornerRadius: 12
+              BorderWidth: 1
+              BorderColor: null
+              BackColor: null
+              ToolTip: ''
+            Header:
+              ControlCaption: ''
+              SyncText: true
+              HeaderForeColor: null
+              CaptionVisible: false
+              HeaderCornerRadius: 6
+              HeaderBorderWidth: 0
+              HeaderBorderColor: null
+              HeaderBackColor: null
+            Body:
+              BodyCaption: 'Button'
+              BodyCaptionPosition: 'Top'
+              BodyForeColor: null
+              BodyCaptionVisible: false
+              BodyCornerRadius: 8
+              BodyBorderWidth: 0
+              BodyBorderColor: null
+              BodyBackColor: null
+            Footer:
+              ShowFooter: false
+              FooterCornerRadius: 6
+              FooterBorderWidth: 0
+              FooterBorderColor: null
+              FooterBackColor: null
+            InteractionRules:
+              -
+                Event: 'BodyLeftClick'
+                Action: 'CloseDialog'
+                TargetPath: '68f8eaaa54b74ef5b2f5c787468e0cb5'
+                Argument: ''
+                FunctionName: ''
+            Properties:
+              ButtonText: 'Close'
+              ButtonIcon: ''
+              ButtonIconColor: ''
+              ButtonBackColor: ''
+              ButtonOnlyIcon: false
+              ButtonIconAlign: 'Left'
+              ButtonTextAlign: 'Center'
+  -
+    Type: 'Button'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'btn_open_dialog'
+      Text: 'btn_open_dialog'
+      Path: 'btn_open_dialog'
+      Id: 'b8a2aa93b6b749aca2a50ef104f53dca'
+    Bounds:
+      X: 696
+      Y: 630
+      Width: 287
+      Height: 89
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: ''
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'Button'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    InteractionRules:
+      -
+        Event: 'BodyLeftClick'
+        Action: 'OpenDialog'
+        TargetPath: '68f8eaaa54b74ef5b2f5c787468e0cb5'
+        Argument: ''
+        FunctionName: ''
+    Properties:
+      ButtonText: 'Open Dialog'
+      ButtonIcon: ''
+      ButtonIconColor: ''
+      ButtonBackColor: ''
+      ButtonOnlyIcon: false
+      ButtonIconAlign: 'Left'
+      ButtonTextAlign: 'Center'
+  -
+    Type: 'Button'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'btn_run_workflow'
+      Text: 'btn_run_workflow'
+      Path: 'btn_run_workflow'
+      Id: 'a9c4e38b7f324c5f95aec56daa7d60cb'
+    Bounds:
+      X: 1077
+      Y: 662
+      Width: 253
+      Height: 82
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: ''
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: false
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'Button'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    InteractionRules:
+      -
+        Event: 'BodyLeftClick'
+        Action: 'RunFunction'
+        TargetPath: 'this'
+        Argument: ''
+        FunctionName: 'declarative:demo_workflow'
+    Properties:
+      ButtonText: 'Run Workflow'
+      ButtonIcon: ''
+      ButtonIconColor: ''
+      ButtonBackColor: ''
+      ButtonOnlyIcon: false
+      ButtonIconAlign: 'Left'
+      ButtonTextAlign: 'Center'
+  -
+    Type: 'Button'
+    Screen: '9'
+    Enabled: true
+    Identity:
+      Name: 'btn_stop_workflow'
+      Text: 'btn_stop_workflow'
+      Path: 'btn_stop_workflow'
+      Id: 'c8d537e891864220b2e6dbcccb9e95c8'
+    Bounds:
+      X: 675.6
+      Y: 596.6
+      Width: 344
+      Height: 87
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: ''
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: false
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'Button'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    InteractionRules:
+      -
+        Event: 'BodyLeftClick'
+        Action: 'StopFunction'
+        TargetPath: 'this'
+        Argument: ''
+        FunctionName: 'yaml:demo_workflow'
+    Properties:
+      ButtonText: 'Stop Workflow'
+      ButtonIcon: ''
+      ButtonIconColor: ''
+      ButtonBackColor: ''
+      ButtonOnlyIcon: false
+      ButtonIconAlign: 'Left'
+      ButtonTextAlign: 'Center'
+  -
+    Type: 'Button'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'btn_adjust_setpoint'
+      Text: 'btn_adjust_setpoint'
+      Path: 'btn_adjust_setpoint'
+      Id: '742cb2e61c9e4b8487b0df14f098fe65'
+    Bounds:
+      X: 683
+      Y: 753
+      Width: 290
+      Height: 78
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: ''
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: false
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'Button'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    InteractionRules:
+      -
+        Event: 'BodyLeftClick'
+        Action: 'SetValue'
+        TargetPath: 'udl1.m001.set'
+        Argument: 'sv1:{"op":"IncrementBy","value":"1"}'
+        FunctionName: ''
+      -
+        Event: 'BodyRightClick'
+        Action: 'SetValue'
+        TargetPath: 'udl1.m001.set'
+        Argument: 'sv1:{"op":"DecrementBy","value":"1"}'
+        FunctionName: ''
+    Properties:
+      ButtonText: '+-'
+      ButtonIcon: ''
+      ButtonIconColor: ''
+      ButtonBackColor: ''
+      ButtonOnlyIcon: false
+      ButtonIconAlign: 'Left'
+      ButtonTextAlign: 'Center'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'text_1'
+      Text: 'Text'
+      Path: 'text_1'
+      Id: 'ac5771878823470e8e761e61beceba7a'
+    Bounds:
+      X: 108
+      Y: 767
+      Width: 470
+      Height: 75
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'Signal'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'custom_signals.demo_text'
+      Parameter: 'read'
+      Format: ''
+      IsReadOnly: false
+      RefreshRateMs: '1000'
+  -
+    Type: 'Button'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'btn_set_from_number'
+      Text: 'btn_set_from_number'
+      Path: 'btn_set_from_number'
+      Id: '16a58e839adb4a199cf4287ac76d2822'
+    Bounds:
+      X: 689
+      Y: 845
+      Width: 272
+      Height: 61
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: ''
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: false
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'Button'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    InteractionRules:
+      -
+        Event: 'BodyLeftClick'
+        Action: 'SetValue'
+        TargetPath: 'udl1.m001.set'
+        Argument: 'sv1:{"op":"SetFromItem","source":"custom_signals.demo_number"}'
+        FunctionName: ''
+    Properties:
+      ButtonText: 'Set from Number'
+      ButtonIcon: ''
+      ButtonIconColor: ''
+      ButtonBackColor: ''
+      ButtonOnlyIcon: false
+      ButtonIconAlign: 'Left'
+      ButtonTextAlign: 'Center'
+  -
+    Type: 'Button'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'add_text1'
+      Text: 'btn_append_text'
+      Path: 'add_text1'
+      Id: '9d58ca2058e44815a186c0834d45bc5a'
+    Bounds:
+      X: 113
+      Y: 859
+      Width: 219
+      Height: 63
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: ''
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: false
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'Button'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    InteractionRules:
+      -
+        Event: 'BodyLeftClick'
+        Action: 'SetValue'
+        TargetPath: 'custom_signals.demo_text'
+        Argument: 'sv1:{"op":"AppendText","value":"ABC","separator":","}'
+        FunctionName: ''
+    Properties:
+      ButtonText: 'AddText'
+      ButtonIcon: ''
+      ButtonIconColor: ''
+      ButtonBackColor: ''
+      ButtonOnlyIcon: false
+      ButtonIconAlign: 'Left'
+      ButtonTextAlign: 'Center'
+  -
+    Type: 'Button'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'btn_trigger_true'
+      Text: 'boolTrue'
+      Path: 'btn_trigger_true'
+      Id: '897d382fd09a4e0ca9c50dac7d90147a'
+    Bounds:
+      X: 1068
+      Y: 776
+      Width: 260
+      Height: 71
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: ''
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: false
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'Button'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    InteractionRules:
+      -
+        Event: 'BodyLeftClick'
+        Action: 'SetValue'
+        TargetPath: 'custom_signals.demo_trigger'
+        Argument: 'sv1:{"op":"SetTrue"}'
+        FunctionName: ''
+    Properties:
+      ButtonText: 'boolTrue'
+      ButtonIcon: ''
+      ButtonIconColor: ''
+      ButtonBackColor: ''
+      ButtonOnlyIcon: false
+      ButtonIconAlign: 'Left'
+      ButtonTextAlign: 'Center'
+  -
+    Type: 'Button'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'btn_trigger_false'
+      Text: 'btn_trigger_false'
+      Path: 'btn_trigger_false'
+      Id: '49fa4322fb6647b5a2b81fb61965250f'
+    Bounds:
+      X: 1068
+      Y: 858
+      Width: 253
+      Height: 58
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: ''
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: false
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'Button'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    InteractionRules:
+      -
+        Event: 'BodyLeftClick'
+        Action: 'SetValue'
+        TargetPath: 'custom_signals.demo_trigger'
+        Argument: 'sv1:{"op":"SetFalse"}'
+        FunctionName: ''
+    Properties:
+      ButtonText: 'boolFalse'
+      ButtonIcon: ''
+      ButtonIconColor: ''
+      ButtonBackColor: ''
+      ButtonOnlyIcon: false
+      ButtonIconAlign: 'Left'
+      ButtonTextAlign: 'Center'

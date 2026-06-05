@@ -4,12 +4,14 @@ using System.ComponentModel;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Avalonia.Threading;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Threading;
+using Avalonia;
 using HornetStudio.Editor.Controls;
 using HornetStudio.Editor.Functions;
+using HornetStudio.Editor.Monitoring;
 using HornetStudio.Editor.Models;
 using HornetStudio.Editor.ViewModels;
 using HornetStudio.Editor.Widgets.Workflow;
@@ -18,6 +20,11 @@ namespace HornetStudio.Editor.Widgets;
 
 public partial class FunctionsControl : EditorTemplateControl
 {
+    private const string DiagnosticsSourceName = nameof(FunctionsControl);
+
+    public static readonly StyledProperty<MainWindowViewModel?> EditorViewModelProperty =
+        AvaloniaProperty.Register<FunctionsControl, MainWindowViewModel?>(nameof(EditorViewModel));
+
     private readonly HashSet<string> _stopRequestedReferences = new(StringComparer.OrdinalIgnoreCase);
     private readonly DispatcherTimer _runningStateTimer;
     private FolderItemModel? _observedItem;
@@ -37,13 +44,22 @@ public partial class FunctionsControl : EditorTemplateControl
 
     public ObservableCollection<FunctionCatalogRow> FunctionEntries { get; } = [];
 
+    public MainWindowViewModel? EditorViewModel
+    {
+        get => GetValue(EditorViewModelProperty);
+        set => SetValue(EditorViewModelProperty, value);
+    }
+
     private FolderItemModel? Item => DataContext as FolderItemModel;
 
-    private MainWindowViewModel? ViewModel => TopLevel.GetTopLevel(this)?.DataContext as MainWindowViewModel;
+    private MainWindowViewModel? ViewModel => EditorViewModel ?? TopLevel.GetTopLevel(this)?.DataContext as MainWindowViewModel;
+
+    private string DiagnosticsSource => BuildBrowserDiagnosticsSource(DiagnosticsSourceName, _observedItem ?? Item);
 
     private void OnAttachedToVisualTree(object? sender, Avalonia.VisualTreeAttachmentEventArgs e)
     {
         FolderItemModel.CatalogFunctionExecutionStateChanged += OnCatalogFunctionExecutionStateChanged;
+        RefreshBrowserActivityState();
         RefreshFunctions();
     }
 
@@ -55,6 +71,13 @@ public partial class FunctionsControl : EditorTemplateControl
 
     private void OnCatalogFunctionExecutionStateChanged(object? sender, EventArgs e)
     {
+        if (!IsBrowserRefreshActive)
+        {
+            MarkBrowserRefreshDirty();
+            return;
+        }
+
+        UiResponsivenessDiagnostics.RecordBrowserDispatcherPost(DiagnosticsSource, "CatalogFunctionExecutionStateChanged");
         Dispatcher.UIThread.Post(ApplyRunningState);
     }
 
@@ -74,7 +97,16 @@ public partial class FunctionsControl : EditorTemplateControl
             _observedItem.PropertyChanged += OnItemPropertyChanged;
         }
 
+        RefreshBrowserActivityState();
         RefreshFunctions();
+    }
+
+    protected override void OnBrowserRefreshActivated()
+    {
+        if (HasPendingBrowserRefresh)
+        {
+            RefreshFunctions();
+        }
     }
 
     private void OnItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -83,6 +115,12 @@ public partial class FunctionsControl : EditorTemplateControl
             || e.PropertyName == nameof(FolderItemModel.Name)
             || e.PropertyName == nameof(FolderItemModel.FolderName))
         {
+            if (!IsBrowserRefreshActive)
+            {
+                MarkBrowserRefreshDirty();
+                return;
+            }
+
             RefreshFunctions();
         }
     }
@@ -95,6 +133,13 @@ public partial class FunctionsControl : EditorTemplateControl
 
     private void OnRunningStateTimerTick(object? sender, EventArgs e)
     {
+        if (!IsBrowserRefreshActive)
+        {
+            MarkBrowserRefreshDirty();
+            StopRunningStateTimer();
+            return;
+        }
+
         ApplyRunningState();
     }
 
@@ -103,7 +148,8 @@ public partial class FunctionsControl : EditorTemplateControl
         e.Handled = true;
 
         var item = Item;
-        if (item is null || TopLevel.GetTopLevel(this) is not Window owner)
+        var owner = TopLevel.GetTopLevel(this) as Window;
+        if (item is null || owner is null)
         {
             return;
         }
@@ -156,7 +202,8 @@ public partial class FunctionsControl : EditorTemplateControl
         }
 
         var item = Item;
-        if (item is null || TopLevel.GetTopLevel(this) is not Window owner)
+        var owner = TopLevel.GetTopLevel(this) as Window;
+        if (item is null || owner is null)
         {
             return;
         }
@@ -211,7 +258,8 @@ public partial class FunctionsControl : EditorTemplateControl
         }
 
         var item = Item;
-        if (item is null || TopLevel.GetTopLevel(this) is not Window owner)
+        var owner = TopLevel.GetTopLevel(this) as Window;
+        if (item is null || owner is null)
         {
             return;
         }
@@ -306,30 +354,40 @@ public partial class FunctionsControl : EditorTemplateControl
 
     private void RefreshFunctions()
     {
-        FunctionEntries.Clear();
+        if (!TryRunBrowserRefresh(() =>
+            {
+                using var diagnosticsScope = UiResponsivenessDiagnostics.TrackBrowserOperation(
+                    TopLevel.GetTopLevel(this) as Window,
+                    DiagnosticsSource,
+                    nameof(RefreshFunctions));
+                FunctionEntries.Clear();
 
-        var item = Item;
-        var folderDirectory = GetFolderDirectory(item);
-        var workflowDirectory = FunctionDefinitionCodec.GetFunctionDirectory(folderDirectory);
-        WorkflowDirectoryText.Text = string.IsNullOrWhiteSpace(workflowDirectory)
-            ? "Function directory: not available"
-            : $"Function directory: {workflowDirectory}";
+                var item = Item;
+                var folderDirectory = GetFolderDirectory(item);
+                var workflowDirectory = FunctionDefinitionCodec.GetFunctionDirectory(folderDirectory);
+                WorkflowDirectoryText.Text = string.IsNullOrWhiteSpace(workflowDirectory)
+                    ? "Function directory: not available"
+                    : $"Function directory: {workflowDirectory}";
 
-        if (string.IsNullOrWhiteSpace(folderDirectory))
+                if (string.IsNullOrWhiteSpace(folderDirectory))
+                {
+                    UpdateFooter(item, "Folder layout path is not available");
+                    UpdateVisibility();
+                    return;
+                }
+
+                foreach (var entry in FunctionRegistry.EnumerateEntries(folderDirectory))
+                {
+                    FunctionEntries.Add(CreateCatalogRow(entry, item));
+                }
+
+                ApplyRunningState();
+                UpdateFooter(item, FunctionEntries.Count == 0 ? "No functions discovered" : $"{FunctionEntries.Count} function registr{(FunctionEntries.Count == 1 ? "y entry" : "y entries")}");
+                UpdateVisibility();
+            }))
         {
-            UpdateFooter(item, "Folder layout path is not available");
-            UpdateVisibility();
             return;
         }
-
-        foreach (var entry in FunctionRegistry.EnumerateEntries(folderDirectory))
-        {
-            FunctionEntries.Add(CreateCatalogRow(entry, item));
-        }
-
-        ApplyRunningState();
-        UpdateFooter(item, FunctionEntries.Count == 0 ? "No functions discovered" : $"{FunctionEntries.Count} function registr{(FunctionEntries.Count == 1 ? "y entry" : "y entries")}");
-        UpdateVisibility();
     }
 
     private void UpdateVisibility()
@@ -380,6 +438,11 @@ public partial class FunctionsControl : EditorTemplateControl
             borderBrush: item?.EffectiveBodyBorder ?? "#30343A",
             badgeBackground: kindBadgeBackground,
             badgeForeground: kindBadgeForeground);
+    }
+
+    public void RefreshCatalog()
+    {
+        RefreshFunctions();
     }
 
     private void ApplyRunningState()

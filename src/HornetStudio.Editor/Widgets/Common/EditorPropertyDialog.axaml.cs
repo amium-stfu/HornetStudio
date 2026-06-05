@@ -91,7 +91,7 @@ public partial class EditorPropertyDialog : UserControl
 
     private EditorDialogField? _activeColorField;
     private EditorDialogField? _activeIconField;
-    private MainWindowViewModel? _subscribedViewModel;
+    private IPropertyDialogHost? _subscribedViewModel;
 
     public string CardBorderBrush
     {
@@ -197,14 +197,14 @@ public partial class EditorPropertyDialog : UserControl
         DetachedFromVisualTree += (_, _) => AttachToViewModel(null);
     }
 
-    private MainWindowViewModel? ViewModel => DataContext as MainWindowViewModel;
+    private IPropertyDialogHost? ViewModel => DataContext as IPropertyDialogHost;
 
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
         AttachToViewModel(ViewModel);
     }
 
-    private void AttachToViewModel(MainWindowViewModel? viewModel)
+    private void AttachToViewModel(IPropertyDialogHost? viewModel)
     {
         if (ReferenceEquals(_subscribedViewModel, viewModel))
         {
@@ -228,22 +228,22 @@ public partial class EditorPropertyDialog : UserControl
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MainWindowViewModel.CardBorderBrush)
-            || e.PropertyName == nameof(MainWindowViewModel.ParameterEditBackgrundColor)
-            || e.PropertyName == nameof(MainWindowViewModel.ParameterEditForeColor)
-            || e.PropertyName == nameof(MainWindowViewModel.ParameterHoverColor)
-            || e.PropertyName == nameof(MainWindowViewModel.EditPanelButtonBackground)
-            || e.PropertyName == nameof(MainWindowViewModel.EditPanelButtonBorderBrush)
-            || e.PropertyName == nameof(MainWindowViewModel.PrimaryTextBrush)
-            || e.PropertyName == nameof(MainWindowViewModel.SecondaryTextBrush)
-            || e.PropertyName == nameof(MainWindowViewModel.TabSelectBackColor)
-            || e.PropertyName == nameof(MainWindowViewModel.TabSelectForeColor)
-            || e.PropertyName == nameof(MainWindowViewModel.TabBackColor)
-            || e.PropertyName == nameof(MainWindowViewModel.TabForeColor)
-            || e.PropertyName == nameof(MainWindowViewModel.EditorDialogSectionHeaderBackground)
-            || e.PropertyName == nameof(MainWindowViewModel.EditorDialogSectionHeaderForeground)
-            || e.PropertyName == nameof(MainWindowViewModel.EditorDialogSectionHeaderBorderBrush)
-            || e.PropertyName == nameof(MainWindowViewModel.EditorDialogSectionContentBackground))
+        if (e.PropertyName == nameof(IPropertyDialogHost.CardBorderBrush)
+            || e.PropertyName == nameof(IPropertyDialogHost.ParameterEditBackgrundColor)
+            || e.PropertyName == nameof(IPropertyDialogHost.ParameterEditForeColor)
+            || e.PropertyName == nameof(IPropertyDialogHost.ParameterHoverColor)
+            || e.PropertyName == nameof(IPropertyDialogHost.EditPanelButtonBackground)
+            || e.PropertyName == nameof(IPropertyDialogHost.EditPanelButtonBorderBrush)
+            || e.PropertyName == nameof(IPropertyDialogHost.PrimaryTextBrush)
+            || e.PropertyName == nameof(IPropertyDialogHost.SecondaryTextBrush)
+            || e.PropertyName == nameof(IPropertyDialogHost.TabSelectBackColor)
+            || e.PropertyName == nameof(IPropertyDialogHost.TabSelectForeColor)
+            || e.PropertyName == nameof(IPropertyDialogHost.TabBackColor)
+            || e.PropertyName == nameof(IPropertyDialogHost.TabForeColor)
+            || e.PropertyName == nameof(IPropertyDialogHost.EditorDialogSectionHeaderBackground)
+            || e.PropertyName == nameof(IPropertyDialogHost.EditorDialogSectionHeaderForeground)
+            || e.PropertyName == nameof(IPropertyDialogHost.EditorDialogSectionHeaderBorderBrush)
+            || e.PropertyName == nameof(IPropertyDialogHost.EditorDialogSectionContentBackground))
         {
             UpdateThemeBindings();
         }
@@ -311,7 +311,7 @@ public partial class EditorPropertyDialog : UserControl
 
         _activeIconField = field;
 
-        var window = new IconPickerDialogWindow(ViewModel, field.Value);
+        var window = new IconPickerDialogWindow(ViewModel?.OwnerViewModel, field.Value);
         var result = await window.ShowDialog<IconPickerResult?>(owner);
         if (result is null)
         {
@@ -503,14 +503,14 @@ public partial class EditorPropertyDialog : UserControl
             return;
         }
 
-        if (ViewModel is null && field.PropertyType is EditorPropertyType.UdlModuleExposureList)
+        if (ViewModel?.OwnerViewModel is null && field.PropertyType is EditorPropertyType.UdlModuleExposureList)
         {
             return;
         }
 
         if (field.PropertyType == EditorPropertyType.TargetTree)
         {
-            var targetDialog = new TargetTreeSelectionDialogWindow(ViewModel, field);
+            var targetDialog = new TargetTreeSelectionDialogWindow(ViewModel?.OwnerViewModel, field);
             await targetDialog.ShowDialog(owner);
             var selectedTarget = targetDialog.CommittedSelection;
             if (!string.IsNullOrWhiteSpace(selectedTarget))
@@ -524,11 +524,12 @@ public partial class EditorPropertyDialog : UserControl
 
         Window? editorWindow = field.PropertyType switch
         {
-            EditorPropertyType.ChartSeriesList => new ChartSeriesEditorDialogWindow(ViewModel, field),
-            EditorPropertyType.AttachItemList => new AttachItemsEditorDialogWindow(ViewModel, field),
-            EditorPropertyType.InteractionRuleList => new InteractionRulesEditorDialogWindow(ViewModel, field),
-            EditorPropertyType.VisualRuleList => new VisualRulesEditorDialogWindow(ViewModel, field),
-            EditorPropertyType.UdlModuleExposureList => new UdlModuleExposureDialogWindow(ViewModel!, field),
+            EditorPropertyType.MonitorSelectionList => new MonitorSelectionDialogWindow(ViewModel?.OwnerViewModel, field),
+            EditorPropertyType.ChartSeriesList => new ChartSeriesEditorDialogWindow(ViewModel?.OwnerViewModel, field),
+            EditorPropertyType.AttachItemList => new AttachItemsEditorDialogWindow(ViewModel?.OwnerViewModel, field),
+            EditorPropertyType.InteractionRuleList => new InteractionRulesEditorDialogWindow(ViewModel?.OwnerViewModel, field),
+            EditorPropertyType.VisualRuleList => new VisualRulesEditorDialogWindow(ViewModel?.OwnerViewModel, field),
+            EditorPropertyType.UdlModuleExposureList => ViewModel?.OwnerViewModel is null ? null : new UdlModuleExposureDialogWindow(ViewModel.OwnerViewModel, field),
             _ => null
         };
 
@@ -618,6 +619,10 @@ public partial class EditorPropertyDialog : UserControl
         if (sender is Control { DataContext: EditorDialogSection section })
         {
             section.IsExpanded = !section.IsExpanded;
+            if (section.IsExpanded)
+            {
+                ViewModel?.EnsureEditorDialogSectionExpanded(section);
+            }
         }
 
         e.Handled = true;

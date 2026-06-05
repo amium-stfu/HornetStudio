@@ -62,3 +62,4 @@
     FormatParameter: ""
     IsReadOnly: false
     RefreshRateMs: 100
+    HistorySeconds: 120

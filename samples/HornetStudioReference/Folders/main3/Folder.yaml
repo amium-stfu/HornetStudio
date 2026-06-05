@@ -1,0 +1,759 @@
+Caption: 'main'
+Screens:
+  1: 'HomeScreen'
+  9: 'Assets'
+  30: 'ResourcesScreen'
+Controls:
+  -
+    Type: 'Button'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'btn_test'
+      Text: 'button_1'
+      Path: 'btn_test'
+      Id: '0b92d0b22e5c44fca39582c05549c073'
+    Bounds:
+      X: 87
+      Y: 121
+      Width: 290
+      Height: 74
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: ''
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: false
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'Button'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      ButtonText: 'btn_test'
+      ButtonIcon: ''
+      ButtonIconColor: ''
+      ButtonBackColor: ''
+      ButtonOnlyIcon: false
+      ButtonIconAlign: 'Left'
+      ButtonTextAlign: 'Center'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_demo_custom_numeric'
+      Text: 'demo_custom_numeric'
+      Path: 'signal_demo_custom_numeric'
+      Id: 'bf06e98f0d1446dfb97f868f3fb69b42'
+    Bounds:
+      X: 87
+      Y: 204
+      Width: 286
+      Height: 82
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'demo_custom_numeric'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'signals.custom.demo_custom_numeric'
+      Parameter: 'read'
+      Format: 'numeric'
+      IsReadOnly: false
+      RefreshRateMs: '1000'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_demo_custom_bool'
+      Text: 'demo_custom_bool'
+      Path: 'signal_demo_custom_bool'
+      Id: 'b89235fc2f014c67bc8186fc750cef9a'
+    Bounds:
+      X: 89
+      Y: 290
+      Width: 284
+      Height: 83
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'demo_custom_bool'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'signals.custom.demo_custom_bool'
+      Parameter: 'read'
+      Format: 'bool'
+      IsReadOnly: false
+      RefreshRateMs: '1000'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_demo_custom_text'
+      Text: 'demo_custom_text'
+      Path: 'signal_demo_custom_text'
+      Id: '0380a8e9c1124d4882dd6ad6b81db3ba'
+    Bounds:
+      X: 90
+      Y: 379
+      Width: 283
+      Height: 86
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'demo_custom_text'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'signals.custom.demo_custom_text'
+      Parameter: 'read'
+      Format: ''
+      IsReadOnly: false
+      RefreshRateMs: '1000'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_demo_custom_computed'
+      Text: 'demo_custom_computed'
+      Path: 'signal_demo_custom_computed'
+      Id: 'f574dfc547974c91984673869aba1697'
+    Bounds:
+      X: 90
+      Y: 465
+      Width: 283
+      Height: 88
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'demo_custom_computed'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'signals.custom.demo_custom_computed'
+      Parameter: 'read'
+      Format: 'numeric:0'
+      IsReadOnly: false
+      RefreshRateMs: '1000'
+  -
+    Type: 'UdlClientControl'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'udl_client_control_1'
+      Text: 'udl_client_control_1'
+      Path: 'udl_client_control_1'
+      Id: 'cbff213ece2b402d845df8cd68a361a2'
+    Bounds:
+      X: 397
+      Y: 124
+      Width: 492
+      Height: 341
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: ''
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: ''
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 0
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      UdlClientHost: '127.0.0.1'
+      UdlClientPort: '9001'
+      UdlClientAutoConnect: true
+      UdlClientDebugLogging: false
+      UdlClientDemoEnabled: true
+      UdlAttachedItemPaths: 'm001'
+      UdlDemoModules:
+        -
+          name: 'm001'
+          kind: 'SetDriven'
+          generator: 'Sine'
+          unit: ''
+          format: ''
+          baseValue: 0
+          amplitude: 1
+          periodSeconds: 5
+          initialValue: 0
+          setScale: 1
+          setOffset: 0
+          setTauSeconds: 0
+          faults:
+            -
+              kind: 'Noise'
+              enabled: true
+              amount: 2
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+            -
+              kind: 'Freeze'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_enhanced'
+      Text: 'signal_enhanced'
+      Path: 'signal_enhanced'
+      Id: 'ad0a7fa45b8c4c8498cb4790e81a2c0b'
+    Bounds:
+      X: 901
+      Y: 124
+      Width: 289
+      Height: 64
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'Signal'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'enhanced_signals.enhanced_signal_1.read'
+      Parameter: 'read'
+      Format: 'numeric'
+      IsReadOnly: false
+      RefreshRateMs: '1000'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_pid'
+      Text: 'signal_pid'
+      Path: 'signal_pid'
+      Id: '6c73f9694829435dba842aa17caecff3'
+    Bounds:
+      X: 901
+      Y: 188
+      Width: 289
+      Height: 64
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'Signal'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'controller.pid_1.read'
+      Parameter: 'read'
+      Format: 'numeric:0.##'
+      IsReadOnly: false
+      RefreshRateMs: '1000'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_pid_set'
+      Text: 'signal_pid_set'
+      Path: 'signal_pid_set'
+      Id: '0c0331b023c941db81ca5d5c9d6fea71'
+    Bounds:
+      X: 901
+      Y: 252
+      Width: 289
+      Height: 64
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'Signal'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'controller.pid_1.set'
+      Parameter: 'read'
+      Format: 'numeric'
+      IsReadOnly: false
+      RefreshRateMs: '1000'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_pid_run'
+      Text: 'signal_pid_run'
+      Path: 'signal_pid_run'
+      Id: 'f974690ca05e435aa6cae305876a6c10'
+    Bounds:
+      X: 902
+      Y: 379
+      Width: 288
+      Height: 63
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'Signal'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'controller.pid_1.run'
+      Parameter: 'read'
+      Format: 'bool'
+      IsReadOnly: false
+      RefreshRateMs: '1000'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_udl1_m100'
+      Text: 'signal_udl1_m100'
+      Path: 'signal_udl1_m100'
+      Id: 'c2d525dc9e3648378dd0d54f0ecba35b'
+    Bounds:
+      X: 1204
+      Y: 124
+      Width: 288
+      Height: 63
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'Signal'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'udl_client_control_1.m001.read'
+      Parameter: 'read'
+      Format: 'numeric'
+      IsReadOnly: false
+      RefreshRateMs: '1000'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_pid_out'
+      Text: 'signal_pid_out'
+      Path: 'signal_pid_out'
+      Id: 'f2f2e42195194afd81d5e296f5492887'
+    Bounds:
+      X: 902
+      Y: 316
+      Width: 288
+      Height: 63
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'Signal'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'controller.pid_1.out'
+      Parameter: 'read'
+      Format: 'numeric'
+      IsReadOnly: false
+      RefreshRateMs: '1000'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_udl1_m100_set'
+      Text: 'signal_udl1_m100_set'
+      Path: 'signal_udl1_m100_set'
+      Id: 'd80e1621bf6a495a96c477d04326986a'
+    Bounds:
+      X: 1204
+      Y: 187
+      Width: 288
+      Height: 63
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'Signal'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'udl_client_control_1.m001.set'
+      Parameter: 'read'
+      Format: 'numeric'
+      IsReadOnly: false
+      RefreshRateMs: '1000'
+  -
+    Type: 'MonitorView'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'monitor_view_1'
+      Text: 'monitor_view_1'
+      Path: 'monitor_view_1'
+      Id: '1ef8c599826641269bb5fc1c193fc44b'
+    Bounds:
+      X: 973
+      Y: 504
+      Width: 428
+      Height: 167
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'MonitorView'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: ''
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 0
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: true
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      SelectedMonitorIds:
+        - 'monitor_rule_1'
+        - 'monitor_rule_2'

@@ -1,0 +1,11 @@
+Design:
+  TabStripPlacement: 'Right'
+  SaveDate: 2026-05-30 19:29:37
+  Theme: Light
+  FolderOrder:
+    - 'main1'
+    - 'main2'
+    - 'main3'
+Passwords:
+  Service: "service"
+  Admin: "admin"

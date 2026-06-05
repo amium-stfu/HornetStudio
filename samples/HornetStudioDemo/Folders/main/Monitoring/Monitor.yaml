@@ -1,0 +1,43 @@
+rules:
+  - name: monitor_rule_1
+    sourcePath: ''
+    refreshRateMs: 1000
+    mode: Custom
+    lowerLimit: ''
+    upperLimit: ''
+    inhibitMs: 0
+    customFormula: '{A}==true'
+    customVariables:
+      - name: A
+        sourcePath: custom_signals.demo_trigger
+    eventId: 101
+    eventText: DI is High
+    actions:
+      - trigger: OnActivated
+        actionType: SetValue
+        targetPath: enhanced_signals.filtered_1.set
+        argument: '1000'
+      - trigger: OnActivated
+        actionType: WriteLog
+        targetLog: logs.my_log
+      - trigger: OnActivated
+        actionType: WriteLog
+        targetLog: logs.test_log
+      - trigger: OnCleared
+        actionType: SetValue
+        targetPath: enhanced_signals.filtered_1.set
+        argument: '0'
+    logLevel: Error
+  - name: monitor_rule_2
+    sourcePath: enhanced_signals.filtered_1.read
+    refreshRateMs: 1000
+    mode: Default
+    lowerLimit: '-10'
+    upperLimit: '100'
+    inhibitMs: 0
+    customFormula: ''
+    customVariables: []
+    eventId: 123
+    eventText: Signal RangeError
+    actions: []
+    logLevel: Warning

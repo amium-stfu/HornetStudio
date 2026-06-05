@@ -1,0 +1,409 @@
+Text: Udl1
+Host: 127.0.0.1
+Port: 9001
+AutoConnect: true
+Enabled: true
+DemoEnabled: true
+AttachedItemPaths:
+- m001
+- m002
+- m003
+- m004
+- m005
+- m006
+- m007
+- m008
+- m009
+- m010
+- m011
+- m012
+- m013
+- m014
+- m015
+- m016
+- m017
+- m018
+- m019
+- m020
+UdlModuleExposures: []
+DemoModules:
+- Name: m001
+  Unit: ''
+  Format: ''
+  Amplitude: 100
+  PeriodSeconds: 5
+  SetScale: 1
+  Faults:
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 100
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 100
+- Name: m002
+  Unit: ''
+  Format: ''
+  Amplitude: 100
+  PeriodSeconds: 6
+  SetScale: 1
+  Faults:
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+- Name: m003
+  Unit: ''
+  Format: ''
+  Amplitude: 100
+  PeriodSeconds: 7
+  SetScale: 1
+  Faults:
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+- Name: m004
+  Unit: ''
+  Format: ''
+  Amplitude: 100
+  PeriodSeconds: 8
+  SetScale: 1
+  Faults:
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+- Name: m005
+  Unit: ''
+  Format: ''
+  Amplitude: 100
+  PeriodSeconds: 9
+  SetScale: 1
+  Faults:
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+- Name: m006
+  Unit: ''
+  Format: ''
+  Amplitude: 100
+  PeriodSeconds: 10
+  SetScale: 1
+  Faults:
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+- Name: m007
+  Unit: ''
+  Format: ''
+  Amplitude: 100
+  PeriodSeconds: 11
+  SetScale: 1
+  Faults:
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+- Name: m008
+  Unit: ''
+  Format: ''
+  Amplitude: 100
+  PeriodSeconds: 12
+  SetScale: 1
+  Faults:
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+- Name: m009
+  Unit: ''
+  Format: ''
+  Amplitude: 100
+  PeriodSeconds: 13
+  SetScale: 1
+  Faults:
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+- Name: m010
+  Unit: ''
+  Format: ''
+  Amplitude: 100
+  PeriodSeconds: 14
+  SetScale: 1
+  Faults:
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+- Name: m011
+  Unit: ''
+  Format: ''
+  Amplitude: 100
+  PeriodSeconds: 15
+  SetScale: 1
+  Faults:
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+- Name: m012
+  Unit: ''
+  Format: ''
+  Amplitude: 100
+  PeriodSeconds: 16
+  SetScale: 1
+  Faults:
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+- Name: m013
+  Unit: ''
+  Format: ''
+  Amplitude: 100
+  PeriodSeconds: 17
+  SetScale: 1
+  Faults:
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+- Name: m014
+  Unit: ''
+  Format: ''
+  Amplitude: 100
+  PeriodSeconds: 18
+  SetScale: 1
+  Faults:
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+- Name: m015
+  Unit: ''
+  Format: ''
+  Amplitude: 100
+  PeriodSeconds: 19
+  SetScale: 1
+  Faults:
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+- Name: m016
+  Unit: ''
+  Format: ''
+  Amplitude: 100
+  PeriodSeconds: 20
+  SetScale: 1
+  Faults:
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+- Name: m017
+  Unit: ''
+  Format: ''
+  Amplitude: 100
+  PeriodSeconds: 21
+  SetScale: 1
+  Faults:
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+- Name: m018
+  Unit: ''
+  Format: ''
+  Amplitude: 100
+  PeriodSeconds: 22
+  SetScale: 1
+  Faults:
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+- Name: m019
+  Unit: ''
+  Format: ''
+  Amplitude: 100
+  PeriodSeconds: 23
+  SetScale: 1
+  Faults:
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+- Name: m020
+  Unit: ''
+  Format: ''
+  Amplitude: 100
+  PeriodSeconds: 24
+  SetScale: 1
+  Faults:
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000

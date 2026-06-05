@@ -6,7 +6,7 @@
 
 ## Overview
 
-The Functions widget visualizes the central function registry for one folder. It currently discovers declarative YAML function definitions below the current folder-local `Scripts/Functions/` directory, still reads legacy files below `Scripts/Workflows/` during transition, and also shows read-only Python entries from Applications and Python runtime metadata. Each row is backed by a registry entry that carries function kind, source, capabilities, and current validity. Function availability does not depend on placing this widget. The catalog body uses compact rows with a scrollable list area so the header actions and directory text remain stable while many functions are present.
+The Function Browser visualizes the central function registry for one folder. Admin-level users open it from the lower `Browser` section in the right folder sidebar by selecting `Functions`. It currently discovers declarative YAML function definitions below the current folder-local `Scripts/Functions/` directory, still reads legacy files below `Scripts/Workflows/` during transition, and also shows read-only Python entries from Applications and Python runtime metadata. Each row is backed by a registry entry that carries function kind, source, capabilities, and current validity. Function availability does not depend on placing a widget. The catalog body uses compact rows with a scrollable list area so the header actions and directory text remain stable while many functions are present. Older folders can still render a placed `Functions` widget, but that path is now legacy compatibility only.
 
 ## Properties
 
@@ -36,7 +36,7 @@ Function registry entries are lookup and display records used by the widget. The
 
 Buttons can now reference runnable registry entries through `RunFunction` without changing where declarative YAML files are owned. Workflow callers and future monitor integrations can use the same stable references later. The picker shows friendly labels, but persistence stays on stable references. New YAML selections use `yaml:<name>`, while existing `declarative:<name>` values still resolve to the same YAML entry. Python registry entries stay read-only in `Functions`, but registered Python entries are now executed through `RunFunction` by resolving the same stable registry reference.
 
-## Widget Actions
+## Browser Actions
 
 ### Add Function
 
@@ -142,6 +142,7 @@ Buttons can now reference runnable registry entries through `RunFunction` withou
 
 ## Current Widget Behavior
 
+- The primary user entry point is the Admin-only right sidebar `Browser` -> `Functions` entry, which opens the dedicated browser window
 - Queries the central registry for discovered function entries
 - The declarative registry provider discovers `.yaml` and `.yml` files below `Scripts/Functions`
 - The declarative registry provider also reads legacy files below `Scripts/Workflows`
@@ -167,6 +168,14 @@ Buttons can now reference runnable registry entries through `RunFunction` withou
 - Updates the widget footer with the number of discovered registry entries
 - Refreshes discovery manually through the widget `Refresh` button
 - Does not scan Python files directly and does not change Python runtime registration
+
+## Legacy Widget Compatibility
+
+- Existing `Folder.yaml` files that already contain `ControlKind.Functions` continue to load.
+- The legacy widget hosts the same catalog/editor surface as the folder-level browser.
+- The Browser section itself is visible only for Admin-level users.
+- New widget selection no longer offers `Functions` as a normal canvas widget.
+- The browser is the preferred workflow for adding, editing, deleting, refreshing, running, and stopping functions.
 
 ## Execution Foundation
 
@@ -213,7 +222,7 @@ steps:
 ## Help Notes for Users
 
 - Keep function files small and declarative.
-- Treat `Functions` as a registry viewer and declarative editor, not as the owner of all function implementations.
+- Treat the Function Browser as a registry viewer and declarative editor, not as the owner of all function implementations.
 - Use step-local `variables` on `IfThenElse` when the condition should read runtime sources directly.
 - Use step-local `variables` on `While` when the loop condition should read runtime sources directly.
 - Use the `Condition` dialog `+` button to add step-local variables before inserting them into the formula.
@@ -232,5 +241,7 @@ steps:
 
 - `src/HornetStudio.Editor/Widgets/Workflow/WorkflowControl.axaml`
 - `src/HornetStudio.Editor/Widgets/Workflow/WorkflowControl.axaml.cs`
+- `src/HornetStudio.Editor/Widgets/Workflow/FunctionBrowserDialogWindow.axaml`
+- `src/HornetStudio.Editor/Widgets/Workflow/FunctionBrowserDialogWindow.axaml.cs`
 - `src/HornetStudio.Editor/Widgets/Workflow/WorkflowDefinitionCodec.cs`
 - `src/HornetStudio.Editor/Widgets/Workflow/WorkflowExecutor.cs`

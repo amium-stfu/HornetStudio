@@ -44,11 +44,17 @@ For current UDL modules, the channel mapping is:
 - `state.type = int`
 - `alert.type = int`
 
+UDL client connections themselves are now folder-scoped resources loaded from `Clients/Udl/<client-id>.yaml`. Their status branch stays available below `studio.<folder_name>.<client_id>.status`, while runtime module data remains below `runtime.udl_client.<client_id>` and is not published into the general project tree until attach or publish configuration explicitly requests it.
+
+For file-backed UDL clients, the folder/client-scoped runtime manager now owns that projection headlessly. A visible `UdlClientControl` widget is no longer required for `status.*` items, explicitly attached module roots such as `studio.<folder_name>.<client_id>.m001`, or helper bits projected from file-backed `UdlModuleExposures` to appear in the shared registry.
+
 ## Function Registry Relationship
 
 `FunctionRegistry` is not presented here as a child registry owned by items.
 It is an independent registry for callable functionality.
 Those functions may read from items, write to items, or coordinate workflows that involve items, but that does not make the function registry structurally owned by item instances.
+
+In the editor, this independence is now reflected through an Admin-only Function Browser in the right folder sidebar instead of requiring a normal placeable `Functions` canvas widget for day-to-day function management.
 
 ## Handbook Guidance
 

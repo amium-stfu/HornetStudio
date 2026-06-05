@@ -1,0 +1,12 @@
+name: demo_custom_numeric
+isWritable: true
+writePath: ''
+unit: ''
+format: 0.00
+valueText: 10
+formula: ''
+triggerIntervalSeconds: 1
+variables: []
+sourcePath: ''
+sourcePath2: ''
+sourcePath3: ''

@@ -165,6 +165,11 @@ public sealed class FolderItemDocument
 
     public List<MonitorDefinitionDocument> MonitorDefinitions { get; init; } = [];
 
+    public List<string> SelectedMonitorIds { get; init; } = [];
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? OnActiveColor { get; init; }
+
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? DefaultTimeoutMs { get; init; }
 
@@ -198,6 +203,10 @@ public sealed class FolderItemDocument
     public int RefreshRateMs { get; init; } = 1000;
 
     public int HistorySeconds { get; init; } = 120;
+
+    [JsonPropertyName("RecordingIntervalMs")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? LegacyRecordingIntervalMs { get; init; }
 
     public int ViewSeconds { get; init; } = 30;
 

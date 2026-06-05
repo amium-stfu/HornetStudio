@@ -94,6 +94,7 @@ public partial class FolderEditorControl : UserControl
         if (_subscribedViewModel is not null)
         {
             _subscribedViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            _subscribedViewModel.PropertyDialogSessionRequested -= OnPropertyDialogSessionRequested;
         }
 
         _subscribedViewModel = viewModel;
@@ -101,6 +102,7 @@ public partial class FolderEditorControl : UserControl
         if (_subscribedViewModel is not null)
         {
             _subscribedViewModel.PropertyChanged += OnViewModelPropertyChanged;
+            _subscribedViewModel.PropertyDialogSessionRequested += OnPropertyDialogSessionRequested;
         }
 
         UpdateThemeBindings();
@@ -130,6 +132,11 @@ public partial class FolderEditorControl : UserControl
     {
         if (ViewModel?.IsEditorDialogOpen == true)
         {
+            if (!IsActiveDialogHost())
+            {
+                return;
+            }
+
             EnsureEditorDialogWindow();
             return;
         }
@@ -170,6 +177,32 @@ public partial class FolderEditorControl : UserControl
             _editorDialogWindow.Closed -= OnEditorDialogWindowClosed;
             _editorDialogWindow = null;
         }
+    }
+
+    private void OnPropertyDialogSessionRequested(object? sender, PropertyDialogSessionRequestedEventArgs e)
+    {
+        if (!IsActiveDialogHost())
+        {
+            return;
+        }
+
+        var owner = TopLevel.GetTopLevel(this) as Window;
+        PropertyDialogWindow.ShowOrActivate(owner, e.Session);
+    }
+
+    private bool IsActiveDialogHost()
+    {
+        if (ViewModel is null)
+        {
+            return false;
+        }
+
+        if (Folder is null)
+        {
+            return true;
+        }
+
+        return ReferenceEquals(Folder, ViewModel.SelectedFolder);
     }
 
     private void OnScrollViewerPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
@@ -584,10 +617,9 @@ public partial class FolderEditorControl : UserControl
             CreateWidgetSelectionItem(ControlKind.ItemClient, "ItemClient", "MQTT ItemBroker connection and attach widget.", "ItemClient.md", "ItemClient.help.md"),
             CreateWidgetSelectionItem(ControlKind.ApplicationExplorer, "ApplicationExplorer", "Application launcher and runtime overview.", "ApplicationExplorer.md", "ApplicationExplorer.help.md"),
             CreateWidgetSelectionItem(ControlKind.CustomSignals, "CustomSignals", "Calculated and manual custom signal definitions.", "CustomSignals.md", "CustomSignals.help.md"),
-            CreateWidgetSelectionItem(ControlKind.EnhancedSignals, "EnhancedSignals", "Extended signal processing and mapping widget.", "EnhancedSignals.md", "EnhancedSignals.help.md"),
             CreateWidgetSelectionItem(ControlKind.ControllerWidget, "ControllerWidget", "PID controller definitions with runtime publication.", "ControllerWidget.md", "ControllerWidget.help.md"),
             CreateWidgetSelectionItem(ControlKind.Monitor, "Monitor", "Threshold, timeout, and expression-based state monitoring.", "Monitor.md", "Monitor.help.md"),
-            CreateWidgetSelectionItem(ControlKind.Functions, "Functions", "Folder-local YAML function discovery and editor widget.", "Functions.md", "Functions.help.md"),
+            CreateWidgetSelectionItem(ControlKind.MonitorView, "MonitorView", "Readonly monitor state list for selected monitor rules.", "MonitorView.md", "MonitorView.help.md"),
             CreateWidgetSelectionItem(ControlKind.DialogWidget, "DialogWidget", "Internal overlay dialog definition.", "DialogWidget.md", "DialogWidget.help.md")
         };
 
@@ -1156,6 +1188,13 @@ public partial class FolderEditorControl : UserControl
                 item.ShowFooter = true;
                 break;
 
+            case ControlKind.MonitorView:
+                item.ControlCaption = "MonitorView";
+                item.BodyCaption = "Selected states";
+                item.Footer = "Readonly monitor subset";
+                item.ShowFooter = true;
+                break;
+
             case ControlKind.Functions:
                 item.ControlCaption = "Functions";
                 item.BodyCaption = "Folder functions";
@@ -1193,7 +1232,7 @@ public partial class FolderEditorControl : UserControl
             ControlKind.UdlClientControl => 420,
             ControlKind.ItemClient => 420,
             ControlKind.ApplicationExplorer => 420,
-            ControlKind.CustomSignals or ControlKind.EnhancedSignals or ControlKind.ControllerWidget or ControlKind.Monitor or ControlKind.Functions or ControlKind.DialogWidget => 420,
+            ControlKind.CustomSignals or ControlKind.EnhancedSignals or ControlKind.ControllerWidget or ControlKind.Monitor or ControlKind.MonitorView or ControlKind.Functions or ControlKind.DialogWidget => 420,
             _ => 260
         };
     }
@@ -1219,7 +1258,7 @@ public partial class FolderEditorControl : UserControl
             ControlKind.UdlClientControl => 190,
             ControlKind.ItemClient => 190,
             ControlKind.ApplicationExplorer => 220,
-            ControlKind.CustomSignals or ControlKind.EnhancedSignals or ControlKind.ControllerWidget or ControlKind.Monitor or ControlKind.Functions => 240,
+            ControlKind.CustomSignals or ControlKind.EnhancedSignals or ControlKind.ControllerWidget or ControlKind.Monitor or ControlKind.MonitorView or ControlKind.Functions => 240,
             ControlKind.DialogWidget => 260,
             _ => 120
         };

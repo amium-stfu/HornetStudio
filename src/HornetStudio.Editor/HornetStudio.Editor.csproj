@@ -28,8 +28,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>HornetStudio.Editor.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Include="IEditorUiHost.cs" />
     <Compile Include="Functions\**\*.cs" />
+    <Compile Include="Monitoring\**\*.cs" />
+    <Compile Include="UdlClients\**\*.cs" />
     <Compile Include="Widgets\**\*.cs" />
     <Compile Include="Helpers\**\*.cs" />
     <Compile Include="Converters\**\*.cs" />

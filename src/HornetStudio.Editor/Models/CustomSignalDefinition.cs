@@ -347,7 +347,7 @@ public static class CustomSignalDefinitionCodec
         return false;
     }
 
-    private static CustomSignalDefinitionDocument ToDocument(CustomSignalDefinition definition, string? folderName)
+    public static CustomSignalDefinitionDocument ToDocument(CustomSignalDefinition definition, string? folderName)
     {
         return new CustomSignalDefinitionDocument
         {
@@ -378,7 +378,7 @@ public static class CustomSignalDefinitionCodec
         };
     }
 
-    private static CustomSignalDefinition FromDocument(CustomSignalDefinitionDocument document, string? folderName)
+    public static CustomSignalDefinition FromDocument(CustomSignalDefinitionDocument document, string? folderName)
     {
         return new CustomSignalDefinition
         {

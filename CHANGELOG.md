@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fixed UDL client writeback handling so `State`, `Read`, `Set`, and `Out` `.write` changes use the same pending retry and acknowledgement path.
 - Added an initial `src/HornetStudio/docs/manual/` handbook structure, documented the host-registry interaction model for shared help/PDF source content, and updated repository documentation maintenance rules for manual, widget description, and widget help pages.
 - Changed the Functions widget catalog to use compact rows with consistent `YAML`/`Python` type badges, quiet status text, a scrollable list body, and a single `Run`/`Stop` row action toggle.
 - Fixed the Functions widget row state so declarative functions started or stopped through Button Interaction Rules update the matching `Running`/`Stopping` display.

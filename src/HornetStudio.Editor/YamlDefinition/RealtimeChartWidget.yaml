@@ -55,7 +55,6 @@
 
   Properties:
     RefreshRateMs: 100
-    HistorySeconds: 120
     ViewSeconds: 30
     ChartSeriesDefinitions:
       - "runtime.UdlClient.udl1.m310|Y1"

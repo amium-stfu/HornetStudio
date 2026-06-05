@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using Avalonia;
@@ -12,6 +13,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using HornetStudio.Editor.Controls;
+using HornetStudio.Editor.Monitoring;
 using HornetStudio.Host;
 using ItemModel = Amium.Items.Item;
 using Amium.Items;
@@ -23,9 +25,13 @@ namespace HornetStudio.Editor.Widgets;
 
 public partial class CustomSignalsControl : EditorTemplateControl
 {
+    private const string DiagnosticsSourceName = nameof(CustomSignalsControl);
     private const string BoolTargetTypeName = "bool";
     private const string FloatTargetTypeName = "float";
     private const string StringTargetTypeName = "string";
+
+    public static readonly StyledProperty<MainWindowViewModel?> EditorViewModelProperty =
+        AvaloniaProperty.Register<CustomSignalsControl, MainWindowViewModel?>(nameof(EditorViewModel));
 
     public static readonly DirectProperty<CustomSignalsControl, bool> HasNoSignalsProperty =
         AvaloniaProperty.RegisterDirect<CustomSignalsControl, bool>(nameof(HasNoSignals), control => control.HasNoSignals);
@@ -34,11 +40,20 @@ public partial class CustomSignalsControl : EditorTemplateControl
     private bool _isPublishing;
     private bool _hasNoSignals = true;
     private HashSet<string> _publishedPaths = new(StringComparer.OrdinalIgnoreCase);
+    private readonly CustomSignalDefinitionFileCodec _fileCodec = new();
     private readonly Dictionary<string, DateTimeOffset> _lastComputedPublishTimes = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _manualTriggerPaths = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _pendingManualEvaluations = new(StringComparer.OrdinalIgnoreCase);
+    private volatile string[]? _relevantPathsSnapshot;
+    private ScopedRegistryItemChangedSubscription? _registrySubscription;
 
     public ObservableCollection<CustomSignalRow> Signals { get; } = [];
+
+    public MainWindowViewModel? EditorViewModel
+    {
+        get => GetValue(EditorViewModelProperty);
+        set => SetValue(EditorViewModelProperty, value);
+    }
 
     public bool HasNoSignals
     {
@@ -49,7 +64,14 @@ public partial class CustomSignalsControl : EditorTemplateControl
     private FolderItemModel? ItemModel => DataContext as FolderItemModel;
 
     private MainWindowViewModel? ViewModel
-        => TopLevel.GetTopLevel(this)?.DataContext as MainWindowViewModel;
+        => EditorViewModel ?? TopLevel.GetTopLevel(this)?.DataContext as MainWindowViewModel;
+
+    private string DiagnosticsSource => BuildBrowserDiagnosticsSource(DiagnosticsSourceName, _observedItem ?? ItemModel);
+
+    private static bool IsBrowserHost(FolderItemModel? item)
+        => item is not null
+            && item.Kind == ControlKind.CustomSignals
+            && string.Equals(item.Name, "CustomSignalsBrowser", StringComparison.OrdinalIgnoreCase);
 
     public CustomSignalsControl()
     {
@@ -63,21 +85,39 @@ public partial class CustomSignalsControl : EditorTemplateControl
     private void OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
         HookObservedItem();
-        HostRegistries.Data.ItemChanged += OnRegistryItemChanged;
+        RefreshBrowserActivityState();
+        EnsureRegistrySubscription();
         RebuildSignalRows();
+    }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == EditorViewModelProperty)
+        {
+            RebuildSignalRows();
+        }
     }
 
     private void OnDetachedFromVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
-        HostRegistries.Data.ItemChanged -= OnRegistryItemChanged;
+        DisposeRegistrySubscription();
         UnhookObservedItem();
-        RemovePublishedSignals();
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
         HookObservedItem();
+        RefreshBrowserActivityState();
         RebuildSignalRows();
+    }
+
+    protected override void OnBrowserRefreshActivated()
+    {
+        if (HasPendingBrowserRefresh)
+        {
+            RebuildSignalRows();
+        }
     }
 
     private void HookObservedItem()
@@ -111,6 +151,13 @@ public partial class CustomSignalsControl : EditorTemplateControl
         if (!Dispatcher.UIThread.CheckAccess())
         {
             var propertyName = e.PropertyName;
+            if (RequiresSignalRowRebuild(propertyName) && !IsBrowserRefreshActive)
+            {
+                MarkBrowserRefreshDirty();
+                return;
+            }
+
+            UiResponsivenessDiagnostics.RecordBrowserDispatcherPost(DiagnosticsSource, "ObservedItemPropertyChanged");
             Dispatcher.UIThread.Post(() => OnObservedItemPropertyChanged(sender, new PropertyChangedEventArgs(propertyName)));
             return;
         }
@@ -141,31 +188,45 @@ public partial class CustomSignalsControl : EditorTemplateControl
     {
         if (_isPublishing)
         {
+            UiResponsivenessDiagnostics.RecordBrowserRegistryEvent(DiagnosticsSource, e.Key, accepted: false);
             return;
         }
 
         if (!Dispatcher.UIThread.CheckAccess())
         {
+            if (!IsRelevantPathOnBackground(e.Key))
+            {
+                UiResponsivenessDiagnostics.RecordBrowserRegistryEvent(DiagnosticsSource, e.Key, accepted: false);
+                return;
+            }
+
+            UiResponsivenessDiagnostics.RecordBrowserDispatcherPost(DiagnosticsSource, "RegistryItemChanged");
             Dispatcher.UIThread.Post(() => OnRegistryItemChanged(sender, e));
             return;
         }
 
         if (_manualTriggerPaths.TryGetValue(e.Key, out var manualRegistryPath))
         {
+            UiResponsivenessDiagnostics.RecordBrowserRegistryEvent(DiagnosticsSource, e.Key, accepted: true);
             HandleManualTriggerChange(e.Key, manualRegistryPath);
             return;
         }
 
         if (_publishedPaths.Contains(e.Key))
         {
+            UiResponsivenessDiagnostics.RecordBrowserRegistryEvent(DiagnosticsSource, e.Key, accepted: true);
             UpdateRowsFromRegistry();
             return;
         }
 
-        if (Signals.Any(row => row.Definition.Mode == CustomSignalMode.Computed && row.Definition.Trigger == CustomSignalComputationTrigger.OnSourceChange))
+        if (IsRelevantSourceChange(e.Key))
         {
+            UiResponsivenessDiagnostics.RecordBrowserRegistryEvent(DiagnosticsSource, e.Key, accepted: true);
             PublishSignals(preserveInputValues: true);
+            return;
         }
+
+        UiResponsivenessDiagnostics.RecordBrowserRegistryEvent(DiagnosticsSource, e.Key, accepted: false);
     }
 
     private void OnSignalsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -183,23 +244,68 @@ public partial class CustomSignalsControl : EditorTemplateControl
 
     private void RebuildSignalRows()
     {
-        var item = _observedItem;
-        if (item is null)
+        if (!TryRunBrowserRefresh(() =>
+            {
+                using var diagnosticsScope = UiResponsivenessDiagnostics.TrackBrowserOperation(
+                    TopLevel.GetTopLevel(this) as Window,
+                    DiagnosticsSource,
+                    nameof(RebuildSignalRows));
+                var item = _observedItem;
+                if (item is null)
+                {
+                    Signals.Clear();
+                    _relevantPathsSnapshot = [];
+                    UpdateRegistrySubscriptionPrefixes();
+                    return;
+                }
+
+                IReadOnlyList<CustomSignalDefinition> definitions;
+                if (IsBrowserHost(item))
+                {
+                    definitions = LoadFileEntries(item);
+                }
+                else
+                {
+                    definitions = ViewModel?.GetCustomSignalDefinitions(item)
+                        ?? CustomSignalDefinitionCodec.ParseDefinitions(item.CustomSignalDefinitions);
+                }
+
+                Signals.Clear();
+                foreach (var definition in definitions)
+                {
+                    Signals.Add(new CustomSignalRow(item, definition.Clone(), BuildRegistryPath(item, definition)));
+                }
+
+                UpdateFooter(item, definitions.Count);
+                PublishSignals(preserveInputValues: true);
+            }))
         {
-            Signals.Clear();
-            RemovePublishedSignals();
             return;
         }
+    }
 
-        var definitions = CustomSignalDefinitionCodec.ParseDefinitions(item.CustomSignalDefinitions);
-        Signals.Clear();
-        foreach (var definition in definitions)
-        {
-            Signals.Add(new CustomSignalRow(item, definition.Clone(), BuildRegistryPath(item, definition)));
-        }
+    private static bool RequiresSignalRowRebuild(string? propertyName)
+        => string.IsNullOrWhiteSpace(propertyName)
+            || propertyName == nameof(FolderItemModel.CustomSignalDefinitions)
+            || propertyName == nameof(FolderItemModel.Name)
+            || propertyName == nameof(FolderItemModel.Path)
+            || propertyName == nameof(FolderItemModel.FolderName);
 
-        UpdateFooter(item, definitions.Count);
-        PublishSignals(preserveInputValues: true);
+    private void EnsureRegistrySubscription()
+    {
+        _registrySubscription ??= new ScopedRegistryItemChangedSubscription(OnRegistryItemChanged);
+        UpdateRegistrySubscriptionPrefixes();
+    }
+
+    private void DisposeRegistrySubscription()
+    {
+        _registrySubscription?.Dispose();
+        _registrySubscription = null;
+    }
+
+    private void UpdateRegistrySubscriptionPrefixes()
+    {
+        _registrySubscription?.UpdatePrefixes(_relevantPathsSnapshot ?? []);
     }
 
     private void ApplyCustomSignalDefinitions(FolderItemModel ownerItem, string rawDefinitions, bool queuePersist)
@@ -267,6 +373,8 @@ public partial class CustomSignalsControl : EditorTemplateControl
         {
             _isPublishing = false;
         }
+
+        UpdateRelevantPathsSnapshot();
     }
 
     private void PublishSignalSnapshot(FolderItemModel ownerItem, CustomSignalDefinition definition, string registryPath, object? value)
@@ -471,16 +579,125 @@ public partial class CustomSignalsControl : EditorTemplateControl
         _publishedPaths.Clear();
     }
 
+    private bool IsRelevantSourceChange(string registryPath)
+    {
+        var item = _observedItem;
+        if (item is null)
+        {
+            return false;
+        }
+
+        foreach (var row in Signals)
+        {
+            if (row.Definition.Mode != CustomSignalMode.Computed
+                || row.Definition.Trigger != CustomSignalComputationTrigger.OnSourceChange)
+            {
+                continue;
+            }
+
+            foreach (var sourcePath in EnumerateSourcePaths(row.Definition))
+            {
+                foreach (var candidate in TargetPathHelper.EnumerateResolutionCandidates(sourcePath, item.FolderName))
+                {
+                    if (TargetPathHelper.PathsEqual(candidate, registryPath)
+                        || TargetPathHelper.IsDescendantPath(candidate, registryPath)
+                        || TargetPathHelper.IsDescendantPath(registryPath, candidate))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private void UpdateRelevantPathsSnapshot()
+    {
+        var item = _observedItem;
+        var paths = new List<string>(_publishedPaths);
+        if (item is not null)
+        {
+            foreach (var row in Signals)
+            {
+                if (row.Definition.Mode == CustomSignalMode.Computed
+                    && row.Definition.Trigger == CustomSignalComputationTrigger.OnSourceChange)
+                {
+                    foreach (var sourcePath in EnumerateSourcePaths(row.Definition))
+                    {
+                        foreach (var candidate in TargetPathHelper.EnumerateResolutionCandidates(sourcePath, item.FolderName))
+                        {
+                            paths.Add(candidate);
+                        }
+                    }
+                }
+            }
+        }
+
+        _relevantPathsSnapshot = paths.ToArray();
+        UpdateRegistrySubscriptionPrefixes();
+    }
+
+    private bool IsRelevantPathOnBackground(string key)
+    {
+        var snapshot = _relevantPathsSnapshot;
+        if (snapshot is null)
+        {
+            return true;
+        }
+
+        foreach (var candidate in snapshot)
+        {
+            if (TargetPathHelper.PathsEqual(candidate, key)
+                || TargetPathHelper.IsDescendantPath(candidate, key)
+                || TargetPathHelper.IsDescendantPath(key, candidate))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static IEnumerable<string> EnumerateSourcePaths(CustomSignalDefinition definition)
+    {
+        foreach (var variable in definition.Variables)
+        {
+            if (!string.IsNullOrWhiteSpace(variable.SourcePath))
+            {
+                yield return variable.SourcePath;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(definition.SourcePath))
+        {
+            yield return definition.SourcePath;
+        }
+
+        if (!string.IsNullOrWhiteSpace(definition.SourcePath2))
+        {
+            yield return definition.SourcePath2;
+        }
+
+        if (!string.IsNullOrWhiteSpace(definition.SourcePath3))
+        {
+            yield return definition.SourcePath3;
+        }
+    }
+
     private async void OnAddSignalClicked(object? sender, RoutedEventArgs e)
     {
+        e.Handled = true;
+
         var ownerItem = _observedItem;
         var viewModel = ViewModel;
-        if (ownerItem is null || viewModel is null || TopLevel.GetTopLevel(this) is not Window owner)
+        if (ownerItem is null || TopLevel.GetTopLevel(this) is not Window owner)
         {
             return;
         }
 
-        var definition = await CustomSignalEditorDialogWindow.ShowAsync(owner, viewModel, ownerItem, null, GetSourceOptions());
+        var dialogOwner = CreateDialogOwnerItem(ownerItem);
+        var definition = await CustomSignalEditorDialogWindow.ShowAsync(owner, viewModel, dialogOwner, null, GetSourceOptions());
         if (definition is null)
         {
             return;
@@ -491,27 +708,45 @@ public partial class CustomSignalsControl : EditorTemplateControl
             return;
         }
 
-        var definitions = CustomSignalDefinitionCodec.ParseDefinitions(ownerItem.CustomSignalDefinitions).ToList();
-        definitions.Add(definition);
-        ApplyCustomSignalDefinitions(ownerItem, CustomSignalDefinitionCodec.SerializeDefinitions(definitions), queuePersist: true);
-        e.Handled = true;
+        if (IsBrowserHost(ownerItem))
+        {
+            SaveBrowserDefinition(ownerItem, definition, existingName: null);
+        }
+        else
+        {
+            var definitions = CustomSignalDefinitionCodec.ParseDefinitions(ownerItem.CustomSignalDefinitions).ToList();
+            definitions.Add(definition);
+            ApplyCustomSignalDefinitions(ownerItem, CustomSignalDefinitionCodec.SerializeDefinitions(definitions), queuePersist: true);
+        }
     }
 
     private async void OnEditSignalClicked(object? sender, RoutedEventArgs e)
     {
-        if (sender is not Button { CommandParameter: CustomSignalRow row })
+        e.Handled = true;
+
+        if (!TryResolveSignalRow(sender, out var row))
         {
             return;
         }
 
         var ownerItem = _observedItem;
         var viewModel = ViewModel;
-        if (ownerItem is null || viewModel is null || TopLevel.GetTopLevel(this) is not Window owner)
+        if (ownerItem is null || TopLevel.GetTopLevel(this) is not Window owner)
         {
             return;
         }
 
-        var updated = await CustomSignalEditorDialogWindow.ShowAsync(owner, viewModel, ownerItem, row.Definition, GetSourceOptions());
+        var dialogOwner = CreateDialogOwnerItem(ownerItem);
+        var currentDefinition = IsBrowserHost(ownerItem)
+            ? row.Definition.Clone()
+            : CustomSignalDefinitionCodec.ParseDefinitions(ownerItem.CustomSignalDefinitions)
+                .FirstOrDefault(candidate => string.Equals(candidate.Name, row.Definition.Name, StringComparison.OrdinalIgnoreCase));
+        if (currentDefinition is null)
+        {
+            return;
+        }
+
+        var updated = await CustomSignalEditorDialogWindow.ShowAsync(owner, viewModel, dialogOwner, currentDefinition, GetSourceOptions());
         if (updated is null)
         {
             return;
@@ -522,20 +757,27 @@ public partial class CustomSignalsControl : EditorTemplateControl
             return;
         }
 
-        var definitions = CustomSignalDefinitionCodec.ParseDefinitions(ownerItem.CustomSignalDefinitions).ToList();
-        var index = definitions.FindIndex(candidate => string.Equals(candidate.Name, row.Definition.Name, StringComparison.OrdinalIgnoreCase));
-        if (index >= 0)
+        if (IsBrowserHost(ownerItem))
         {
-            definitions[index] = updated;
-            ApplyCustomSignalDefinitions(ownerItem, CustomSignalDefinitionCodec.SerializeDefinitions(definitions), queuePersist: true);
+            SaveBrowserDefinition(ownerItem, updated, existingName: row.Definition.Name);
         }
-
-        e.Handled = true;
+        else
+        {
+            var definitions = CustomSignalDefinitionCodec.ParseDefinitions(ownerItem.CustomSignalDefinitions).ToList();
+            var index = definitions.FindIndex(candidate => string.Equals(candidate.Name, row.Definition.Name, StringComparison.OrdinalIgnoreCase));
+            if (index >= 0)
+            {
+                definitions[index] = updated;
+                ApplyCustomSignalDefinitions(ownerItem, CustomSignalDefinitionCodec.SerializeDefinitions(definitions), queuePersist: true);
+            }
+        }
     }
 
     private async void OnDeleteSignalClicked(object? sender, RoutedEventArgs e)
     {
-        if (sender is not Button { CommandParameter: CustomSignalRow row })
+        e.Handled = true;
+
+        if (!TryResolveSignalRow(sender, out var row))
         {
             return;
         }
@@ -552,11 +794,17 @@ public partial class CustomSignalsControl : EditorTemplateControl
             return;
         }
 
-        var definitions = CustomSignalDefinitionCodec.ParseDefinitions(ownerItem.CustomSignalDefinitions)
-            .Where(definition => !string.Equals(definition.Name, row.Definition.Name, StringComparison.OrdinalIgnoreCase))
-            .ToArray();
-        ApplyCustomSignalDefinitions(ownerItem, CustomSignalDefinitionCodec.SerializeDefinitions(definitions), queuePersist: true);
-        e.Handled = true;
+        if (IsBrowserHost(ownerItem))
+        {
+            DeleteBrowserDefinition(ownerItem, row.Definition.Name);
+        }
+        else
+        {
+            var definitions = CustomSignalDefinitionCodec.ParseDefinitions(ownerItem.CustomSignalDefinitions)
+                .Where(definition => !string.Equals(definition.Name, row.Definition.Name, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            ApplyCustomSignalDefinitions(ownerItem, CustomSignalDefinitionCodec.SerializeDefinitions(definitions), queuePersist: true);
+        }
     }
 
     private async void OnSetValueClicked(object? sender, RoutedEventArgs e)
@@ -624,6 +872,110 @@ public partial class CustomSignalsControl : EditorTemplateControl
         return MainWindowViewModel.EnumerateSignalSourceOptions();
     }
 
+    private static bool TryResolveSignalRow(object? sender, out CustomSignalRow row)
+    {
+        if (sender is Button { CommandParameter: CustomSignalRow commandRow })
+        {
+            row = commandRow;
+            return true;
+        }
+
+        if (sender is Button { Tag: CustomSignalRow tagRow })
+        {
+            row = tagRow;
+            return true;
+        }
+
+        if (sender is Control { DataContext: CustomSignalRow contextRow })
+        {
+            row = contextRow;
+            return true;
+        }
+
+        row = null!;
+        return false;
+    }
+
+    private FolderItemModel CreateDialogOwnerItem(FolderItemModel ownerItem)
+    {
+        if (!IsBrowserHost(ownerItem))
+        {
+            return ownerItem;
+        }
+
+        var dialogOwner = new FolderItemModel
+        {
+            Kind = ownerItem.Kind,
+            Name = ownerItem.Name,
+            ControlCaption = ownerItem.ControlCaption,
+            BodyCaption = ownerItem.BodyCaption,
+            Footer = ownerItem.Footer,
+            CustomSignalDefinitions = CustomSignalDefinitionCodec.SerializeDefinitions(LoadFileEntries(ownerItem))
+        };
+        dialogOwner.SetHierarchy(ownerItem.FolderName, null, ownerItem.ActiveViewId);
+        dialogOwner.SetLayoutFilePath(ownerItem.FolderLayoutPath);
+        return dialogOwner;
+    }
+
+    private IReadOnlyList<CustomSignalDefinition> LoadFileEntries(FolderItemModel ownerItem)
+    {
+        var folderDirectory = GetFolderDirectory(ownerItem);
+        if (string.IsNullOrWhiteSpace(folderDirectory) || !Directory.Exists(folderDirectory))
+        {
+            return Array.Empty<CustomSignalDefinition>();
+        }
+
+        return _fileCodec.LoadFolder(folderDirectory, ownerItem.FolderName)
+            .Select(static entry => entry.Definition)
+            .ToArray();
+    }
+
+    private void SaveBrowserDefinition(FolderItemModel ownerItem, CustomSignalDefinition definition, string? existingName)
+    {
+        var folderDirectory = GetFolderDirectory(ownerItem);
+        if (string.IsNullOrWhiteSpace(folderDirectory))
+        {
+            return;
+        }
+
+        var existingFile = _fileCodec.LoadFolder(folderDirectory, ownerItem.FolderName)
+            .FirstOrDefault(entry => string.Equals(entry.Definition.Name, existingName, StringComparison.OrdinalIgnoreCase));
+        _fileCodec.SaveDefinition(folderDirectory, ownerItem.FolderName, definition, existingFile?.FilePath);
+        ViewModel?.RefreshFolderBindings(ownerItem.FolderName);
+        RebuildSignalRows();
+    }
+
+    private void DeleteBrowserDefinition(FolderItemModel ownerItem, string definitionName)
+    {
+        var folderDirectory = GetFolderDirectory(ownerItem);
+        if (string.IsNullOrWhiteSpace(folderDirectory))
+        {
+            return;
+        }
+
+        var existingFile = _fileCodec.LoadFolder(folderDirectory, ownerItem.FolderName)
+            .FirstOrDefault(entry => string.Equals(entry.Definition.Name, definitionName, StringComparison.OrdinalIgnoreCase));
+        if (existingFile is null)
+        {
+            ownerItem.Footer = $"Custom signal '{definitionName}' is legacy-only and must be removed from the legacy widget.";
+            return;
+        }
+
+        _fileCodec.DeleteDefinition(existingFile.FilePath);
+        ViewModel?.RefreshFolderBindings(ownerItem.FolderName);
+        RebuildSignalRows();
+    }
+
+    private static string? GetFolderDirectory(FolderItemModel ownerItem)
+    {
+        if (string.IsNullOrWhiteSpace(ownerItem.FolderLayoutPath))
+        {
+            return null;
+        }
+
+        return Path.GetDirectoryName(Path.GetFullPath(ownerItem.FolderLayoutPath));
+    }
+
     private static async System.Threading.Tasks.Task<object?> EditNumericValueAsync(Window owner, CustomSignalRow row)
     {
         var initial = ToNullableDouble(row.CurrentValue);
@@ -639,13 +991,15 @@ public partial class CustomSignalsControl : EditorTemplateControl
     }
 
     internal static string BuildRegistryPath(FolderItemModel ownerItem, CustomSignalDefinition definition)
+        => BuildRegistryPath(ownerItem.FolderName, definition);
+
+    internal static string BuildRegistryPath(string? folderName, CustomSignalDefinition definition)
     {
-        var folderName = string.IsNullOrWhiteSpace(ownerItem.FolderName)
+        var normalizedFolder = string.IsNullOrWhiteSpace(folderName)
             ? "folder"
-            : TargetPathHelper.NormalizeConfiguredTargetPath(ownerItem.FolderName);
-        var widgetName = TargetPathHelper.NormalizePathSegment(ownerItem.Name, "custom_signals");
+            : TargetPathHelper.NormalizeConfiguredTargetPath(folderName);
         var signalName = TargetPathHelper.NormalizePathSegment(definition.Name, "signal");
-        return $"studio.{folderName}.{widgetName}.{signalName}";
+        return $"studio.{normalizedFolder}.signals.custom.{signalName}";
     }
 
     internal static string BuildManualTriggerPath(FolderItemModel ownerItem, CustomSignalDefinition definition)

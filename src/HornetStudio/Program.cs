@@ -23,6 +23,7 @@ internal sealed class Program
 
         try
         {
+			App.SetStartupArguments(args);
             BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         }
         finally

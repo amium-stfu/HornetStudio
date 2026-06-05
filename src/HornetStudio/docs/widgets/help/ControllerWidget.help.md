@@ -14,7 +14,7 @@ In the editor, the controller list uses compact single-line rows that show the c
 
 ### ControllerDefinitions
 
-Stores the configured controller definitions as the widget persistence payload.
+Stores controller definitions as the widget persistence payload. Definitions can also be stored as `Controllers/*.yaml` files in the folder directory. File-backed definitions take precedence over widget-embedded ones when both share the same controller name. The Admin Controllers browser allows managing file-backed definitions without placing a widget on the canvas.
 
 ### Name / Path / FolderName
 
@@ -38,7 +38,7 @@ Path for the process value read by the controller.
 
 ### Set
 
-The PID setpoint is not selected through a picker. Each controller publishes its own runtime item at `studio.<folder>.controller_widget.<controller_name>.set`. Writing a numeric value to that item value updates the setpoint used by the PID loop.
+The PID setpoint is not selected through a picker. Each controller publishes its own runtime item at `studio.<folder>.controller.<controller_name>.set`. Writing a numeric value to that item value updates the setpoint used by the PID loop.
 
 ### Output
 
@@ -74,7 +74,9 @@ Output range used to scale the normalized PID result.
 
 The runtime root is:
 
-`studio.<folder>.controller_widget.<controller_name>`
+`studio.<folder>.controller.<controller_name>`
+
+The runtime publishes the resolved process value as `read`. The `read` value is kept current whenever the configured source path changes, independently of whether the controller is running. The configured source path remains part of the controller definition only and is not published as a separate `source` child.
 
 ### Run Control
 
@@ -86,11 +88,11 @@ The runtime publishes `set` as a direct runtime value. Writing a numeric value c
 
 ### State and Alerts
 
-The runtime publishes `state` and `alert` values. Invalid or missing numeric source values, invalid owned setpoint values, and invalid PID parameters do not crash the runtime; it reports a waiting or invalid state with an alert message.
+The runtime publishes `state` and `alert` values. `alert` is a boolean fault flag. `state` stays human-readable and contains either the normal runtime status such as `Stopped` or `Running`, or the current fault reason when the controller is blocked by invalid input, invalid parameters, or an unavailable output target.
 
 ### Output Writes
 
-While running, the runtime writes the computed output to the configured output path through the host registry update API.
+While running, the runtime writes the scaled controller output to the configured output path through the host registry update API. The runtime item `out` exposes the normalized output in percent, and `out.scaled` exposes the scaled value that is written to the configured target.
 
 ## Source
 

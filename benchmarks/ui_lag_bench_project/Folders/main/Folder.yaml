@@ -1,0 +1,1935 @@
+Caption: 'main'
+Screens:
+  1: 'Bench'
+  30: 'Resources'
+Controls:
+  -
+    Type: 'UdlClientControl'
+    Screen: '30'
+    Enabled: true
+    Identity:
+      Name: 'udl1'
+      Text: 'Udl1'
+      Path: 'udl1'
+      Id: 'bench-udl1'
+    Bounds:
+      X: 24
+      Y: 64
+      Width: 420
+      Height: 280
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: ''
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: ''
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 0
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      UdlClientHost: '127.0.0.1'
+      UdlClientPort: '9001'
+      UdlClientAutoConnect: true
+      UdlClientDebugLogging: false
+      UdlClientDemoEnabled: true
+      UdlAttachedItemPaths: 'm001\nm002\nm003\nm004\nm005\nm006\nm007\nm008\nm009\nm010\nm011\nm012\nm013\nm014\nm015\nm016\nm017\nm018\nm019\nm020'
+      UdlDemoModules:
+        -
+          name: 'm001'
+          kind: 'Dynamic'
+          generator: 'Sine'
+          unit: ''
+          format: ''
+          baseValue: 0
+          amplitude: 100
+          periodSeconds: 5
+          initialValue: 0
+          setScale: 1
+          setOffset: 0
+          setTauSeconds: 0
+          faults:
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 100
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 100
+        -
+          name: 'm002'
+          kind: 'Dynamic'
+          generator: 'Sine'
+          unit: ''
+          format: ''
+          baseValue: 0
+          amplitude: 100
+          periodSeconds: 6
+          initialValue: 0
+          setScale: 1
+          setOffset: 0
+          setTauSeconds: 0
+          faults:
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+        -
+          name: 'm003'
+          kind: 'Dynamic'
+          generator: 'Sine'
+          unit: ''
+          format: ''
+          baseValue: 0
+          amplitude: 100
+          periodSeconds: 7
+          initialValue: 0
+          setScale: 1
+          setOffset: 0
+          setTauSeconds: 0
+          faults:
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+        -
+          name: 'm004'
+          kind: 'Dynamic'
+          generator: 'Sine'
+          unit: ''
+          format: ''
+          baseValue: 0
+          amplitude: 100
+          periodSeconds: 8
+          initialValue: 0
+          setScale: 1
+          setOffset: 0
+          setTauSeconds: 0
+          faults:
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+        -
+          name: 'm005'
+          kind: 'Dynamic'
+          generator: 'Sine'
+          unit: ''
+          format: ''
+          baseValue: 0
+          amplitude: 100
+          periodSeconds: 9
+          initialValue: 0
+          setScale: 1
+          setOffset: 0
+          setTauSeconds: 0
+          faults:
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+        -
+          name: 'm006'
+          kind: 'Dynamic'
+          generator: 'Sine'
+          unit: ''
+          format: ''
+          baseValue: 0
+          amplitude: 100
+          periodSeconds: 10
+          initialValue: 0
+          setScale: 1
+          setOffset: 0
+          setTauSeconds: 0
+          faults:
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+        -
+          name: 'm007'
+          kind: 'Dynamic'
+          generator: 'Sine'
+          unit: ''
+          format: ''
+          baseValue: 0
+          amplitude: 100
+          periodSeconds: 11
+          initialValue: 0
+          setScale: 1
+          setOffset: 0
+          setTauSeconds: 0
+          faults:
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+        -
+          name: 'm008'
+          kind: 'Dynamic'
+          generator: 'Sine'
+          unit: ''
+          format: ''
+          baseValue: 0
+          amplitude: 100
+          periodSeconds: 12
+          initialValue: 0
+          setScale: 1
+          setOffset: 0
+          setTauSeconds: 0
+          faults:
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+        -
+          name: 'm009'
+          kind: 'Dynamic'
+          generator: 'Sine'
+          unit: ''
+          format: ''
+          baseValue: 0
+          amplitude: 100
+          periodSeconds: 13
+          initialValue: 0
+          setScale: 1
+          setOffset: 0
+          setTauSeconds: 0
+          faults:
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+        -
+          name: 'm010'
+          kind: 'Dynamic'
+          generator: 'Sine'
+          unit: ''
+          format: ''
+          baseValue: 0
+          amplitude: 100
+          periodSeconds: 14
+          initialValue: 0
+          setScale: 1
+          setOffset: 0
+          setTauSeconds: 0
+          faults:
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+        -
+          name: 'm011'
+          kind: 'Dynamic'
+          generator: 'Sine'
+          unit: ''
+          format: ''
+          baseValue: 0
+          amplitude: 100
+          periodSeconds: 15
+          initialValue: 0
+          setScale: 1
+          setOffset: 0
+          setTauSeconds: 0
+          faults:
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+        -
+          name: 'm012'
+          kind: 'Dynamic'
+          generator: 'Sine'
+          unit: ''
+          format: ''
+          baseValue: 0
+          amplitude: 100
+          periodSeconds: 16
+          initialValue: 0
+          setScale: 1
+          setOffset: 0
+          setTauSeconds: 0
+          faults:
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+        -
+          name: 'm013'
+          kind: 'Dynamic'
+          generator: 'Sine'
+          unit: ''
+          format: ''
+          baseValue: 0
+          amplitude: 100
+          periodSeconds: 17
+          initialValue: 0
+          setScale: 1
+          setOffset: 0
+          setTauSeconds: 0
+          faults:
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+        -
+          name: 'm014'
+          kind: 'Dynamic'
+          generator: 'Sine'
+          unit: ''
+          format: ''
+          baseValue: 0
+          amplitude: 100
+          periodSeconds: 18
+          initialValue: 0
+          setScale: 1
+          setOffset: 0
+          setTauSeconds: 0
+          faults:
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+        -
+          name: 'm015'
+          kind: 'Dynamic'
+          generator: 'Sine'
+          unit: ''
+          format: ''
+          baseValue: 0
+          amplitude: 100
+          periodSeconds: 19
+          initialValue: 0
+          setScale: 1
+          setOffset: 0
+          setTauSeconds: 0
+          faults:
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+        -
+          name: 'm016'
+          kind: 'Dynamic'
+          generator: 'Sine'
+          unit: ''
+          format: ''
+          baseValue: 0
+          amplitude: 100
+          periodSeconds: 20
+          initialValue: 0
+          setScale: 1
+          setOffset: 0
+          setTauSeconds: 0
+          faults:
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+        -
+          name: 'm017'
+          kind: 'Dynamic'
+          generator: 'Sine'
+          unit: ''
+          format: ''
+          baseValue: 0
+          amplitude: 100
+          periodSeconds: 21
+          initialValue: 0
+          setScale: 1
+          setOffset: 0
+          setTauSeconds: 0
+          faults:
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+        -
+          name: 'm018'
+          kind: 'Dynamic'
+          generator: 'Sine'
+          unit: ''
+          format: ''
+          baseValue: 0
+          amplitude: 100
+          periodSeconds: 22
+          initialValue: 0
+          setScale: 1
+          setOffset: 0
+          setTauSeconds: 0
+          faults:
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+        -
+          name: 'm019'
+          kind: 'Dynamic'
+          generator: 'Sine'
+          unit: ''
+          format: ''
+          baseValue: 0
+          amplitude: 100
+          periodSeconds: 23
+          initialValue: 0
+          setScale: 1
+          setOffset: 0
+          setTauSeconds: 0
+          faults:
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+        -
+          name: 'm020'
+          kind: 'Dynamic'
+          generator: 'Sine'
+          unit: ''
+          format: ''
+          baseValue: 0
+          amplitude: 100
+          periodSeconds: 24
+          initialValue: 0
+          setScale: 1
+          setOffset: 0
+          setTauSeconds: 0
+          faults:
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+            -
+              kind: 'Noise'
+              enabled: false
+              amount: 0
+              peakAmount: 0
+              useJitter: true
+              useSine: false
+              usePeak: false
+              noiseMode: 'Jitter'
+              periodSeconds: 2
+              updateIntervalMs: 250
+              intervalSeconds: 5
+              durationMs: 1000
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_m001'
+      Text: 'M001'
+      Path: 'signal_m001'
+      Id: 'bench-signal-m001'
+    Bounds:
+      X: 24
+      Y: 64
+      Width: 260
+      Height: 86
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'M001'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'udl1.m001.read'
+      Parameter: 'read'
+      Format: 'numeric:0.##'
+      IsReadOnly: false
+      RefreshRateMs: '100'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_m002'
+      Text: 'M002'
+      Path: 'signal_m002'
+      Id: 'bench-signal-m002'
+    Bounds:
+      X: 304
+      Y: 64
+      Width: 260
+      Height: 86
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'M002'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'udl1.m002.read'
+      Parameter: 'read'
+      Format: 'numeric:0.##'
+      IsReadOnly: false
+      RefreshRateMs: '100'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_m003'
+      Text: 'M003'
+      Path: 'signal_m003'
+      Id: 'bench-signal-m003'
+    Bounds:
+      X: 584
+      Y: 64
+      Width: 260
+      Height: 86
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'M003'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'udl1.m003.read'
+      Parameter: 'read'
+      Format: 'numeric:0.##'
+      IsReadOnly: false
+      RefreshRateMs: '100'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_m004'
+      Text: 'M004'
+      Path: 'signal_m004'
+      Id: 'bench-signal-m004'
+    Bounds:
+      X: 864
+      Y: 64
+      Width: 260
+      Height: 86
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'M004'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'udl1.m004.read'
+      Parameter: 'read'
+      Format: 'numeric:0.##'
+      IsReadOnly: false
+      RefreshRateMs: '100'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_m005'
+      Text: 'M005'
+      Path: 'signal_m005'
+      Id: 'bench-signal-m005'
+    Bounds:
+      X: 1144
+      Y: 64
+      Width: 260
+      Height: 86
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'M005'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'udl1.m005.read'
+      Parameter: 'read'
+      Format: 'numeric:0.##'
+      IsReadOnly: false
+      RefreshRateMs: '100'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_m006'
+      Text: 'M006'
+      Path: 'signal_m006'
+      Id: 'bench-signal-m006'
+    Bounds:
+      X: 24
+      Y: 170
+      Width: 260
+      Height: 86
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'M006'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'udl1.m006.read'
+      Parameter: 'read'
+      Format: 'numeric:0.##'
+      IsReadOnly: false
+      RefreshRateMs: '100'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_m007'
+      Text: 'M007'
+      Path: 'signal_m007'
+      Id: 'bench-signal-m007'
+    Bounds:
+      X: 304
+      Y: 170
+      Width: 260
+      Height: 86
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'M007'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'udl1.m007.read'
+      Parameter: 'read'
+      Format: 'numeric:0.##'
+      IsReadOnly: false
+      RefreshRateMs: '100'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_m008'
+      Text: 'M008'
+      Path: 'signal_m008'
+      Id: 'bench-signal-m008'
+    Bounds:
+      X: 584
+      Y: 170
+      Width: 260
+      Height: 86
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'M008'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'udl1.m008.read'
+      Parameter: 'read'
+      Format: 'numeric:0.##'
+      IsReadOnly: false
+      RefreshRateMs: '100'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_m009'
+      Text: 'M009'
+      Path: 'signal_m009'
+      Id: 'bench-signal-m009'
+    Bounds:
+      X: 864
+      Y: 170
+      Width: 260
+      Height: 86
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'M009'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'udl1.m009.read'
+      Parameter: 'read'
+      Format: 'numeric:0.##'
+      IsReadOnly: false
+      RefreshRateMs: '100'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_m010'
+      Text: 'M010'
+      Path: 'signal_m010'
+      Id: 'bench-signal-m010'
+    Bounds:
+      X: 1144
+      Y: 170
+      Width: 260
+      Height: 86
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'M010'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'udl1.m010.read'
+      Parameter: 'read'
+      Format: 'numeric:0.##'
+      IsReadOnly: false
+      RefreshRateMs: '100'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_m011'
+      Text: 'M011'
+      Path: 'signal_m011'
+      Id: 'bench-signal-m011'
+    Bounds:
+      X: 24
+      Y: 276
+      Width: 260
+      Height: 86
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'M011'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'udl1.m011.read'
+      Parameter: 'read'
+      Format: 'numeric:0.##'
+      IsReadOnly: false
+      RefreshRateMs: '100'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_m012'
+      Text: 'M012'
+      Path: 'signal_m012'
+      Id: 'bench-signal-m012'
+    Bounds:
+      X: 304
+      Y: 276
+      Width: 260
+      Height: 86
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'M012'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'udl1.m012.read'
+      Parameter: 'read'
+      Format: 'numeric:0.##'
+      IsReadOnly: false
+      RefreshRateMs: '100'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_m013'
+      Text: 'M013'
+      Path: 'signal_m013'
+      Id: 'bench-signal-m013'
+    Bounds:
+      X: 584
+      Y: 276
+      Width: 260
+      Height: 86
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'M013'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'udl1.m013.read'
+      Parameter: 'read'
+      Format: 'numeric:0.##'
+      IsReadOnly: false
+      RefreshRateMs: '100'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_m014'
+      Text: 'M014'
+      Path: 'signal_m014'
+      Id: 'bench-signal-m014'
+    Bounds:
+      X: 864
+      Y: 276
+      Width: 260
+      Height: 86
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'M014'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'udl1.m014.read'
+      Parameter: 'read'
+      Format: 'numeric:0.##'
+      IsReadOnly: false
+      RefreshRateMs: '100'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_m015'
+      Text: 'M015'
+      Path: 'signal_m015'
+      Id: 'bench-signal-m015'
+    Bounds:
+      X: 1144
+      Y: 276
+      Width: 260
+      Height: 86
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'M015'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'udl1.m015.read'
+      Parameter: 'read'
+      Format: 'numeric:0.##'
+      IsReadOnly: false
+      RefreshRateMs: '100'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_m016'
+      Text: 'M016'
+      Path: 'signal_m016'
+      Id: 'bench-signal-m016'
+    Bounds:
+      X: 24
+      Y: 382
+      Width: 260
+      Height: 86
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'M016'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'udl1.m016.read'
+      Parameter: 'read'
+      Format: 'numeric:0.##'
+      IsReadOnly: false
+      RefreshRateMs: '100'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_m017'
+      Text: 'M017'
+      Path: 'signal_m017'
+      Id: 'bench-signal-m017'
+    Bounds:
+      X: 304
+      Y: 382
+      Width: 260
+      Height: 86
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'M017'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'udl1.m017.read'
+      Parameter: 'read'
+      Format: 'numeric:0.##'
+      IsReadOnly: false
+      RefreshRateMs: '100'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_m018'
+      Text: 'M018'
+      Path: 'signal_m018'
+      Id: 'bench-signal-m018'
+    Bounds:
+      X: 584
+      Y: 382
+      Width: 260
+      Height: 86
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'M018'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'udl1.m018.read'
+      Parameter: 'read'
+      Format: 'numeric:0.##'
+      IsReadOnly: false
+      RefreshRateMs: '100'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_m019'
+      Text: 'M019'
+      Path: 'signal_m019'
+      Id: 'bench-signal-m019'
+    Bounds:
+      X: 864
+      Y: 382
+      Width: 260
+      Height: 86
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'M019'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'udl1.m019.read'
+      Parameter: 'read'
+      Format: 'numeric:0.##'
+      IsReadOnly: false
+      RefreshRateMs: '100'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_m020'
+      Text: 'M020'
+      Path: 'signal_m020'
+      Id: 'bench-signal-m020'
+    Bounds:
+      X: 1144
+      Y: 382
+      Width: 260
+      Height: 86
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'M020'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'udl1.m020.read'
+      Parameter: 'read'
+      Format: 'numeric:0.##'
+      IsReadOnly: false
+      RefreshRateMs: '100'
+  -
+    Type: 'ChartControl'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'chart_control_1'
+      Text: 'chart_control_1'
+      Path: 'chart_control_1'
+      Id: '8cf1355106c14e87a6f303d2469110e9'
+    Bounds:
+      X: 26
+      Y: 484
+      Width: 1378
+      Height: 459
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: ''
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'Chart'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 0
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: true
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      RefreshRateMs: '50'
+      ViewSeconds: '20'
+      ChartSeriesDefinitions:
+        - 'udl1.m001.read|Y1'
+        - 'udl1.m002.read|Y1'
+        - 'udl1.m003.read|Y1'
+        - 'udl1.m004.read|Y1'
+        - 'udl1.m005.read|Y1'
+        - 'udl1.m006.read|Y1'
+        - 'udl1.m007.read|Y1'
+        - 'udl1.m008.read|Y1'
+        - 'udl1.m009.read|Y1'
+        - 'udl1.m010.read|Y1'

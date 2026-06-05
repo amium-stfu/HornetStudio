@@ -1,0 +1,52 @@
+rules:
+- name: monitor_rule_1
+  sourcePath: ''
+  refreshRateMs: 1000
+  mode: Custom
+  lowerLimit: ''
+  upperLimit: ''
+  inhibitMs: 100
+  customFormula: '{A} > 10'
+  customVariables:
+  - name: A
+    sourcePath: enhanced_signals.enhanced_signal_1.read
+  condition: ''
+  eventId: 1
+  eventText: '>10'
+  actions: []
+  targetLog: ''
+  logLevel: Info
+- name: monitor_rule_2
+  sourcePath: ''
+  refreshRateMs: 1000
+  mode: Custom
+  lowerLimit: ''
+  upperLimit: ''
+  inhibitMs: 100
+  customFormula: '{A} > 20'
+  customVariables:
+  - name: A
+    sourcePath: enhanced_signals.enhanced_signal_1.read
+  condition: ''
+  eventId: 2
+  eventText: '>20'
+  actions: []
+  targetLog: ''
+  logLevel: Info
+- name: monitor_rule_3
+  sourcePath: ''
+  refreshRateMs: 1000
+  mode: Custom
+  lowerLimit: ''
+  upperLimit: ''
+  inhibitMs: 100
+  customFormula: '{A} > 30'
+  customVariables:
+  - name: A
+    sourcePath: enhanced_signals.enhanced_signal_1.read
+  condition: ''
+  eventId: 3
+  eventText: '>30'
+  actions: []
+  targetLog: ''
+  logLevel: Info

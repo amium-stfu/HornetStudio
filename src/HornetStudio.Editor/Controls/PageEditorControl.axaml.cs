@@ -7,6 +7,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using HornetStudio.Editor.Models;
 using HornetStudio.Editor.ViewModels;
+using HornetStudio.Editor.Widgets;
 
 namespace HornetStudio.Editor.Controls;
 
@@ -79,6 +80,7 @@ public partial class FolderEditorControl : UserControl
         if (_subscribedViewModel is not null)
         {
             _subscribedViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            _subscribedViewModel.PropertyDialogSessionRequested -= OnPropertyDialogSessionRequested;
         }
 
         _subscribedViewModel = viewModel;
@@ -86,6 +88,7 @@ public partial class FolderEditorControl : UserControl
         if (_subscribedViewModel is not null)
         {
             _subscribedViewModel.PropertyChanged += OnViewModelPropertyChanged;
+            _subscribedViewModel.PropertyDialogSessionRequested += OnPropertyDialogSessionRequested;
         }
 
         UpdateThemeBindings();
@@ -115,6 +118,11 @@ public partial class FolderEditorControl : UserControl
     {
         if (ViewModel?.IsEditorDialogOpen == true)
         {
+            if (!IsActiveDialogHost())
+            {
+                return;
+            }
+
             EnsureEditorDialogWindow();
             return;
         }
@@ -155,6 +163,32 @@ public partial class FolderEditorControl : UserControl
             _editorDialogWindow.Closed -= OnEditorDialogWindowClosed;
             _editorDialogWindow = null;
         }
+    }
+
+    private void OnPropertyDialogSessionRequested(object? sender, PropertyDialogSessionRequestedEventArgs e)
+    {
+        if (!IsActiveDialogHost())
+        {
+            return;
+        }
+
+        var owner = TopLevel.GetTopLevel(this) as Window;
+        PropertyDialogWindow.ShowOrActivate(owner, e.Session);
+    }
+
+    private bool IsActiveDialogHost()
+    {
+        if (ViewModel is null)
+        {
+            return false;
+        }
+
+        if (Folder is null)
+        {
+            return true;
+        }
+
+        return ReferenceEquals(Folder, ViewModel.SelectedFolder);
     }
 
     private void OnCanvasPointerPressed(object? sender, PointerPressedEventArgs e)

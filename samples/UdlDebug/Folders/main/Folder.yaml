@@ -1,0 +1,57 @@
+Caption: 'main'
+Screens:
+  1: 'HomeScreen'
+  9: 'Assets'
+  30: 'ResourcesScreen'
+Controls:
+  -
+    Type: 'UdlClientControl'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'udl_client_control_1'
+      Text: 'udl_client_control_1'
+      Path: 'udl_client_control_1'
+      Id: '738067688aaa45a2bf875af952b665a2'
+    Bounds:
+      X: 129
+      Y: 107
+      Width: 420
+      Height: 223
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: ''
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: ''
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 0
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      UdlClientHost: '192.168.178.151'
+      UdlClientPort: '9001'
+      UdlClientAutoConnect: true
+      UdlClientDebugLogging: false
+      UdlClientDemoEnabled: true
+      UdlAttachedItemPaths: ''
