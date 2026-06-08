@@ -5,10 +5,10 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using Avalonia.Threading;
-using HornetStudio.Host;
 using ItemModel = Amium.Items.Item;
 using Amium.Items;
 using HornetStudio.Editor.Models;
+using HornetStudio.Host.Registries;
 
 namespace HornetStudio.ViewModels;
 

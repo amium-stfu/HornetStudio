@@ -13,6 +13,10 @@
 - Run the narrowest reliable validation that can prove the fix.
 - Report the cause, changed files, and validation result concisely.
 
+## Shared Code Style
+
+`FIX` also applies [agents/human-first.md](human-first.md) for shared readability-first code style.
+
 ## Escalation to DEBUG
 
 - Stop `FIX` and ask to switch to `DEBUG` with a known workitem when the issue becomes unclear, broad, recurring, high-risk, or multi-step.

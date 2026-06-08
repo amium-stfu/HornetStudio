@@ -7,13 +7,13 @@ using System.Linq;
 using Avalonia.Media;
 using HornetStudio.Editor.Functions;
 using HornetStudio.Editor.Monitoring;
-using HornetStudio.Host;
 using HornetStudio.Host.Python.Client;
 using HornetStudio.Editor.Widgets;
 using ItemModel = Amium.Items.Item;
 using Amium.Items;
 using HornetStudio.Editor.Helpers;
 using HornetStudio.Editor.Models;
+using HornetStudio.Host.Registries;
 
 namespace HornetStudio.Editor.ViewModels;
 

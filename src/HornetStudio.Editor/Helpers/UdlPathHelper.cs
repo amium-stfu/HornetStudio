@@ -9,8 +9,8 @@ namespace HornetStudio.Editor.Helpers;
 internal static class UdlPathHelper
 {
     private static readonly string[] AttachOptionRoots = ["studio", "project", "udl_project"];
-    private const string DefaultCanonicalClientName = "udl_client_control";
-    private const string DefaultLegacyClientName = "UdlClientControl";
+    private const string DefaultCanonicalClientName = "udl_client";
+    private const string DefaultLegacyClientName = "UdlClient";
 
     public static string NormalizeClientName(string? name)
         => TargetPathHelper.NormalizePathSegment(name, DefaultCanonicalClientName);

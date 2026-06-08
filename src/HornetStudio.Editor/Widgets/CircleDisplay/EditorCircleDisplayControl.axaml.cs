@@ -14,12 +14,12 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using HornetStudio.Editor.Controls;
-using HornetStudio.Host;
 using ItemModel = Amium.Items.Item;
 using Amium.Items;
 using HornetStudio.Editor.Models;
 using HornetStudio.Editor.ViewModels;
 using TableCellSlot = HornetStudio.Editor.Models.FolderItemModel.TableCellSlot;
+using HornetStudio.Host.Registries;
 
 namespace HornetStudio.Editor.Widgets;
 
@@ -390,10 +390,6 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
                 {
                     PageIsActive = true
                 };
-            }
-            else if (child.IsUdlClientControl)
-            {
-                content = new UdlClientControl();
             }
             else
             {
@@ -1367,17 +1363,6 @@ public partial class EditorCircleDisplayControl : EditorTemplateWidget
     private void OnAddLogMenuClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         AddControlToTable(ControlKind.LogControl);
-        e.Handled = true;
-    }
-
-    private void OnAddUdlClientMenuClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        if (ViewModel is null || !ViewModel.SupportsUdlClientControl)
-        {
-            return;
-        }
-
-        AddControlToTable(ControlKind.UdlClientControl);
         e.Handled = true;
     }
 

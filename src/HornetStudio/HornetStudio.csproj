@@ -40,9 +40,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Folder.yaml">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
     <Content Include="..\..\NOTICE.md">
       <Link>NOTICE.md</Link>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>

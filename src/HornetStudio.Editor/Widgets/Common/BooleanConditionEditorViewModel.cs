@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Linq;
 using HornetStudio.Editor.Helpers;
 using HornetStudio.Editor.Models;
+using HornetStudio.Editor.Persistence.CustomControls;
 using HornetStudio.Editor.ViewModels;
 
 namespace HornetStudio.Editor.Widgets.Common;

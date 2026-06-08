@@ -5,7 +5,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using HornetStudio.Editor.Helpers;
-using HornetStudio.Host;
+using HornetStudio.Host.Registries;
 using HornetStudio.Logging;
 using ItemModel = Amium.Items.Item;
 

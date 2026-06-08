@@ -4,864 +4,12 @@ Screens:
   30: 'Resources'
 Controls:
   -
-    Type: 'UdlClientControl'
-    Screen: '30'
-    Enabled: true
-    Identity:
-      Name: 'udl1'
-      Text: 'Udl1'
-      Path: 'udl1'
-      Id: 'bench-udl1'
-    Bounds:
-      X: 24
-      Y: 64
-      Width: 420
-      Height: 280
-    Design:
-      CornerRadius: 12
-      BorderWidth: 1
-      BorderColor: null
-      BackColor: null
-      ToolTip: ''
-    Header:
-      ControlCaption: ''
-      SyncText: true
-      HeaderForeColor: null
-      CaptionVisible: true
-      HeaderCornerRadius: 6
-      HeaderBorderWidth: 0
-      HeaderBorderColor: null
-      HeaderBackColor: null
-    Body:
-      BodyCaption: ''
-      BodyCaptionPosition: 'Top'
-      BodyForeColor: null
-      BodyCaptionVisible: false
-      BodyCornerRadius: 0
-      BodyBorderWidth: 0
-      BodyBorderColor: null
-      BodyBackColor: null
-    Footer:
-      ShowFooter: false
-      FooterCornerRadius: 6
-      FooterBorderWidth: 0
-      FooterBorderColor: null
-      FooterBackColor: null
-    Properties:
-      UdlClientHost: '127.0.0.1'
-      UdlClientPort: '9001'
-      UdlClientAutoConnect: true
-      UdlClientDebugLogging: false
-      UdlClientDemoEnabled: true
-      UdlAttachedItemPaths: 'm001\nm002\nm003\nm004\nm005\nm006\nm007\nm008\nm009\nm010\nm011\nm012\nm013\nm014\nm015\nm016\nm017\nm018\nm019\nm020'
-      UdlDemoModules:
-        -
-          name: 'm001'
-          kind: 'Dynamic'
-          generator: 'Sine'
-          unit: ''
-          format: ''
-          baseValue: 0
-          amplitude: 100
-          periodSeconds: 5
-          initialValue: 0
-          setScale: 1
-          setOffset: 0
-          setTauSeconds: 0
-          faults:
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 100
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 100
-        -
-          name: 'm002'
-          kind: 'Dynamic'
-          generator: 'Sine'
-          unit: ''
-          format: ''
-          baseValue: 0
-          amplitude: 100
-          periodSeconds: 6
-          initialValue: 0
-          setScale: 1
-          setOffset: 0
-          setTauSeconds: 0
-          faults:
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-        -
-          name: 'm003'
-          kind: 'Dynamic'
-          generator: 'Sine'
-          unit: ''
-          format: ''
-          baseValue: 0
-          amplitude: 100
-          periodSeconds: 7
-          initialValue: 0
-          setScale: 1
-          setOffset: 0
-          setTauSeconds: 0
-          faults:
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-        -
-          name: 'm004'
-          kind: 'Dynamic'
-          generator: 'Sine'
-          unit: ''
-          format: ''
-          baseValue: 0
-          amplitude: 100
-          periodSeconds: 8
-          initialValue: 0
-          setScale: 1
-          setOffset: 0
-          setTauSeconds: 0
-          faults:
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-        -
-          name: 'm005'
-          kind: 'Dynamic'
-          generator: 'Sine'
-          unit: ''
-          format: ''
-          baseValue: 0
-          amplitude: 100
-          periodSeconds: 9
-          initialValue: 0
-          setScale: 1
-          setOffset: 0
-          setTauSeconds: 0
-          faults:
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-        -
-          name: 'm006'
-          kind: 'Dynamic'
-          generator: 'Sine'
-          unit: ''
-          format: ''
-          baseValue: 0
-          amplitude: 100
-          periodSeconds: 10
-          initialValue: 0
-          setScale: 1
-          setOffset: 0
-          setTauSeconds: 0
-          faults:
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-        -
-          name: 'm007'
-          kind: 'Dynamic'
-          generator: 'Sine'
-          unit: ''
-          format: ''
-          baseValue: 0
-          amplitude: 100
-          periodSeconds: 11
-          initialValue: 0
-          setScale: 1
-          setOffset: 0
-          setTauSeconds: 0
-          faults:
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-        -
-          name: 'm008'
-          kind: 'Dynamic'
-          generator: 'Sine'
-          unit: ''
-          format: ''
-          baseValue: 0
-          amplitude: 100
-          periodSeconds: 12
-          initialValue: 0
-          setScale: 1
-          setOffset: 0
-          setTauSeconds: 0
-          faults:
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-        -
-          name: 'm009'
-          kind: 'Dynamic'
-          generator: 'Sine'
-          unit: ''
-          format: ''
-          baseValue: 0
-          amplitude: 100
-          periodSeconds: 13
-          initialValue: 0
-          setScale: 1
-          setOffset: 0
-          setTauSeconds: 0
-          faults:
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-        -
-          name: 'm010'
-          kind: 'Dynamic'
-          generator: 'Sine'
-          unit: ''
-          format: ''
-          baseValue: 0
-          amplitude: 100
-          periodSeconds: 14
-          initialValue: 0
-          setScale: 1
-          setOffset: 0
-          setTauSeconds: 0
-          faults:
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-        -
-          name: 'm011'
-          kind: 'Dynamic'
-          generator: 'Sine'
-          unit: ''
-          format: ''
-          baseValue: 0
-          amplitude: 100
-          periodSeconds: 15
-          initialValue: 0
-          setScale: 1
-          setOffset: 0
-          setTauSeconds: 0
-          faults:
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-        -
-          name: 'm012'
-          kind: 'Dynamic'
-          generator: 'Sine'
-          unit: ''
-          format: ''
-          baseValue: 0
-          amplitude: 100
-          periodSeconds: 16
-          initialValue: 0
-          setScale: 1
-          setOffset: 0
-          setTauSeconds: 0
-          faults:
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-        -
-          name: 'm013'
-          kind: 'Dynamic'
-          generator: 'Sine'
-          unit: ''
-          format: ''
-          baseValue: 0
-          amplitude: 100
-          periodSeconds: 17
-          initialValue: 0
-          setScale: 1
-          setOffset: 0
-          setTauSeconds: 0
-          faults:
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-        -
-          name: 'm014'
-          kind: 'Dynamic'
-          generator: 'Sine'
-          unit: ''
-          format: ''
-          baseValue: 0
-          amplitude: 100
-          periodSeconds: 18
-          initialValue: 0
-          setScale: 1
-          setOffset: 0
-          setTauSeconds: 0
-          faults:
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-        -
-          name: 'm015'
-          kind: 'Dynamic'
-          generator: 'Sine'
-          unit: ''
-          format: ''
-          baseValue: 0
-          amplitude: 100
-          periodSeconds: 19
-          initialValue: 0
-          setScale: 1
-          setOffset: 0
-          setTauSeconds: 0
-          faults:
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-        -
-          name: 'm016'
-          kind: 'Dynamic'
-          generator: 'Sine'
-          unit: ''
-          format: ''
-          baseValue: 0
-          amplitude: 100
-          periodSeconds: 20
-          initialValue: 0
-          setScale: 1
-          setOffset: 0
-          setTauSeconds: 0
-          faults:
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-        -
-          name: 'm017'
-          kind: 'Dynamic'
-          generator: 'Sine'
-          unit: ''
-          format: ''
-          baseValue: 0
-          amplitude: 100
-          periodSeconds: 21
-          initialValue: 0
-          setScale: 1
-          setOffset: 0
-          setTauSeconds: 0
-          faults:
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-        -
-          name: 'm018'
-          kind: 'Dynamic'
-          generator: 'Sine'
-          unit: ''
-          format: ''
-          baseValue: 0
-          amplitude: 100
-          periodSeconds: 22
-          initialValue: 0
-          setScale: 1
-          setOffset: 0
-          setTauSeconds: 0
-          faults:
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-        -
-          name: 'm019'
-          kind: 'Dynamic'
-          generator: 'Sine'
-          unit: ''
-          format: ''
-          baseValue: 0
-          amplitude: 100
-          periodSeconds: 23
-          initialValue: 0
-          setScale: 1
-          setOffset: 0
-          setTauSeconds: 0
-          faults:
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-        -
-          name: 'm020'
-          kind: 'Dynamic'
-          generator: 'Sine'
-          unit: ''
-          format: ''
-          baseValue: 0
-          amplitude: 100
-          periodSeconds: 24
-          initialValue: 0
-          setScale: 1
-          setOffset: 0
-          setTauSeconds: 0
-          faults:
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-            -
-              kind: 'Noise'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-  -
     Type: 'Signal'
     Screen: '1'
     Enabled: true
     Identity:
       Name: 'signal_m001'
-      Text: 'M001'
+      Text: 'DummyTest'
       Path: 'signal_m001'
       Id: 'bench-signal-m001'
     Bounds:
@@ -900,7 +48,7 @@ Controls:
       FooterBorderColor: null
       FooterBackColor: null
     Properties:
-      Unit: ''
+      Unit: 'ppm'
       Uri: 'udl1.m001.read'
       Parameter: 'read'
       Format: 'numeric:0.##'
@@ -1887,8 +1035,8 @@ Controls:
     Bounds:
       X: 26
       Y: 484
-      Width: 1378
-      Height: 459
+      Width: 1098
+      Height: 436
     Design:
       CornerRadius: 12
       BorderWidth: 1
@@ -1933,3 +1081,121 @@ Controls:
         - 'udl1.m008.read|Y1'
         - 'udl1.m009.read|Y1'
         - 'udl1.m010.read|Y1'
+  -
+    Type: 'Button'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'button_1'
+      Text: 'button_1'
+      Path: 'button_1'
+      Id: 'c51c11fab86a47b9bafe33fd030849f0'
+    Bounds:
+      X: 1154
+      Y: 484
+      Width: 249
+      Height: 73
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: ''
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: false
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'Button'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    InteractionRules:
+      -
+        Event: 'BodyLeftClick'
+        Action: 'SetValue'
+        TargetPath: 'value_log.csv1.run'
+        Argument: 'sv1:{"op":"SetTrue"}'
+        FunctionName: ''
+    Properties:
+      ButtonText: 'StartLog'
+      ButtonIcon: ''
+      ButtonIconColor: ''
+      ButtonBackColor: ''
+      ButtonOnlyIcon: false
+      ButtonIconAlign: 'Left'
+      ButtonTextAlign: 'Center'
+  -
+    Type: 'Button'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'button_2'
+      Text: 'button_2'
+      Path: 'button_2'
+      Id: 'e42cb3c26b994726b02a39362316dbba'
+    Bounds:
+      X: 1154
+      Y: 576
+      Width: 252
+      Height: 77
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: ''
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: false
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'Button'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    InteractionRules:
+      -
+        Event: 'BodyLeftClick'
+        Action: 'SetValue'
+        TargetPath: 'value_log.csv1.run'
+        Argument: 'sv1:{"op":"SetFalse"}'
+        FunctionName: ''
+    Properties:
+      ButtonText: 'StopLog'
+      ButtonIcon: ''
+      ButtonIconColor: ''
+      ButtonBackColor: ''
+      ButtonOnlyIcon: false
+      ButtonIconAlign: 'Left'
+      ButtonTextAlign: 'Center'

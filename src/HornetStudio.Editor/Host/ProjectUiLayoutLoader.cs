@@ -350,17 +350,6 @@ public static class ProjectUiLayoutLoader
 
             properties["CustomSignals"] = array;
         }
-        var enhancedSignals = GetSequence(control, "EnhancedSignals");
-        if (enhancedSignals is not null)
-        {
-            var array = new JsonArray();
-            foreach (var signalNode in enhancedSignals.Children.OfType<YamlMappingNode>())
-            {
-                array.Add(ConvertYamlMappingToJsonObject(signalNode));
-            }
-
-            properties["EnhancedSignals"] = array;
-        }
         if (GetSequence(control, "ControllerDefinitions") is { } controllerDefinitions)
         {
             var array = new JsonArray();

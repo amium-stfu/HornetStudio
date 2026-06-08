@@ -610,23 +610,13 @@ public partial class FolderEditorControl : UserControl
             CreateWidgetSelectionItem(ControlKind.TableControl, "WidgetTable", "Grid-based layout container for child widgets.", "TableControl.md", "TableControl.help.md"),
             CreateWidgetSelectionItem(ControlKind.CircleDisplay, "CircleDisplay", "Circular matrix and progress display widget.", "CircleDisplay.md", "CircleDisplay.help.md"),
             CreateWidgetSelectionItem(ControlKind.LogControl, "Log", "Process log viewer with filter controls.", "LogControl.md", "LogControl.help.md"),
-            CreateWidgetSelectionItem(ControlKind.CsvLoggerControl, "CsvLogger", "CSV logger with runtime recording controls.", "CsvLoggerControl.md", "CsvLoggerControl.help.md"),
-            CreateWidgetSelectionItem(ControlKind.SqlLoggerControl, "SqlLogger", "SQL logger with runtime recording controls.", "SqlLoggerControl.md", "SqlLoggerControl.help.md"),
             CreateWidgetSelectionItem(ControlKind.ChartControl, "RealtimeChart", "Live chart for numeric signal history.", "ChartControl.md", "ChartControl.help.md"),
             CreateWidgetSelectionItem(ControlKind.CameraControl, "Camera", "Camera stream widget with snapshot support.", "CameraControl.md", "CameraControl.help.md"),
             CreateWidgetSelectionItem(ControlKind.ItemClient, "ItemClient", "MQTT ItemBroker connection and attach widget.", "ItemClient.md", "ItemClient.help.md"),
             CreateWidgetSelectionItem(ControlKind.ApplicationExplorer, "ApplicationExplorer", "Application launcher and runtime overview.", "ApplicationExplorer.md", "ApplicationExplorer.help.md"),
-            CreateWidgetSelectionItem(ControlKind.CustomSignals, "CustomSignals", "Calculated and manual custom signal definitions.", "CustomSignals.md", "CustomSignals.help.md"),
-            CreateWidgetSelectionItem(ControlKind.ControllerWidget, "ControllerWidget", "PID controller definitions with runtime publication.", "ControllerWidget.md", "ControllerWidget.help.md"),
-            CreateWidgetSelectionItem(ControlKind.Monitor, "Monitor", "Threshold, timeout, and expression-based state monitoring.", "Monitor.md", "Monitor.help.md"),
             CreateWidgetSelectionItem(ControlKind.MonitorView, "MonitorView", "Readonly monitor state list for selected monitor rules.", "MonitorView.md", "MonitorView.help.md"),
             CreateWidgetSelectionItem(ControlKind.DialogWidget, "DialogWidget", "Internal overlay dialog definition.", "DialogWidget.md", "DialogWidget.help.md")
         };
-
-        if (ViewModel?.SupportsUdlClientControl == true)
-        {
-            items.Insert(10, CreateWidgetSelectionItem(ControlKind.UdlClientControl, "UdlClient", "UDL client connection and attach widget.", "UdlClientControl.md", "UdlClientControl.help.md"));
-        }
 
         return items;
     }
@@ -1116,33 +1106,10 @@ public partial class FolderEditorControl : UserControl
                 item.ShowFooter = true;
                 break;
 
-            case ControlKind.CsvLoggerControl:
-                item.Title = "CSV Logger";
-                item.ControlCaption = "Csv logger";
-                item.BodyCaption = "production_log.csv";
-                item.Footer = "3 signals | 1000 ms";
-                item.ShowFooter = true;
-                break;
-
-            case ControlKind.SqlLoggerControl:
-                item.Title = "SQL Logger";
-                item.ControlCaption = "Sql logger";
-                item.BodyCaption = "production_log.db";
-                item.Footer = "3 signals | buffered";
-                item.ShowFooter = true;
-                break;
-
             case ControlKind.CameraControl:
                 item.ControlCaption = "Camera";
                 item.BodyCaption = "Line camera";
                 item.Footer = "1920x1080 | Snapshot";
-                item.ShowFooter = true;
-                break;
-
-            case ControlKind.UdlClientControl:
-                item.ControlCaption = "UDL client";
-                item.BodyCaption = "Connected endpoint";
-                item.Footer = "192.168.178.151:9001";
                 item.ShowFooter = true;
                 break;
 
@@ -1164,20 +1131,6 @@ public partial class FolderEditorControl : UserControl
                 item.ControlCaption = "Custom signals";
                 item.BodyCaption = "Derived values";
                 item.Footer = "3 custom signals";
-                item.ShowFooter = true;
-                break;
-
-            case ControlKind.EnhancedSignals:
-                item.ControlCaption = "Enhanced signals";
-                item.BodyCaption = "Mapped values";
-                item.Footer = "2 transformed signals";
-                item.ShowFooter = true;
-                break;
-
-            case ControlKind.ControllerWidget:
-                item.ControlCaption = "Controller widget";
-                item.BodyCaption = "PID definitions";
-                item.Footer = "2 PID controllers";
                 item.ShowFooter = true;
                 break;
 
@@ -1227,12 +1180,10 @@ public partial class FolderEditorControl : UserControl
             ControlKind.CircleDisplay => 300,
             ControlKind.LogControl => 420,
             ControlKind.ChartControl => 460,
-            ControlKind.CsvLoggerControl or ControlKind.SqlLoggerControl => 320,
             ControlKind.CameraControl => 340,
-            ControlKind.UdlClientControl => 420,
             ControlKind.ItemClient => 420,
             ControlKind.ApplicationExplorer => 420,
-            ControlKind.CustomSignals or ControlKind.EnhancedSignals or ControlKind.ControllerWidget or ControlKind.Monitor or ControlKind.MonitorView or ControlKind.Functions or ControlKind.DialogWidget => 420,
+            ControlKind.CustomSignals or ControlKind.ControllerWidget or ControlKind.Monitor or ControlKind.MonitorView or ControlKind.Functions or ControlKind.DialogWidget => 420,
             _ => 260
         };
     }
@@ -1253,12 +1204,10 @@ public partial class FolderEditorControl : UserControl
             ControlKind.CircleDisplay => 300,
             ControlKind.LogControl => 260,
             ControlKind.ChartControl => 260,
-            ControlKind.CsvLoggerControl or ControlKind.SqlLoggerControl => 150,
             ControlKind.CameraControl => 220,
-            ControlKind.UdlClientControl => 190,
             ControlKind.ItemClient => 190,
             ControlKind.ApplicationExplorer => 220,
-            ControlKind.CustomSignals or ControlKind.EnhancedSignals or ControlKind.ControllerWidget or ControlKind.Monitor or ControlKind.MonitorView or ControlKind.Functions => 240,
+            ControlKind.CustomSignals or ControlKind.ControllerWidget or ControlKind.Monitor or ControlKind.MonitorView or ControlKind.Functions => 240,
             ControlKind.DialogWidget => 260,
             _ => 120
         };

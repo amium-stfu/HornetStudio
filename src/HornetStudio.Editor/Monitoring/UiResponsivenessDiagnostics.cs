@@ -9,7 +9,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 using HornetStudio.Editor.Helpers;
-using HornetStudio.Host;
+using HornetStudio.Host.Registries;
 using HornetStudio.Logging;
 
 namespace HornetStudio.Editor.Monitoring;

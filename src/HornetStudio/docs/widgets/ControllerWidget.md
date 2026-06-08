@@ -4,18 +4,22 @@
 
 `ControllerWidget`
 
-## Purpose
+## Status
 
-Manages PID controller definitions and publishes each controller as runtime items. Controller definitions can be stored in folder-local `Controllers/*.yaml` files or as widget-level data on a placed `ControllerWidget`. The Admin-only `Controllers` browser allows adding, editing, and deleting controllers without placing a widget on the canvas.
+This legacy widget type has been removed from the editor picker and canvas rendering.
+Manage controllers through the Admin `Controllers` browser and folder-local `Controllers/*.yaml` files instead.
 
-## Typical Use Cases
+## Legacy Purpose
+
+The removed widget used to manage PID controller definitions and publish each controller as runtime items. Controller definitions now belong in folder-local `Controllers/*.yaml` files and are managed through the Admin-only `Controllers` browser.
+
+## Current Use
 
 - PID loop configuration inside a folder
 - Owned runtime setpoint control through the direct value of each controller `set` item
 - Runtime start and stop control through the direct value of each controller `run` item
 - Scaled and clamped output writes to a configured target path
-- Compact controller list rows that keep type, name, and edit actions directly visible
-- File-backed controller management via the Admin `Controllers` browser without a placed widget
+- File-backed controller management via the Admin `Controllers` browser
 
 ## Key Configuration
 
@@ -39,7 +43,7 @@ The runtime exposes `run`, `read`, `set`, `out`, `state`, `alert`, and `paramete
 
 ## Storage
 
-Controller definitions are loaded from `Controllers/*.yaml` files in the folder directory. Definitions embedded in a placed `ControllerWidget` are supported as legacy fallback. File-backed definitions take precedence on duplicate names.
+Controller definitions are loaded from `Controllers/*.yaml` files in the folder directory. Definitions embedded in a placed `ControllerWidget` remain legacy fallback only. File-backed definitions take precedence on duplicate names.
 
 ## Controllers Browser
 
@@ -47,7 +51,7 @@ The Admin-only `Controllers` entry in the right legend browser panel opens the `
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/Controller/`
+- `src/HornetStudio.Editor/Persistence/Controller/`
 - `src/HornetStudio.Host/PidControllerRuntime.cs`
 - `src/HornetStudio.Host/ControllerRuntimeManager.cs`
 

@@ -2,6 +2,7 @@ using System;
 using HornetStudio.Logging;
 using ItemModel = Amium.Items.Item;
 using Amium.Items;
+using HornetStudio.Host.Registries;
 
 namespace HornetStudio.Host;
 

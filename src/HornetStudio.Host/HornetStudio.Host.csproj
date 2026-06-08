@@ -14,6 +14,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>HornetStudio.Editor</_Parameter1>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>HornetStudio.Editor.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Amium.Item" Version="2026.5.11.2132" />
     <PackageReference Include="Amium.Item.Client" Version="2026.5.11.2132" />
     <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="5.3.0" />
@@ -33,29 +42,41 @@
     <Compile Include="ProjectModel.cs" />
     <Compile Include="ProjectRoslynCompiler.cs" />
     <Compile Include="ProjectFolderBase.cs" />
-    <Compile Include="CameraRegistry.cs" />
+    <Compile Include="Registries\CameraRegistry.cs" />
     <Compile Include="Core.cs" />
-    <Compile Include="HostRegistries.cs" />
-    <Compile Include="SignalRegistry.cs" />
+    <Compile Include="Registries\HostItemRegistry.cs" />
+    <Compile Include="Registries\HostRegistries.cs" />
+    <Compile Include="Registries\SignalRegistry.cs" />
+    <Compile Include="Logging\Values\LogManager.cs" />
     <Compile Include="UdlModule.cs" />
     <Compile Include="ExtendedSignalModule.cs" />
-    <Compile Include="EnhancedSignalPathHelper.cs" />
-    <Compile Include="EnhancedSignalRuntime.cs" />
-    <Compile Include="EnhancedSignalRuntimeManager.cs" />
-    <Compile Include="PidControllerRuntime.cs" />
-    <Compile Include="ControllerRuntimeManager.cs" />
+    <Compile Include="Runtimes\EnhancedSignal\EnhancedSignalPathHelper.cs" />
+    <Compile Include="Runtimes\EnhancedSignal\EnhancedSignalRuntime.cs" />
+    <Compile Include="Runtimes\EnhancedSignal\EnhancedSignalRuntimeManager.cs" />
+    <Compile Include="Runtimes\Controller\PidControllerRuntime.cs" />
+    <Compile Include="Runtimes\Udl\UdlClientDefinition.cs" />
+    <Compile Include="Runtimes\Udl\UdlClientExposureProjection.cs" />
+    <Compile Include="Runtimes\Udl\UdlClientRegistryProjection.cs" />
+    <Compile Include="Runtimes\Udl\UdlClientRuntime.cs" />
+    <Compile Include="Runtimes\Udl\UdlClientRuntimeManager.cs" />
+    <Compile Include="Runtimes\Udl\DemoMode\UdlDemoModuleDefinition.cs" />
+    <Compile Include="Runtimes\Udl\UdlHostRegistryProjection.cs" />
+    <Compile Include="Runtimes\Udl\UdlModuleExposureDefinition.cs" />
+    <Compile Include="Runtimes\Udl\UdlPathHelper.cs" />
+    <Compile Include="Runtimes\Udl\UdlRuntimeLiveValueStore.cs" />
+    <Compile Include="Runtimes\Udl\DemoMode\SimulatedHostUdlClient.cs" />
+    <Compile Include="Runtimes\Controller\ControllerRuntimeManager.cs" />
     <Compile Include="HostUdlClient.cs" />
     <Compile Include="HostItemBrokerClient.cs" />
-    <Compile Include="CanHubRegistry.cs" />
+    <Compile Include="Registries\CanHubRegistry.cs" />
     <Compile Include="UiPublisher.cs" />
     <Compile Include="UiFolderContext.cs" />
     <Compile Include="PluginCatalog.cs" />
-    <Compile Include="VscodeLauncher.cs" />
     <Compile Include="Logging\HostLogger.cs" />
     <Compile Include="Logging\ProcessLog.cs" />
     <Compile Include="Logging\ProcessLogRuntime.cs" />
-    <Compile Include="Logging\CsvLogger.cs" />
-    <Compile Include="Logging\SqlLogger.cs" />
+    <Compile Include="Logging\Values\CsvLogger.cs" />
+    <Compile Include="Logging\Values\SqlLogger.cs" />
     <Compile Include="Python\Legacy\**\*.cs" />
     <Compile Include="Python\Client\**\*.cs" />
     <Compile Include="Helpers\**\*.cs" />

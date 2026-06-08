@@ -412,16 +412,9 @@ public partial class FolderEditorControl : UserControl
     private void OnBeginAddWidgetListClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ViewModel?.BeginSelectionAdd(ControlKind.WidgetList);
     private void OnBeginAddCircleDisplayClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ViewModel?.BeginSelectionAdd(ControlKind.CircleDisplay);
     private void OnBeginAddLogControlClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ViewModel?.BeginSelectionAdd(ControlKind.LogControl);
-    private void OnBeginAddCsvLoggerControlClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ViewModel?.BeginSelectionAdd(ControlKind.CsvLoggerControl);
-    private void OnBeginAddSqlLoggerControlClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ViewModel?.BeginSelectionAdd(ControlKind.SqlLoggerControl);
     private void OnBeginAddChartControlClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ViewModel?.BeginSelectionAdd(ControlKind.ChartControl);
     private void OnBeginAddCameraControlClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ViewModel?.BeginSelectionAdd(ControlKind.CameraControl);
-    private void OnBeginAddUdlClientControlClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ViewModel?.BeginSelectionAdd(ControlKind.UdlClientControl);
     private void OnBeginAddItemClientClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ViewModel?.BeginSelectionAdd(ControlKind.ItemClient);
-    private void OnBeginAddCustomSignalsClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ViewModel?.BeginSelectionAdd(ControlKind.CustomSignals);
-    private void OnBeginAddEnhancedSignalsClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ViewModel?.BeginSelectionAdd(ControlKind.EnhancedSignals);
-    private void OnBeginAddControllerWidgetClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ViewModel?.BeginSelectionAdd(ControlKind.ControllerWidget);
-    private void OnBeginAddMonitorClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ViewModel?.BeginSelectionAdd(ControlKind.Monitor);
     private void OnBeginAddButtonToListClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ViewModel?.BeginListAdd(ControlKind.Button);
     private void OnBeginAddSignalToListClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ViewModel?.BeginListAdd(ControlKind.Signal);
     private void OnCancelSelectionClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ViewModel?.CancelSelection();

@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using Amium.Items;
 using HornetStudio.Host;
+using HornetStudio.Host.Registries;
 using Serilog.Events;
 using ItemModel = Amium.Items.Item;
 

@@ -145,6 +145,7 @@ Then process one item at a time:
 - Keep each workitem focused on one concrete implementation topic.
 - Use `#struct` before `#plan` when the shape of the work is uncertain.
 - Use several small `#plan` calls instead of one oversized handoff.
+- Use `#clean` when readability is the goal and behavior must remain unchanged.
 - Run `#done` only after the active workitem is actually complete.
 - Do not manually reorder the queue unless the implementation order intentionally changes.
 - Do not use `active.yaml` as a changelog or status board.

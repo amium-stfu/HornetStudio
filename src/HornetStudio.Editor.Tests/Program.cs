@@ -2,23 +2,39 @@ using ItemModel = Amium.Items.Item;
 using Amium.Items;
 using Amium.Item.Client;
 using Avalonia.Media;
+using Avalonia.Interactivity;
 using HornetStudio.Editor.Controls;
 using HornetStudio.Editor.Functions;
 using HornetStudio.Editor.Monitoring;
 using HornetStudio.Editor.Models;
 using HornetStudio.Editor.Persistence;
-using HornetStudio.Editor.UdlClients;
+using HornetStudio.Editor.Persistence.ValueLog;
+using HornetStudio.Editor.Persistence.CustomControls;
+using HornetStudio.Editor.Signals;
 using HornetStudio.Editor.ViewModels;
 using HornetStudio.Editor.Widgets;
 using HornetStudio.Editor.Widgets.Workflow;
 using HornetStudio.Host;
 using HornetStudio.Host.Python.Client;
+using UdlClientDefinition = HornetStudio.Host.Runtimes.Udl.UdlClientDefinition;
+using HostUdlClientExposureProjection = HornetStudio.Host.Runtimes.Udl.UdlClientExposureProjection;
+using HostUdlDemoGeneratorKind = HornetStudio.Host.Runtimes.Udl.DemoMode.UdlDemoGeneratorKind;
+using HostUdlDemoModuleDefinition = HornetStudio.Host.Runtimes.Udl.DemoMode.UdlDemoModuleDefinition;
+using HostUdlDemoModuleKind = HornetStudio.Host.Runtimes.Udl.DemoMode.UdlDemoModuleKind;
+using HostUdlModuleExposureDefinition = HornetStudio.Host.Runtimes.Udl.UdlModuleExposureDefinition;
+using UdlRuntimeLiveValueStore = HornetStudio.Host.Runtimes.Udl.UdlRuntimeLiveValueStore;
+using SimulatedHostUdlClient = HornetStudio.Host.Runtimes.Udl.DemoMode.SimulatedHostUdlClient;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using HornetStudio.Host.Registries;
+using HornetStudio.Host.Runtimes.EnhancedSignal;
+using HornetStudio.Editor.Persistence.Udl;
+using HornetStudio.Host.Logging.Values;
+//using HornetStudio.Host.Runtimes.Udl.DemoMode;
 
 var tests = new (string Name, Action Run)[]
 {
@@ -55,6 +71,8 @@ var tests = new (string Name, Action Run)[]
     ("UDL runtime manager keeps raw items private without attach", UdlRuntimeManagerKeepsRawItemsPrivateWithoutAttach),
     ("UDL runtime manager release clears projection state", UdlRuntimeManagerReleaseClearsProjectionState),
     ("UDL runtime manager release folder clears connected runtimes", UdlRuntimeManagerReleaseFolderClearsConnectedRuntimes),
+    ("Value log browser enables draft save and switches SQL source intervals", ValueLogBrowserEnablesDraftSaveAndSwitchesSqlSourceIntervals),
+    ("Value log browser strips CSV source intervals and keeps SQL intervals", ValueLogBrowserStripsCsvSourceIntervalsAndKeepsSqlIntervals),
     ("Custom signal codec parses YAML style nodes", CustomSignalCodecParsesYamlStyleNodes),
     ("Path identity validation accepts only snake_case", PathIdentityValidationAcceptsOnlySnakeCase),
     ("Folder identity validation accepts only snake_case", FolderIdentityValidationAcceptsOnlySnakeCase),
@@ -201,9 +219,6 @@ var tests = new (string Name, Action Run)[]
     ("Monitor editor rejects duplicate EventId from central file with duplicate names", MonitorEditorRejectsDuplicateEventIdFromCentralFileWithDuplicateNames),
     ("Monitor editor rejects blank and zero EventId", MonitorEditorRejectsBlankAndZeroEventId),
     ("Monitor editor allows unchanged EventId when editing", MonitorEditorAllowsUnchangedEventIdWhenEditing),
-    ("Enhanced signal editor defaults to snake_case name", EnhancedSignalEditorDefaultsToSnakeCaseName),
-    ("Enhanced signal editor rejects uppercase name", EnhancedSignalEditorRejectsUppercaseName),
-    ("Enhanced signal runtime path uses snake_case segments", EnhancedSignalRuntimePathUsesSnakeCaseSegments),
     ("Python application runtime path uses snake_case segments", PythonApplicationRuntimePathUsesSnakeCaseSegments),
     ("Application explorer registry root uses snake_case segments", ApplicationExplorerRegistryRootUsesSnakeCaseSegments),
     ("Circle display runtime path uses snake_case segments", CircleDisplayRuntimePathUsesSnakeCaseSegments),
@@ -215,7 +230,6 @@ var tests = new (string Name, Action Run)[]
     ("LogControl YAML omits legacy log properties", LogControlYamlOmitsLegacyLogProperties),
     ("LogControl document serialization omits legacy log properties", LogControlDocumentSerializationOmitsLegacyLogProperties),
     ("LogControl ensures owned process log publication", LogControlEnsuresOwnedProcessLogPublication),
-    ("Logger runtime control constants use snake_case", LoggerRuntimeControlConstantsUseSnakeCase),
     ("Item client mode defaults to external", ItemClientModeDefaultsToExternal),
     ("Item client mode normalizes values", ItemClientModeNormalizesValues),
     ("Item client base topic allows empty", ItemClientBaseTopicAllowsEmpty),
@@ -239,10 +253,6 @@ var tests = new (string Name, Action Run)[]
     ("Item client attach option path splits dotted identity", ItemClientAttachOptionPathSplitsDottedIdentity),
     ("Broker attach normalization strips prefix before MQTT identity", BrokerAttachNormalizationStripsPrefixBeforeMqttIdentity),
     ("Item client attach selection normalizes legacy shared path", ItemClientAttachSelectionNormalizesLegacySharedPath),
-    ("UDL attach add normalizes and de-duplicates paths", UdlAttachAddNormalizesAndDeduplicatesPaths),
-    ("UDL attach remove clears selected path", UdlAttachRemoveClearsSelectedPath),
-    ("UDL received rows stay visible when attached", UdlReceivedRowsStayVisibleWhenAttached),
-    ("UDL attached items resolve via runtime registry", UdlAttachedItemsResolveViaRuntimeRegistry),
     ("UDL runtime received items stay out of registry until attach", UdlRuntimeReceivedItemsStayOutOfRegistryUntilAttach),
     ("UDL read attachment publishes value reference metadata", UdlReadAttachmentPublishesValueReferenceMetadata),
     ("UDL read attachment keeps value reference metadata after snapshot refresh", UdlReadAttachmentKeepsValueReferenceMetadataAfterSnapshotRefresh),
@@ -251,9 +261,7 @@ var tests = new (string Name, Action Run)[]
     ("UDL runtime isolates attached paths per client", UdlRuntimeIsolatesAttachedPathsPerClient),
     ("UDL set-driven demo writes feedback to read only", UdlSetDrivenDemoWritesFeedbackToReadOnly),
     ("UDL simulated demo publishes channel type metadata", UdlSimulatedDemoPublishesChannelTypeMetadata),
-    ("UDL runtime channels include registry items", UdlRuntimeChannelsIncludeRegistryItems),
     ("UDL module publishes channel type metadata", UdlModulePublishesChannelTypeMetadata),
-    ("UDL runtime exposure bits use snake_case paths", UdlRuntimeExposureBitsUseSnakeCasePaths),
     ("Target path normalization uses Studio root", TargetPathNormalizationUsesStudioRoot),
     ("Broker published item codec migrates legacy paths", BrokerPublishedItemCodecMigratesLegacyPaths),
     ("Broker published item codec keeps explicit Studio broker paths", BrokerPublishedItemCodecKeepsExplicitStudioBrokerPaths),
@@ -2158,13 +2166,63 @@ static void CustomSignalEditorRejectsUppercaseName()
 
 static void CustomSignalManualTriggerPathUsesLowercaseSuffix()
 {
-    var method = typeof(CustomSignalsControl).GetMethod("BuildManualTriggerPath", BindingFlags.NonPublic | BindingFlags.Static, null, [typeof(string)], null);
-    if (method is null)
-    {
-        throw new InvalidOperationException("BuildManualTriggerPath was not found.");
-    }
+    AssertEqual(
+        "studio.default_layout.signals.custom.signal_1.trigger",
+        CustomSignalRuntimeHelper.BuildManualTriggerPath("studio.default_layout.signals.custom.signal_1"));
+}
 
-    AssertEqual("studio.default_layout.signals.custom.signal_1.trigger", method.Invoke(null, ["studio.default_layout.signals.custom.signal_1"]));
+static void ValueLogBrowserEnablesDraftSaveAndSwitchesSqlSourceIntervals()
+{
+    var dialog = CreateValueLogDialogForTest();
+
+    InvokePrivateInstanceMethod(dialog, "OnAddSqlClicked", null, new RoutedEventArgs());
+
+    AssertTrue(dialog.CanPersistValueLog);
+    AssertTrue(dialog.ShowSourceIntervalColumn);
+    AssertFalse(dialog.ShowDefinitionInterval);
+    AssertEqual("New Sql value log", dialog.SelectedHeaderText);
+    AssertEqual("value_log.db", dialog.EditableOutputFileName);
+}
+
+static void ValueLogBrowserStripsCsvSourceIntervalsAndKeepsSqlIntervals()
+{
+    var dialog = CreateValueLogDialogForTest();
+    dialog.SourceRows.Add(new AttachItemEditorRow
+    {
+        RelativePath = "temperature|main.temperature|degC",
+        IsAttached = true,
+        IntervalMs = 250
+    });
+
+    dialog.EditableId = "value_log_1";
+    dialog.EditableOutputDirectory = "Logs";
+    dialog.EditableOutputFileName = "value_log_1";
+    dialog.EditableKind = ValueLogKind.Csv.ToString();
+
+    var csvDefinition = (ValueLogDefinition)InvokePrivateInstanceMethod(dialog, "BuildEditedDefinition")!;
+    AssertEqual(1, csvDefinition.Sources.Count);
+    AssertEqual(null, csvDefinition.Sources[0].IntervalMs);
+    AssertEqual(Path.Combine("Logs", "value_log_1.csv"), csvDefinition.OutputPath);
+    AssertEqual("Balanced", csvDefinition.PersistenceMode);
+    AssertEqual(0, csvDefinition.FlushIntervalMs);
+    AssertEqual(0, csvDefinition.FlushBatchSize);
+
+    dialog.EditableKind = ValueLogKind.Sql.ToString();
+    var sqlDefinition = (ValueLogDefinition)InvokePrivateInstanceMethod(dialog, "BuildEditedDefinition")!;
+    AssertEqual(250, sqlDefinition.Sources[0].IntervalMs);
+    AssertEqual(Path.Combine("Logs", "value_log_1.db"), sqlDefinition.OutputPath);
+    AssertEqual("Balanced", sqlDefinition.PersistenceMode);
+}
+
+static ValueLogsBrowserDialogWindow CreateValueLogDialogForTest()
+{
+    var dialog = (ValueLogsBrowserDialogWindow)RuntimeHelpers.GetUninitializedObject(typeof(ValueLogsBrowserDialogWindow));
+    SetPrivateField(dialog, "<ValueLogs>k__BackingField", new ObservableCollection<ValueLogBrowserEntry>());
+    SetPrivateField(dialog, "<SourceRows>k__BackingField", new ObservableCollection<AttachItemEditorRow>());
+    SetPrivateField(dialog, "<KindOptions>k__BackingField", new[] { "Csv", "Sql" });
+    SetPrivateField(dialog, "_sourceMetadataByTargetPath", new Dictionary<string, ValueLogSourceDefinition>(StringComparer.OrdinalIgnoreCase));
+    SetPrivateField(dialog, "_folder", new FolderModel { Name = "main" });
+    return dialog;
 }
 
 static void CustomSignalPublishSnapshotAddsTypeMetadata()
@@ -2181,8 +2239,8 @@ static void CustomSignalPublishSnapshotAddsTypeMetadata()
 
     try
     {
-        var control = (CustomSignalsControl)RuntimeHelpers.GetUninitializedObject(typeof(CustomSignalsControl));
-        var method = typeof(CustomSignalsControl).GetMethod(
+        var control = (CustomSignalsBrowserControl)RuntimeHelpers.GetUninitializedObject(typeof(CustomSignalsBrowserControl));
+        var method = typeof(CustomSignalsBrowserControl).GetMethod(
             "PublishSignalSnapshot",
             BindingFlags.Instance | BindingFlags.NonPublic,
             binder: null,
@@ -2220,8 +2278,8 @@ static void CustomSignalManualTriggerPublishesBoolTypeMetadata()
 
     try
     {
-        var control = (CustomSignalsControl)RuntimeHelpers.GetUninitializedObject(typeof(CustomSignalsControl));
-        var method = typeof(CustomSignalsControl).GetMethod(
+        var control = (CustomSignalsBrowserControl)RuntimeHelpers.GetUninitializedObject(typeof(CustomSignalsBrowserControl));
+        var method = typeof(CustomSignalsBrowserControl).GetMethod(
             "PublishManualTriggerSnapshot",
             BindingFlags.Instance | BindingFlags.NonPublic,
             binder: null,
@@ -2263,26 +2321,21 @@ static FolderItemModel CreateCustomSignalOwnerItem()
 
 static T InvokeCustomSignalsStaticMethod<T>(string methodName, params object?[] arguments)
 {
-    var parameterTypes = arguments.Select(static argument => argument?.GetType() ?? typeof(object)).ToArray();
-    var method = typeof(CustomSignalsControl).GetMethod(
-        methodName,
-        BindingFlags.Static | BindingFlags.NonPublic,
-        binder: null,
-        types: parameterTypes,
-        modifiers: null);
-    if (method is null)
+    return methodName switch
     {
-        throw new InvalidOperationException($"{methodName} was not found.");
-    }
-
-    return (T)method.Invoke(null, arguments)!;
+        "BuildRegistryPath" => (T)(object)CustomSignalRuntimeHelper.BuildRegistryPath((FolderItemModel)arguments[0]!, (CustomSignalDefinition)arguments[1]!),
+        "BuildManualTriggerPath" => arguments[0] is string registryPath
+            ? (T)(object)CustomSignalRuntimeHelper.BuildManualTriggerPath(registryPath)
+            : (T)(object)CustomSignalRuntimeHelper.BuildManualTriggerPath((FolderItemModel)arguments[0]!, (CustomSignalDefinition)arguments[1]!),
+        _ => throw new InvalidOperationException($"{methodName} was not found.")
+    };
 }
 
-static CustomSignalsControl CreateCustomSignalsControlWithSignals(FolderItemModel ownerItem, IEnumerable<CustomSignalRow> rows)
+static CustomSignalsBrowserControl CreateCustomSignalsControlWithSignals(FolderItemModel ownerItem, IEnumerable<CustomSignalRow> rows)
 {
-    var control = (CustomSignalsControl)RuntimeHelpers.GetUninitializedObject(typeof(CustomSignalsControl));
+    var control = (CustomSignalsBrowserControl)RuntimeHelpers.GetUninitializedObject(typeof(CustomSignalsBrowserControl));
 
-    var signalsBackingField = typeof(CustomSignalsControl)
+    var signalsBackingField = typeof(CustomSignalsBrowserControl)
         .GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
         .FirstOrDefault(static field => field.Name.Contains("Signals") && field.FieldType == typeof(ObservableCollection<CustomSignalRow>));
     if (signalsBackingField is null)
@@ -2293,7 +2346,7 @@ static CustomSignalsControl CreateCustomSignalsControlWithSignals(FolderItemMode
     var collection = new ObservableCollection<CustomSignalRow>(rows);
     signalsBackingField.SetValue(control, collection);
 
-    var observedItemField = typeof(CustomSignalsControl)
+    var observedItemField = typeof(CustomSignalsBrowserControl)
         .GetField("_observedItem", BindingFlags.Instance | BindingFlags.NonPublic);
     if (observedItemField is null)
     {
@@ -2304,9 +2357,9 @@ static CustomSignalsControl CreateCustomSignalsControlWithSignals(FolderItemMode
     return control;
 }
 
-static bool InvokeIsRelevantSourceChange(CustomSignalsControl control, string registryPath)
+static bool InvokeIsRelevantSourceChange(CustomSignalsBrowserControl control, string registryPath)
 {
-    var method = typeof(CustomSignalsControl).GetMethod(
+    var method = typeof(CustomSignalsBrowserControl).GetMethod(
         "IsRelevantSourceChange",
         BindingFlags.Instance | BindingFlags.NonPublic,
         binder: null,
@@ -2370,7 +2423,7 @@ static void CustomSignalEnumerateSourcePathsYieldsAllConfiguredSources()
         ]
     };
 
-    var method = typeof(CustomSignalsControl).GetMethod(
+    var method = typeof(CustomSignalsBrowserControl).GetMethod(
         "EnumerateSourcePaths",
         BindingFlags.Static | BindingFlags.NonPublic,
         binder: null,
@@ -3839,11 +3892,11 @@ static void BrowserDiagnosticsSourceIncludesFolderScope()
 
     var item = new FolderItemModel
     {
-        Name = "EnhancedSignalsBrowser"
+        Name = "CustomSignalsBrowser"
     };
     item.SetHierarchy("main2", parentItem: null);
 
-    AssertEqual("EnhancedSignalsControl[main2]", method.Invoke(null, ["EnhancedSignalsControl", item]));
+    AssertEqual("CustomSignalsBrowserControl[main2]", method.Invoke(null, ["CustomSignalsBrowserControl", item]));
 }
 
 static void BrowserDiagnosticsSourceFallsBackToItemName()
@@ -5480,50 +5533,6 @@ static void MonitorWriteLogResolvesRelativeOwnedLogPath()
     AssertEqual("[1001] Relative log write", warningEntry?.Message);
 }
 
-static void EnhancedSignalEditorDefaultsToSnakeCaseName()
-{
-    var ownerItem = new FolderItemModel
-    {
-        EnhancedSignalDefinitions = ExtendedSignalDefinitionCodec.SerializeDefinitions(
-        [
-            new ExtendedSignalDefinition
-            {
-                Name = "enhanced_signal_1",
-                SourcePath = "studio.default_layout.signal_1"
-            }
-        ])
-    };
-
-    var viewModel = new EnhancedSignalEditorDialogViewModel(mainWindowViewModel: null, ownerItem, definition: null);
-
-    AssertEqual("enhanced_signal_2", viewModel.Name);
-}
-
-static void EnhancedSignalEditorRejectsUppercaseName()
-{
-    var viewModel = new EnhancedSignalEditorDialogViewModel(mainWindowViewModel: null, new FolderItemModel(), definition: null)
-    {
-        Name = "EnhancedSignal1",
-        SourcePath = "studio.default_layout.signal_1"
-    };
-
-    AssertFalse(viewModel.TryBuildDefinition(out _, out var errorMessage));
-    AssertTrue(errorMessage.Contains("snake_case", StringComparison.Ordinal));
-}
-
-static void EnhancedSignalRuntimePathUsesSnakeCaseSegments()
-{
-    var definition = new ExtendedSignalDefinition
-    {
-        Name = "enhanced_signal_1",
-        SourcePath = "studio.default_layout.signal_1"
-    };
-
-    AssertEqual(
-        "studio.default_layout.enhanced_signals.enhanced_signal_1",
-        EnhancedSignalRuntime.BuildRegistryPath("default_layout", definition));
-}
-
 static void PythonApplicationRuntimePathUsesSnakeCaseSegments()
 {
     var method = typeof(FolderItemModel).GetMethod("GetScriptRuntimePath", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -5763,21 +5772,6 @@ static void LogControlEnsuresOwnedProcessLogPublication()
         AssertTrue(HostRegistries.Data.TryResolve($"{ownedPath}.{level}", out var inputItem));
         AssertEqual(true, inputItem?.Properties["writable"].Value);
     }
-}
-
-static void LoggerRuntimeControlConstantsUseSnakeCase()
-{
-    AssertEqual("record", GetPrivateConstString(typeof(EditorCsvLoggerControl), "RecordItemName"));
-    AssertEqual("output_path", GetPrivateConstString(typeof(EditorCsvLoggerControl), "OutputPathItemName"));
-    AssertEqual("is_recording", GetPrivateConstString(typeof(EditorCsvLoggerControl), "IsRecordingItemName"));
-    AssertEqual("last_file", GetPrivateConstString(typeof(EditorCsvLoggerControl), "LastFileItemName"));
-    AssertEqual("status", GetPrivateConstString(typeof(EditorCsvLoggerControl), "StatusItemName"));
-
-    AssertEqual("record", GetPrivateConstString(typeof(EditorSqlLoggerControl), "RecordItemName"));
-    AssertEqual("output_path", GetPrivateConstString(typeof(EditorSqlLoggerControl), "OutputPathItemName"));
-    AssertEqual("is_recording", GetPrivateConstString(typeof(EditorSqlLoggerControl), "IsRecordingItemName"));
-    AssertEqual("last_file", GetPrivateConstString(typeof(EditorSqlLoggerControl), "LastFileItemName"));
-    AssertEqual("status", GetPrivateConstString(typeof(EditorSqlLoggerControl), "StatusItemName"));
 }
 
 static void SetFolderName(FolderItemModel item, string folderName)
@@ -6360,90 +6354,6 @@ static void ItemClientAttachSelectionNormalizesLegacySharedPath()
     AssertEqual(false, field.AttachItemEntries[0].IsMissing);
 }
 
-static void UdlAttachAddNormalizesAndDeduplicatesPaths()
-{
-    var method = typeof(UdlClientControl).GetMethod("AddAttachedPath", BindingFlags.NonPublic | BindingFlags.Static);
-    if (method is null)
-    {
-        throw new InvalidOperationException("AddAttachedPath was not found.");
-    }
-
-    var updated = (string)method.Invoke(null, ["project.default_layout.ModuleA", "studio.default_layout.ModuleA"])!;
-    AssertEqual("studio.default_layout.module_a", updated);
-
-    updated = (string)method.Invoke(null, [updated, "studio.default_layout.ModuleA.SubItem"])!;
-    AssertEqual("studio.default_layout.module_a", updated);
-}
-
-static void UdlAttachRemoveClearsSelectedPath()
-{
-    var method = typeof(UdlClientControl).GetMethod("RemoveAttachedPath", BindingFlags.NonPublic | BindingFlags.Static);
-    if (method is null)
-    {
-        throw new InvalidOperationException("RemoveAttachedPath was not found.");
-    }
-
-    var updated = (string)method.Invoke(null, ["studio.default_layout.ModuleA\r\nstudio.default_layout.ModuleB", "project.default_layout.ModuleA"])!;
-    AssertEqual("studio.default_layout.module_b", updated);
-
-    updated = (string)method.Invoke(null, [updated, "studio.default_layout.ModuleB"])!;
-    AssertEqual(string.Empty, updated);
-}
-
-static void UdlReceivedRowsStayVisibleWhenAttached()
-{
-    var method = typeof(UdlClientControl).GetMethod("BuildReceivedAttachSectionRows", BindingFlags.NonPublic | BindingFlags.Static);
-    if (method is null)
-    {
-        throw new InvalidOperationException("BuildReceivedAttachSectionRows was not found.");
-    }
-
-    var ownerItem = new FolderItemModel { Kind = ControlKind.UdlClientControl, Name = "udl_client_control" };
-    ownerItem.SetHierarchy("default_layout", null);
-    var detachedRows = (IReadOnlyList<UdlClientAttachSectionRow>)method.Invoke(null, [ownerItem, new[] { "m310" }, new HashSet<string>(StringComparer.OrdinalIgnoreCase)])!;
-
-    AssertEqual(1, detachedRows.Count);
-    AssertEqual("m310", detachedRows[0].RelativePath);
-    AssertEqual("Attach", detachedRows[0].ActionText);
-    AssertEqual(true, detachedRows[0].CanExecuteAction);
-
-    var attachedRows = (IReadOnlyList<UdlClientAttachSectionRow>)method.Invoke(null, [ownerItem, new[] { "m310" }, new HashSet<string>(["m310"], StringComparer.OrdinalIgnoreCase)])!;
-
-    AssertEqual(1, attachedRows.Count);
-    AssertEqual("m310", attachedRows[0].RelativePath);
-    AssertEqual("Attached", attachedRows[0].ActionText);
-    AssertEqual(false, attachedRows[0].CanExecuteAction);
-}
-
-static void UdlAttachedItemsResolveViaRuntimeRegistry()
-{
-    var method = typeof(UdlClientControl).GetMethod("ResolveRuntimeItemFromSources", BindingFlags.NonPublic | BindingFlags.Static);
-    if (method is null)
-    {
-        throw new InvalidOperationException("ResolveRuntimeItemFromSources was not found.");
-    }
-
-    var ownerItem = new FolderItemModel { Kind = ControlKind.UdlClientControl, Name = "udl_client_control" };
-    ownerItem.SetHierarchy("default_layout", null);
-
-    var runtimePath = "runtime.udl_client.udl_client_control.m310";
-    HostRegistries.Data.Remove(runtimePath);
-
-    try
-    {
-        var runtimeItem = ItemExtension.CreateWithPath(runtimePath);
-        HostRegistries.Data.UpsertSnapshot(runtimePath, runtimeItem, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
-
-        var resolved = (ItemModel?)method.Invoke(null, [ownerItem, Array.Empty<ItemModel>(), "m310"]);
-        AssertTrue(resolved is not null);
-        AssertEqual(runtimePath, resolved!.Path);
-    }
-    finally
-    {
-        HostRegistries.Data.Remove(runtimePath);
-    }
-}
-
 static void UdlRuntimeReceivedItemsStayOutOfRegistryUntilAttach()
 {
     const string attachedPath = "studio.default_layout.udl_client_control.m001";
@@ -6739,10 +6649,10 @@ static void UdlRuntimeIsolatesAttachedPathsPerClient()
 
 static void UdlSetDrivenDemoWritesFeedbackToReadOnly()
 {
-    var definition = new UdlDemoModuleDefinition
+    var definition = new HostUdlDemoModuleDefinition
     {
         Name = "m001",
-        Kind = UdlDemoModuleKind.SetDriven,
+        Kind = HostUdlDemoModuleKind.SetDriven,
         InitialValue = 0,
         SetScale = 1,
         SetOffset = 0,
@@ -6775,10 +6685,10 @@ static void UdlSetDrivenDemoWritesFeedbackToReadOnly()
 
 static void UdlSimulatedDemoPublishesChannelTypeMetadata()
 {
-    var definition = new UdlDemoModuleDefinition
+    var definition = new HostUdlDemoModuleDefinition
     {
         Name = "m001",
-        Kind = UdlDemoModuleKind.SetDriven,
+        Kind = HostUdlDemoModuleKind.SetDriven,
         InitialValue = 0
     };
 
@@ -6802,42 +6712,6 @@ static void UdlSimulatedDemoPublishesChannelTypeMetadata()
     finally
     {
         client.DisconnectAsync().GetAwaiter().GetResult();
-    }
-}
-
-static void UdlRuntimeChannelsIncludeRegistryItems()
-{
-    var method = typeof(UdlClientControl).GetMethod("BuildRuntimeChannelDescriptors", BindingFlags.NonPublic | BindingFlags.Static);
-    if (method is null)
-    {
-        throw new InvalidOperationException("BuildRuntimeChannelDescriptors was not found.");
-    }
-
-    var ownerItem = new FolderItemModel { Kind = ControlKind.UdlClientControl, Name = "udl_client_control" };
-    ownerItem.SetHierarchy("default_layout", null);
-
-    var runtimeChannelPath = "runtime.udl_client.udl_client_control.m310.read";
-    HostRegistries.Data.Remove("runtime.udl_client.udl_client_control.m310");
-
-    try
-    {
-        var runtimeChannel = ItemExtension.CreateWithPath(runtimeChannelPath);
-        runtimeChannel.Properties["format"].Value = "b16";
-        runtimeChannel.Properties["unit"].Value = "raw";
-        HostRegistries.Data.UpsertSnapshot(runtimeChannelPath, runtimeChannel, DataRegistryItemMetadata.PublicData(), pruneMissingMembers: true);
-
-        var descriptors = ((IReadOnlyList<UdlRuntimeModuleChannelDescriptor>)method.Invoke(null, [ownerItem, Array.Empty<ItemModel>()])!).ToArray();
-        var descriptor = descriptors.FirstOrDefault(candidate => string.Equals(candidate.ModuleName, "m310", StringComparison.OrdinalIgnoreCase)
-            && string.Equals(candidate.ChannelName, "read", StringComparison.OrdinalIgnoreCase));
-
-        AssertTrue(descriptor is not null);
-        AssertEqual("b16", descriptor!.Format);
-        AssertEqual("raw", descriptor.Unit);
-        AssertEqual(16, descriptor.BitCount);
-    }
-    finally
-    {
-        HostRegistries.Data.Remove("runtime.udl_client.udl_client_control.m310");
     }
 }
 
@@ -6871,58 +6745,21 @@ static void UdlModulePublishesChannelTypeMetadata()
     AssertEqual("int", module["alert"].Properties["type"].Value);
 }
 
-static void UdlRuntimeExposureBitsUseSnakeCasePaths()
-{
-    var method = typeof(UdlClientControl).GetMethod("UpsertRuntimeExposureBits", BindingFlags.NonPublic | BindingFlags.Instance);
-    if (method is null)
-    {
-        throw new InvalidOperationException("UpsertRuntimeExposureBits was not found.");
-    }
-
-    var control = (UdlClientControl)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(UdlClientControl));
-    var runtimeChannel = new ItemModel("read", path: "runtime.udl_client.udl_client_control.m002");
-    runtimeChannel.Properties["read"].Value = 5;
-    runtimeChannel.Properties["format"].Value = "b4";
-
-    var definition = new UdlModuleExposureDefinition
-    {
-        ModuleName = "m002",
-        ChannelName = "read",
-        ExposeBits = true,
-        BitCount = 4,
-        BitLabels = "Bit0=Ready\nBit2=Fault"
-    };
-
-    method.Invoke(control, [runtimeChannel, definition, 4]);
-
-    AssertTrue(runtimeChannel.Has("bits"));
-    AssertTrue(runtimeChannel["bits"].Has("bit0"));
-    AssertTrue(runtimeChannel.GetDictionary().ContainsKey("bits"));
-    AssertTrue(runtimeChannel["bits"].GetDictionary().ContainsKey("bit0"));
-    AssertEqual(true, runtimeChannel["bits"]["bit0"].Value);
-    AssertEqual(false, runtimeChannel["bits"]["bit1"].Value);
-    AssertEqual(true, runtimeChannel["bits"]["bit2"].Value);
-    AssertEqual("Ready", runtimeChannel["bits"]["bit0"].Properties["title"].Value);
-    AssertEqual("m002", runtimeChannel["bits"]["bit0"].Properties["module_name"].Value);
-    AssertEqual("read", runtimeChannel["bits"]["bit0"].Properties["channel_name"].Value);
-    AssertEqual(0, runtimeChannel["bits"]["bit0"].Properties["bit_index"].Value);
-}
-
 static void UdlExposureProjectionDetectsActiveBitExposures()
 {
-    AssertFalse(UdlClientExposureProjection.HasActiveBitExposures(Array.Empty<UdlModuleExposureDefinition>()));
-    AssertFalse(UdlClientExposureProjection.HasActiveBitExposures(
+    AssertFalse(HostUdlClientExposureProjection.HasActiveBitExposures(Array.Empty<HostUdlModuleExposureDefinition>()));
+    AssertFalse(HostUdlClientExposureProjection.HasActiveBitExposures(
     [
-        new UdlModuleExposureDefinition
+        new HostUdlModuleExposureDefinition
         {
             ModuleName = "m001",
             ChannelName = "read",
             RouteReadInputToSetRequest = true
         }
     ]));
-    AssertTrue(UdlClientExposureProjection.HasActiveBitExposures(
+    AssertTrue(HostUdlClientExposureProjection.HasActiveBitExposures(
     [
-        new UdlModuleExposureDefinition
+        new HostUdlModuleExposureDefinition
         {
             ModuleName = "m001",
             ChannelName = "read",
@@ -6933,10 +6770,10 @@ static void UdlExposureProjectionDetectsActiveBitExposures()
 
 static void UdlSimulatedDemoSchedulerKeepsPeriodicCadenceUnderHandlerLoad()
 {
-    var definition = new UdlDemoModuleDefinition
+    var definition = new HostUdlDemoModuleDefinition
     {
         Name = "m001",
-        Kind = UdlDemoModuleKind.SetDriven,
+        Kind = HostUdlDemoModuleKind.SetDriven,
         InitialValue = 0,
         SetScale = 1,
         SetOffset = 0,
@@ -7084,7 +6921,7 @@ static IDisposable CreateUdlRuntime(
     bool demoEnabled,
     IReadOnlyList<UdlDemoModuleDefinition> definitions)
 {
-    var runtimeType = typeof(UdlClientControl).Assembly.GetType("HornetStudio.Editor.Widgets.UdlClientRuntime");
+    var runtimeType = typeof(UdlClientDefinition).Assembly.GetType("HornetStudio.Host.Runtimes.Udl.UdlClientRuntime");
     if (runtimeType is null)
     {
         throw new InvalidOperationException("UdlClientRuntime type was not found.");
@@ -7113,7 +6950,7 @@ static IReadOnlyList<string> GetUdlRuntimeReceivedRootPaths(IDisposable runtime)
 
 static IDisposable CreateUdlHostRegistryProjection(string folderName, string clientName)
 {
-    var projectionType = typeof(UdlClientControl).Assembly.GetType("HornetStudio.Editor.Widgets.UdlHostRegistryProjection");
+    var projectionType = typeof(UdlClientDefinition).Assembly.GetType("HornetStudio.Host.Runtimes.Udl.UdlHostRegistryProjection");
     if (projectionType is null)
     {
         throw new InvalidOperationException("UdlHostRegistryProjection type was not found.");
@@ -7896,8 +7733,8 @@ static void SignalLiveValueStoreResolvesUdlValueReference()
     publicItem.Properties["valueRefParameter"].Value = "read";
 
     HostRegistries.Data.UpsertSnapshot(publicPath, publicItem);
-    UdlClientLiveValueStore.ClearScope("main", "udl1");
-    UdlClientLiveValueStore.UpdateProperty("main", "udl1", runtimePath, "read", 42d);
+    UdlRuntimeLiveValueStore.ClearScope("main", "udl1");
+    UdlRuntimeLiveValueStore.UpdateProperty("main", "udl1", runtimePath, "read", 42d);
 
     try
     {
@@ -7912,7 +7749,7 @@ static void SignalLiveValueStoreResolvesUdlValueReference()
     }
     finally
     {
-        UdlClientLiveValueStore.ClearScope("main", "udl1");
+        UdlRuntimeLiveValueStore.ClearScope("main", "udl1");
         HostRegistries.Data.Remove(publicPath);
     }
 }
@@ -7928,7 +7765,7 @@ static void SignalLiveValueSchedulerAppliesLatestWins()
     publicItem.Properties["valueRefParameter"].Value = "read";
 
     HostRegistries.Data.UpsertSnapshot(publicPath, publicItem);
-    UdlClientLiveValueStore.ClearScope("main", "udl1");
+    UdlRuntimeLiveValueStore.ClearScope("main", "udl1");
 
     try
     {
@@ -7939,8 +7776,8 @@ static void SignalLiveValueSchedulerAppliesLatestWins()
             TargetPath = publicPath,
         };
 
-        UdlClientLiveValueStore.UpdateProperty("main", "udl1", runtimePath, "read", 2d);
-        UdlClientLiveValueStore.UpdateProperty("main", "udl1", runtimePath, "read", 3d);
+        UdlRuntimeLiveValueStore.UpdateProperty("main", "udl1", runtimePath, "read", 2d);
+        UdlRuntimeLiveValueStore.UpdateProperty("main", "udl1", runtimePath, "read", 3d);
 
         AssertTrue(signal.ApplyScheduledSignalValueRefresh(DateTimeOffset.UtcNow));
         AssertEqual(3d, signal.TargetPropertyView.Property?.Value);
@@ -7948,7 +7785,7 @@ static void SignalLiveValueSchedulerAppliesLatestWins()
     }
     finally
     {
-        UdlClientLiveValueStore.ClearScope("main", "udl1");
+        UdlRuntimeLiveValueStore.ClearScope("main", "udl1");
         HostRegistries.Data.Remove(publicPath);
     }
 }
@@ -9915,6 +9752,28 @@ static string CreateTemporaryDirectory()
     return directory;
 }
 
+static object? InvokePrivateInstanceMethod(object instance, string methodName, params object?[] arguments)
+{
+    var method = instance.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
+    if (method is null)
+    {
+        throw new InvalidOperationException($"Could not find instance method '{methodName}' on '{instance.GetType().FullName}'.");
+    }
+
+    return method.Invoke(instance, arguments);
+}
+
+static void SetPrivateField(object instance, string fieldName, object? value)
+{
+    var field = instance.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+    if (field is null)
+    {
+        throw new InvalidOperationException($"Could not find field '{fieldName}' on '{instance.GetType().FullName}'.");
+    }
+
+    field.SetValue(instance, value);
+}
+
 static string FindRepositoryRoot()
 {
     var directory = new DirectoryInfo(AppContext.BaseDirectory);
@@ -9934,7 +9793,7 @@ static string FindRepositoryRoot()
 
 static Type GetUdlRuntimeManagerType()
 {
-    return typeof(UdlClientControl).Assembly.GetType("HornetStudio.Editor.UdlClients.UdlClientRuntimeManager")
+    return typeof(UdlClientDefinition).Assembly.GetType("HornetStudio.Host.Runtimes.Udl.UdlClientRuntimeManager")
         ?? throw new InvalidOperationException("UdlClientRuntimeManager type was not found.");
 }
 
@@ -10001,17 +9860,6 @@ static EditorDialogField CreateInteractionRuleField()
     };
 
     return definition.CreateField(item);
-}
-
-static string? GetPrivateConstString(Type type, string fieldName)
-{
-    var field = type.GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Static);
-    if (field is null)
-    {
-        throw new InvalidOperationException($"Field '{fieldName}' was not found on '{type.Name}'.");
-    }
-
-    return field.GetRawConstantValue()?.ToString();
 }
 
 static void SetUiDiagnosticsEnabledForTest(bool enabled)

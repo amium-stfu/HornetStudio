@@ -10,7 +10,7 @@ using Avalonia.Threading;
 using Avalonia.Interactivity;
 using HornetStudio.Editor.Models;
 using HornetStudio.Editor.Controls;
-using HornetStudio.Host;
+using HornetStudio.Host.Registries;
 
 namespace HornetStudio.Editor.Widgets;
 

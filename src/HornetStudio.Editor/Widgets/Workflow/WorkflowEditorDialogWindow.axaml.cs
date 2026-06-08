@@ -16,7 +16,7 @@ using HornetStudio.Editor.Models;
 using HornetStudio.Editor.ViewModels;
 using HornetStudio.Editor.Widgets.Common;
 using HornetStudio.Editor.Widgets.Workflow;
-using HornetStudio.Host;
+using HornetStudio.Host.Registries;
 
 namespace HornetStudio.Editor.Widgets;
 
@@ -770,7 +770,7 @@ public partial class FunctionEditorDialogWindow : Window, INotifyPropertyChanged
 
         foreach (var candidatePath in TargetPathHelper.EnumerateResolutionCandidates(targetPath, _ownerItem.FolderName))
         {
-            if (HornetStudio.Host.HostRegistries.Data.TryResolve(candidatePath, out item) && item is not null)
+            if (HostRegistries.Data.TryResolve(candidatePath, out item) && item is not null)
             {
                 return true;
             }
@@ -778,7 +778,7 @@ public partial class FunctionEditorDialogWindow : Window, INotifyPropertyChanged
 
         foreach (var candidatePath in TargetPathHelper.EnumerateItemBrokerRuntimeCandidates(targetPath))
         {
-            if (HornetStudio.Host.HostRegistries.Data.TryResolve(candidatePath, out item) && item is not null)
+            if (HostRegistries.Data.TryResolve(candidatePath, out item) && item is not null)
             {
                 return true;
             }
@@ -802,7 +802,7 @@ public partial class FunctionEditorDialogWindow : Window, INotifyPropertyChanged
         }
 
         var firstParameter = targetItem.Properties.GetDictionary().Keys
-            .Where(HornetStudio.Host.HostRegistryPropertyPolicy.CanShowInUserPicker)
+            .Where(HostRegistryPropertyPolicy.CanShowInUserPicker)
             .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
             .FirstOrDefault();
         return firstParameter is null ? null : targetItem.Properties[firstParameter];

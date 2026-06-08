@@ -35,7 +35,6 @@ public sealed class FolderScreenDocument
 
 public sealed class FolderItemDocument
 {
-    private List<ExtendedSignalDefinitionDocument> _enhancedSignals = [];
 
     public ControlKind Kind { get; init; }
 
@@ -152,13 +151,6 @@ public sealed class FolderItemDocument
     public string Applications { get; init; } = string.Empty;
 
     public List<CustomSignalDefinitionDocument> CustomSignals { get; init; } = [];
-
-    [JsonPropertyName("EnhancedSignals")]
-    public List<ExtendedSignalDefinitionDocument> EnhancedSignals
-    {
-        get => _enhancedSignals;
-        init => _enhancedSignals = value ?? [];
-    }
 
     [JsonPropertyName("ControllerDefinitions")]
     public List<ControllerDefinitionDocument> ControllerDefinitions { get; init; } = [];

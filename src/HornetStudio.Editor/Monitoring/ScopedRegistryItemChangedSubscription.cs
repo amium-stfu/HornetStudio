@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using HornetStudio.Editor.Helpers;
-using HornetStudio.Host;
+using HornetStudio.Host.Registries;
 
 namespace HornetStudio.Editor.Monitoring;
 

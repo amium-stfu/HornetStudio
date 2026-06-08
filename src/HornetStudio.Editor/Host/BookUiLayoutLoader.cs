@@ -361,28 +361,6 @@ public static class ProjectUiLayoutLoader
 
             properties["CustomSignals"] = array;
         }
-        var enhancedSignals = GetSequence(control, "EnhancedSignals");
-        if (enhancedSignals is not null)
-        {
-            var array = new JsonArray();
-            foreach (var signalNode in enhancedSignals.Children.OfType<YamlMappingNode>())
-            {
-                var signal = new JsonObject();
-                foreach (var entry in signalNode.Children)
-                {
-                    if (entry.Key is not YamlScalarNode keyNode)
-                    {
-                        continue;
-                    }
-
-                    SetPropertyIfPresent(signal, keyNode.Value ?? string.Empty, entry.Value is YamlScalarNode scalar ? ParseScalar(scalar.Value) : null);
-                }
-
-                array.Add(signal);
-            }
-
-            properties["EnhancedSignals"] = array;
-        }
         if (GetSequence(control, "ControllerDefinitions") is { } controllerDefinitions)
         {
             var array = new JsonArray();

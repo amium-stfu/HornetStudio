@@ -11,10 +11,10 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using HornetStudio.Editor.Controls;
-using HornetStudio.Host;
 using HornetStudio.Logging;
 using HornetStudio.Editor.Models;
 using HornetStudio.Editor.ViewModels;
+using HornetStudio.Host.Registries;
 
 namespace HornetStudio.Editor.Widgets;
 

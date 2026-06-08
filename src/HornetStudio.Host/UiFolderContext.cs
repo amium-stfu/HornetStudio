@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Threading;
 using ItemModel = Amium.Items.Item;
 using Amium.Items;
+using HornetStudio.Host.Registries;
 
 namespace HornetStudio.Host;
 

@@ -9,7 +9,7 @@ internal static class SignalValueUiScheduler
 {
     private static readonly object Sync = new();
     private static readonly Dictionary<string, WeakReference<FolderItemModel>> Subscribers = new(StringComparer.Ordinal);
-    private static readonly TimeSpan TickInterval = TimeSpan.FromMilliseconds(100);
+    private static readonly TimeSpan TickInterval = TimeSpan.FromMilliseconds(10);
     private static DispatcherTimer? _timer;
 
     internal static void Subscribe(FolderItemModel item)

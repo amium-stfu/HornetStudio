@@ -7,6 +7,7 @@ using System.Linq;
 using System.Runtime.Versioning;
 using AForge.Video;
 using AForge.Video.DirectShow;
+using HornetStudio.Host.Registries;
 using HornetStudio.Logging;
 
 namespace HornetStudio.Host.Helpers;

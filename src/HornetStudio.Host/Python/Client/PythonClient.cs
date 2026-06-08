@@ -7,6 +7,7 @@ using System.Text.Json.Serialization;
 using ItemModel = Amium.Items.Item;
 using Amium.Items;
 using HornetStudio.Logging;
+using HornetStudio.Host.Registries;
 
 namespace HornetStudio.Host.Python.Client;
 

@@ -24,7 +24,7 @@ When enabled, the application logs only meaningful UI thread latency spikes and 
 
 1. Start HornetStudio with diagnostics disabled and confirm that no responsiveness-specific log lines are written during normal use.
 2. Restart HornetStudio with diagnostics enabled.
-3. Reproduce the suspected issue in these situations: idle main window, a page without browser widgets, a page with browser widgets, a visible realtime chart, and opening browser dialogs such as Functions, Monitor, Custom Signals, Enhanced Signals, or Controllers.
+3. Reproduce the suspected issue in these situations: idle main window, a page without browser widgets, a page with browser widgets, a visible realtime chart, and opening browser dialogs such as Functions, Monitor, Custom Signals, or Controllers.
 4. Note the timestamps of any `UI responsiveness spike`, `UI diagnostic timing`, or `Browser UI diagnostics` log entries.
 5. Find the running HornetStudio process id.
 6. Run `dotnet-counters monitor --process-id <PID> System.Runtime` in a separate terminal.
@@ -80,7 +80,7 @@ Interpret the initial soft budgets like this:
 - `Warn`: at least one soft budget was exceeded and should be tracked across comparable manual runs
 - `Fail`: a metric exceeded the current fail threshold and likely indicates a strong regression or a benchmark run dominated by a visible stall
 
-For browser-heavy pages, inspect the `UI benchmark browser summary` lines together with the overall summary. Browser control sources now include the owning folder or browser scope in brackets, for example `EnhancedSignalsControl[main2]`, so multi-folder runs can be compared per visible surface instead of only per control class. High `RegistryEventsPerSecond` values indicate that one browser control still receives too much runtime traffic. High `IgnoredRatio` values indicate that the control receives many scoped events that are still filtered locally and may need tighter source/runtime prefixes. `TopRegistryPrefixes` and `TopRegistryKeys` identify the dominant folder/domain and exact hot keys behind the load.
+For browser-heavy pages, inspect the `UI benchmark browser summary` lines together with the overall summary. Browser control sources now include the owning folder or browser scope in brackets, for example `CustomSignalsBrowserControl[main2]`, so multi-folder runs can be compared per visible surface instead of only per control class. High `RegistryEventsPerSecond` values indicate that one browser control still receives too much runtime traffic. High `IgnoredRatio` values indicate that the control receives many scoped events that are still filtered locally and may need tighter source/runtime prefixes. `TopRegistryPrefixes` and `TopRegistryKeys` identify the dominant folder/domain and exact hot keys behind the load.
 
 Treat startup attribution and steady-state responsiveness as separate readings during multi-folder runs. Use the `UI startup phase` lines and the `StartupPhase` timing summaries to identify which connect, registration, or status propagation phase caused an early stall. Then use the post-warmup `UI benchmark summary` values to judge whether steady-state responsiveness recovered after startup settled.
 

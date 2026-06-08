@@ -5,50 +5,6 @@ Screens:
   30: 'ResourcesScreen'
 Controls:
   -
-    Type: 'UdlClientControl'
-    Screen: '30'
-    Enabled: true
-    Identity:
-      Name: 'udl1'
-      Text: 'Udl1'
-      Path: 'udl1'
-      Id: '62ed150e6b754e8b810d32aa6d9b4c38'
-    Bounds:
-      X: 18
-      Y: 94
-      Width: 389
-      Height: 262
-    Design:
-      CornerRadius: 12
-      BorderWidth: 1
-      BorderColor: null
-      BackColor: null
-      ToolTip: ''
-    Header:
-      ControlCaption: ''
-      SyncText: true
-      HeaderForeColor: null
-      CaptionVisible: true
-      HeaderCornerRadius: 6
-      HeaderBorderWidth: 0
-      HeaderBorderColor: null
-      HeaderBackColor: null
-    Body:
-      BodyCaption: ''
-      BodyCaptionPosition: 'Top'
-      BodyForeColor: null
-      BodyCaptionVisible: false
-      BodyCornerRadius: 0
-      BodyBorderWidth: 0
-      BodyBorderColor: null
-      BodyBackColor: null
-    Footer:
-      ShowFooter: false
-      FooterCornerRadius: 6
-      FooterBorderWidth: 0
-      FooterBorderColor: null
-      FooterBackColor: null
-  -
     Type: 'Signal'
     Screen: '1'
     Enabled: true
@@ -1089,118 +1045,6 @@ Controls:
       IsReadOnly: false
       RefreshRateMs: '1000'
   -
-    Type: 'CsvLoggerControl'
-    Screen: '9'
-    Enabled: true
-    Identity:
-      Name: 'csv_logger_control_1'
-      Text: 'csv_logger_control_1'
-      Path: 'csv_logger_control_1'
-      Id: '10f373e6ebe0418e9bc900511ac04e4d'
-    Bounds:
-      X: 11
-      Y: 19
-      Width: 275.4
-      Height: 120
-    Design:
-      CornerRadius: 12
-      BorderWidth: 1
-      BorderColor: null
-      BackColor: null
-      ToolTip: ''
-    Header:
-      ControlCaption: 'CsvLogger'
-      SyncText: true
-      HeaderForeColor: null
-      CaptionVisible: true
-      HeaderCornerRadius: 6
-      HeaderBorderWidth: 0
-      HeaderBorderColor: null
-      HeaderBackColor: null
-    Body:
-      BodyCaption: '20260519_212250_Dummy3.csv'
-      BodyCaptionPosition: 'Top'
-      BodyForeColor: null
-      BodyCaptionVisible: false
-      BodyCornerRadius: 0
-      BodyBorderWidth: 0
-      BodyBorderColor: null
-      BodyBackColor: null
-    Footer:
-      ShowFooter: true
-      FooterCornerRadius: 6
-      FooterBorderWidth: 0
-      FooterBorderColor: null
-      FooterBackColor: null
-    Properties:
-      CsvDirectory: 'Logs/main/csv'
-      CsvFilename: 'Dummy3.csv'
-      CsvAddTimestamp: true
-      CsvIntervalMs: '1000'
-      CsvSignalPaths: 'signal_1_set|udl1.m001.set|ppm|1000\nsignal_1|udl1.m001.read|ppm|1000\nsignal_2_set|enhanced_signals.filtered_1.set||1000\nsignal_2|enhanced_signals.filtered_1||1000\nsignal_3|item_client_1.edm1.pressure|hPa|1000\nsignal_4|custom_signals.demo_number||1000\nsignal_5|applications.python.raw.raw_a|V|1000'
-      CsvSplitDaily: false
-      CsvSplitDailyTime: '00:00:00'
-      CsvSplitMaxFileSizeMb: '0'
-      CsvPersistenceMode: 'Balanced'
-      CsvFlushIntervalMs: '0'
-      CsvFlushBatchSize: '0'
-  -
-    Type: 'SqlLoggerControl'
-    Screen: '9'
-    Enabled: true
-    Identity:
-      Name: 'sql_logger_control_1'
-      Text: 'sql_logger_control_1'
-      Path: 'sql_logger_control_1'
-      Id: '47f51ceb08634fa797eb057f7253bff4'
-    Bounds:
-      X: 11
-      Y: 157
-      Width: 319
-      Height: 120
-    Design:
-      CornerRadius: 12
-      BorderWidth: 1
-      BorderColor: null
-      BackColor: null
-      ToolTip: ''
-    Header:
-      ControlCaption: 'SqlLogger'
-      SyncText: true
-      HeaderForeColor: null
-      CaptionVisible: true
-      HeaderCornerRadius: 6
-      HeaderBorderWidth: 0
-      HeaderBorderColor: null
-      HeaderBackColor: null
-    Body:
-      BodyCaption: '20260515_224711_dummy.db'
-      BodyCaptionPosition: 'Top'
-      BodyForeColor: null
-      BodyCaptionVisible: false
-      BodyCornerRadius: 0
-      BodyBorderWidth: 0
-      BodyBorderColor: null
-      BodyBackColor: null
-    Footer:
-      ShowFooter: true
-      FooterCornerRadius: 6
-      FooterBorderWidth: 0
-      FooterBorderColor: null
-      FooterBackColor: null
-    Properties:
-      CsvDirectory: 'Logs/main/csv'
-      CsvFilename: 'dummy.db'
-      CsvAddTimestamp: true
-      CsvIntervalMs: '1000'
-      CsvSignalPaths: 'signal_1_set|udl1.m001.set|ppm|1000\nsignal_1|udl1.m001.read|ppm|1000\nsignal_2_set|enhanced_signals.filtered_1.set||1000\nsignal_2|enhanced_signals.filtered_1||1000\nsignal_3|item_client_1.edm1.pressure|hPa|1000\nsignal_4|custom_signals.demo_number||1000\nsignal_5|applications.python.raw.raw_a|V|1000'
-      CsvSplitDaily: false
-      CsvSplitDailyTime: '00:00:00'
-      CsvSplitMaxFileSizeMb: '0'
-      CsvPersistenceMode: 'Balanced'
-      CsvFlushIntervalMs: '0'
-      CsvFlushBatchSize: '0'
-  -
     Type: 'LogControl'
     Screen: '9'
     Enabled: true
@@ -1341,7 +1185,7 @@ Controls:
       FooterBackColor: null
     Properties:
       Unit: ''
-      Uri: 'logger_runtime.csv_logger_control_1.record'
+      Uri: 'value_log.demo_csv_log.status'
       Parameter: 'read'
       Format: ''
       IsReadOnly: false

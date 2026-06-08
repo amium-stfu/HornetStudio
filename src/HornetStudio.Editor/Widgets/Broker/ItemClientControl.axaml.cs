@@ -22,6 +22,7 @@ using HornetStudio.Editor.Helpers;
 using HornetStudio.Editor.Models;
 using HornetStudio.Host;
 using HornetStudio.Logging;
+using HornetStudio.Host.Registries;
 
 namespace HornetStudio.Editor.Widgets;
 

@@ -659,32 +659,6 @@
                         BorderThickness="0"
                         Padding="0"
                         Margin="0"
-                        Click="OnOpenEnhancedSignalsBrowserClicked"
-                        ToolTip.Tip="Open enhanced signals browser">
-                  <Grid ColumnDefinitions="48,16,40,168,32">
-                    <Border Grid.ColumnSpan="5" Background="{Binding TabBackColor}" />
-                    <Border Grid.Column="0" Background="{Binding TabNumerBackColor}" MinHeight="44" />
-                    <editorUi:ThemeSvgIcon Grid.Column="2"
-                                           Width="22"
-                                           Height="22"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center"
-                                           IconPath="avares://HornetStudio.Editor/EditorIcons/list.svg"
-                                           TintColor="{Binding TabForeColor}" />
-                    <TextBlock Grid.Column="3"
-                               Margin="4,4,2,4"
-                               VerticalAlignment="Center"
-                               FontSize="15"
-                               FontWeight="SemiBold"
-                               Foreground="{Binding TabForeColor}"
-                               Text="Enhanced Signals" />
-                  </Grid>
-                </Button>
-
-                <Button Background="Transparent"
-                        BorderThickness="0"
-                        Padding="0"
-                        Margin="0"
                         Click="OnOpenCustomSignalsBrowserClicked"
                         ToolTip.Tip="Open custom signals browser">
                   <Grid ColumnDefinitions="48,16,40,168,32">
@@ -782,6 +756,32 @@
                                FontWeight="SemiBold"
                                Foreground="{Binding TabForeColor}"
                                Text="UDL Clients" />
+                  </Grid>
+                </Button>
+
+                <Button Background="Transparent"
+                        BorderThickness="0"
+                        Padding="0"
+                        Margin="0"
+                        Click="OnOpenValueLogsBrowserClicked"
+                        ToolTip.Tip="Open value logs browser">
+                  <Grid ColumnDefinitions="48,16,40,168,32">
+                    <Border Grid.ColumnSpan="5" Background="{Binding TabBackColor}" />
+                    <Border Grid.Column="0" Background="{Binding TabNumerBackColor}" MinHeight="44" />
+                    <editorUi:ThemeSvgIcon Grid.Column="2"
+                                           Width="22"
+                                           Height="22"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           IconPath="avares://HornetStudio.Editor/EditorIcons/list.svg"
+                                           TintColor="{Binding TabForeColor}" />
+                    <TextBlock Grid.Column="3"
+                               Margin="4,4,2,4"
+                               VerticalAlignment="Center"
+                               FontSize="15"
+                               FontWeight="SemiBold"
+                               Foreground="{Binding TabForeColor}"
+                               Text="Value Logs" />
                   </Grid>
                 </Button>
 

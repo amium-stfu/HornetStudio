@@ -7,6 +7,7 @@ using Amium.Item.Client;
 using HornetStudio.Editor.Helpers;
 using HornetStudio.Editor.Models;
 using HornetStudio.Host;
+using HornetStudio.Host.Registries;
 using HornetStudio.Logging;
 
 namespace HornetStudio.Editor.Widgets;

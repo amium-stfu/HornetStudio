@@ -116,7 +116,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
     /// </summary>
     /// <param name="startupArgs">The optional command line arguments used to override startup behavior.</param>
     public MainWindowViewModel(string[]? startupArgs = null)
-        : base(true)
+        : base()
     {
         AutoSaveOnEditModeExit = false;
         _configPath = Path.Combine(AppContext.BaseDirectory, "HornetStudio.config.yaml");
@@ -293,7 +293,7 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
     /// <param name="location">An optional related file or folder location.</param>
     protected override void ReportEnhancedSignalWarning(string message, string? location = null)
     {
-        AddMessage("EnhancedSignals", "Warning", message, location);
+        AddMessage("EnhancedSignal", "Warning", message, location);
     }
 
     public string ProjectPath
@@ -2254,11 +2254,6 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
             return ControlKind.ChartControl;
         }
 
-        if (string.Equals(type, "UdlClientControl", StringComparison.OrdinalIgnoreCase) || string.Equals(type, "UdlClient", StringComparison.OrdinalIgnoreCase))
-        {
-            return ControlKind.UdlClientControl;
-        }
-
         if (string.Equals(type, "ItemClient", StringComparison.OrdinalIgnoreCase)
             || string.Equals(type, "ItemClientControl", StringComparison.OrdinalIgnoreCase))
         {
@@ -2289,11 +2284,6 @@ public sealed class MainWindowViewModel : HornetStudio.Editor.ViewModels.MainWin
         if (string.Equals(type, "CustomSignals", StringComparison.OrdinalIgnoreCase))
         {
             return ControlKind.CustomSignals;
-        }
-
-        if (string.Equals(type, "EnhancedSignals", StringComparison.OrdinalIgnoreCase))
-        {
-            return ControlKind.EnhancedSignals;
         }
 
         if (string.Equals(type, "ControllerWidget", StringComparison.OrdinalIgnoreCase))

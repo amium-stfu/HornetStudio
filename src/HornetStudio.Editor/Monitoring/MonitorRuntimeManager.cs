@@ -7,7 +7,7 @@ using System.Text.Json;
 using Amium.Items;
 using HornetStudio.Editor.Helpers;
 using HornetStudio.Editor.Models;
-using HornetStudio.Host;
+using HornetStudio.Host.Registries;
 using ItemModel = Amium.Items.Item;
 
 namespace HornetStudio.Editor.Monitoring;

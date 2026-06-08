@@ -9,6 +9,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using HornetStudio.Host.Registries;
 
 #if USE_PYTHONNET
 using Python.Runtime;

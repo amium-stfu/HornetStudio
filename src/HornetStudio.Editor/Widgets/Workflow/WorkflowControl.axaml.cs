@@ -15,6 +15,7 @@ using HornetStudio.Editor.Monitoring;
 using HornetStudio.Editor.Models;
 using HornetStudio.Editor.ViewModels;
 using HornetStudio.Editor.Widgets.Workflow;
+using HornetStudio.Host.Registries;
 
 namespace HornetStudio.Editor.Widgets;
 
@@ -593,8 +594,8 @@ public partial class FunctionsControl : EditorTemplateControl
 
     private static IEnumerable<string> GetProcessLogTargetOptions()
     {
-        return HornetStudio.Host.HostRegistries.Data.GetKeysByCapability(HornetStudio.Host.DataRegistryItemCapabilities.Display)
-            .Select(key => HornetStudio.Host.HostRegistries.Data.TryGet(key, out var item) ? (Key: key, Item: item) : (Key: (string?)null, Item: null))
+        return HostRegistries.Data.GetKeysByCapability(DataRegistryItemCapabilities.Display)
+            .Select(key => HostRegistries.Data.TryGet(key, out var item) ? (Key: key, Item: item) : (Key: (string?)null, Item: null))
             .Where(entry => !string.IsNullOrWhiteSpace(entry.Key) && entry.Item?.Value is HornetStudio.Logging.ProcessLog)
             .Select(entry => entry.Key!)
             .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)

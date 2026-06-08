@@ -172,10 +172,6 @@ public partial class EditorTableControl : EditorTemplateWidget
                     PageIsActive = true
                 };
             }
-            else if (child.IsUdlClientControl)
-            {
-                content = new UdlClientControl();
-            }
             else
             {
                 // Fallback: nicht erwarteter Typ – ueberspringen.
@@ -755,17 +751,6 @@ public partial class EditorTableControl : EditorTemplateWidget
     private void OnAddLogMenuClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         AddControlToTable(ControlKind.LogControl);
-        e.Handled = true;
-    }
-
-    private void OnAddUdlClientMenuClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        if (ViewModel is null || !ViewModel.SupportsUdlClientControl)
-        {
-            return;
-        }
-
-        AddControlToTable(ControlKind.UdlClientControl);
         e.Handled = true;
     }
 

@@ -13,6 +13,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using HornetStudio.Host;
 using HornetStudio.Editor.Controls;
+using HornetStudio.Editor.Persistence.CustomControls;
 using HornetStudio.Editor.Widgets;
 using HornetStudio.Editor.Models;
 using HornetStudio.ViewModels;
@@ -30,11 +31,11 @@ public partial class MainWindow : Window
     private Action? _keyboardApplyAction;
     private Action? _keyboardCancelAction;
     private FunctionBrowserDialogWindow? _functionBrowserDialogWindow;
-    private EnhancedSignalsBrowserDialogWindow? _enhancedSignalsBrowserDialogWindow;
     private CustomSignalsBrowserDialogWindow? _customSignalsBrowserDialogWindow;
     private ControllersBrowserDialogWindow? _controllersBrowserDialogWindow;
     private MonitorBrowserDialogWindow? _monitorBrowserDialogWindow;
     private ClientsBrowserDialogWindow? _udlClientsBrowserDialogWindow;
+    private ValueLogsBrowserDialogWindow? _valueLogsBrowserDialogWindow;
     private MainWindowViewModel? _boundViewModel;
     private Point? _legendDragStartPoint;
     private FolderModel? _legendDragSourceFolder;
@@ -344,28 +345,6 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private void OnOpenEnhancedSignalsBrowserClicked(object? sender, RoutedEventArgs e)
-    {
-        if (DataContext is not MainWindowViewModel viewModel)
-        {
-            return;
-        }
-
-        var folder = viewModel.SelectedFolder;
-        if (_enhancedSignalsBrowserDialogWindow is not null)
-        {
-            _enhancedSignalsBrowserDialogWindow.UpdateFolderContext(folder);
-            _enhancedSignalsBrowserDialogWindow.Activate();
-            e.Handled = true;
-            return;
-        }
-
-        _enhancedSignalsBrowserDialogWindow = EnhancedSignalsBrowserDialogWindow.ShowOrActivate(this, viewModel, folder);
-        _enhancedSignalsBrowserDialogWindow.Closed -= OnEnhancedSignalsBrowserDialogWindowClosed;
-        _enhancedSignalsBrowserDialogWindow.Closed += OnEnhancedSignalsBrowserDialogWindowClosed;
-        e.Handled = true;
-    }
-
     private void OnOpenCustomSignalsBrowserClicked(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not MainWindowViewModel viewModel)
@@ -454,21 +433,34 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
+    private void OnOpenValueLogsBrowserClicked(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel)
+        {
+            return;
+        }
+
+        var folder = viewModel.SelectedFolder;
+        if (_valueLogsBrowserDialogWindow is not null)
+        {
+            _valueLogsBrowserDialogWindow.UpdateFolderContext(folder);
+            _valueLogsBrowserDialogWindow.Activate();
+            e.Handled = true;
+            return;
+        }
+
+        _valueLogsBrowserDialogWindow = ValueLogsBrowserDialogWindow.ShowOrActivate(this, viewModel, folder);
+        _valueLogsBrowserDialogWindow.Closed -= OnValueLogsBrowserDialogWindowClosed;
+        _valueLogsBrowserDialogWindow.Closed += OnValueLogsBrowserDialogWindowClosed;
+        e.Handled = true;
+    }
+
     private void OnFunctionBrowserDialogWindowClosed(object? sender, EventArgs e)
     {
         if (_functionBrowserDialogWindow is not null)
         {
             _functionBrowserDialogWindow.Closed -= OnFunctionBrowserDialogWindowClosed;
             _functionBrowserDialogWindow = null;
-        }
-    }
-
-    private void OnEnhancedSignalsBrowserDialogWindowClosed(object? sender, EventArgs e)
-    {
-        if (_enhancedSignalsBrowserDialogWindow is not null)
-        {
-            _enhancedSignalsBrowserDialogWindow.Closed -= OnEnhancedSignalsBrowserDialogWindowClosed;
-            _enhancedSignalsBrowserDialogWindow = null;
         }
     }
 
@@ -505,6 +497,15 @@ public partial class MainWindow : Window
         {
             _udlClientsBrowserDialogWindow.Closed -= OnUdlClientsBrowserDialogWindowClosed;
             _udlClientsBrowserDialogWindow = null;
+        }
+    }
+
+    private void OnValueLogsBrowserDialogWindowClosed(object? sender, EventArgs e)
+    {
+        if (_valueLogsBrowserDialogWindow is not null)
+        {
+            _valueLogsBrowserDialogWindow.Closed -= OnValueLogsBrowserDialogWindowClosed;
+            _valueLogsBrowserDialogWindow = null;
         }
     }
 
@@ -1479,6 +1480,13 @@ public partial class MainWindow : Window
                 _udlClientsBrowserDialogWindow.Closed -= OnUdlClientsBrowserDialogWindowClosed;
                 _udlClientsBrowserDialogWindow.Close();
                 _udlClientsBrowserDialogWindow = null;
+            }
+
+            if (_valueLogsBrowserDialogWindow is not null)
+            {
+                _valueLogsBrowserDialogWindow.Closed -= OnValueLogsBrowserDialogWindowClosed;
+                _valueLogsBrowserDialogWindow.Close();
+                _valueLogsBrowserDialogWindow = null;
             }
 
             HornetStudio.Editor.Widgets.ApplicationExplorerRuntime.StopAllEnvironments();

@@ -9,7 +9,7 @@ using Avalonia.Controls;
 using HornetStudio.Editor.Helpers;
 using HornetStudio.Editor.Models;
 using HornetStudio.Editor.ViewModels;
-using HornetStudio.Host;
+using HornetStudio.Host.Registries;
 
 namespace HornetStudio.Editor.Widgets;
 

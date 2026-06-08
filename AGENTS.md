@@ -38,6 +38,7 @@ All files under `agents/` except [agents/solution.md](agents/solution.md) must r
 - [agents/clean.md](agents/clean.md) -> CLEAN workflow and cleanup constraints
 - [agents/debugging.md](agents/debugging.md) -> debug workflow, report layout, validation, and stop conditions
 - [agents/architecture.md](agents/architecture.md) -> architecture, coupling, fragmentation, and repository structure rules
+- [agents/human-first.md](agents/human-first.md) -> shared readability-first code style for code-changing workflows
 - [agents/naming.md](agents/naming.md) -> language, naming, and path conventions
 - [agents/documentation.md](agents/documentation.md) -> XML and Markdown documentation maintenance
 - [agents/testing.md](agents/testing.md) -> testing, validation preference order, and build-quality rules
@@ -89,10 +90,10 @@ A short `#` mode command is valid only when the first non-empty token is exactly
 - `PLAN` -> [agents/planning.md](agents/planning.md)
 - `TODO` -> [agents/planning.md](agents/planning.md)
 - `DONE` -> [agents/done.md](agents/done.md)
-- `IMPLEMENT` -> [agents/implementation.md](agents/implementation.md), [agents/naming.md](agents/naming.md), [agents/documentation.md](agents/documentation.md), [agents/testing.md](agents/testing.md)
-- `FIX` -> [agents/fix.md](agents/fix.md), [agents/naming.md](agents/naming.md), [agents/documentation.md](agents/documentation.md), [agents/testing.md](agents/testing.md)
+- `IMPLEMENT` -> [agents/implementation.md](agents/implementation.md), [agents/human-first.md](agents/human-first.md), [agents/naming.md](agents/naming.md), [agents/documentation.md](agents/documentation.md), [agents/testing.md](agents/testing.md)
+- `FIX` -> [agents/fix.md](agents/fix.md), [agents/human-first.md](agents/human-first.md), [agents/naming.md](agents/naming.md), [agents/documentation.md](agents/documentation.md), [agents/testing.md](agents/testing.md)
 - `DEBUG` -> [agents/debugging.md](agents/debugging.md), [agents/testing.md](agents/testing.md)
-- `CLEAN` -> [agents/clean.md](agents/clean.md), [agents/testing.md](agents/testing.md)
+- `CLEAN` -> [agents/clean.md](agents/clean.md), [agents/human-first.md](agents/human-first.md), [agents/testing.md](agents/testing.md)
 - `BUILD` -> [agents/implementation.md](agents/implementation.md) Build section only, [agents/testing.md](agents/testing.md)
 - `PUBLISH` -> [agents/release.md](agents/release.md)
 - `BENCH` -> [agents/benchmark.md](agents/benchmark.md), [agents/testing.md](agents/testing.md)

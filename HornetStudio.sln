@@ -1,4 +1,3 @@
-
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
 VisualStudioVersion = 18.5.11723.231
@@ -14,6 +13,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HornetStudio", "src\HornetStudio\HornetStudio.csproj", "{D3DAA726-54AE-4F35-BA98-C52F7DBA4D60}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HornetStudio.Host.Tests", "src\HornetStudio.Host.Tests\HornetStudio.Host.Tests.csproj", "{B6A469D0-B1CF-4F04-9807-0592A83EC037}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HornetStudio.Host.WinFormsProbe", "src\HornetStudio.Host.WinFormsProbe\HornetStudio.Host.WinFormsProbe.csproj", "{ECA74A1C-A271-447A-82C6-FED1C68BDB13}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HornetStudio.Editor.Tests", "src\HornetStudio.Editor.Tests\HornetStudio.Editor.Tests.csproj", "{70B6CB1D-44A8-424B-B011-AD7080AEA070}"
 EndProject
@@ -121,7 +122,6 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "widgets", "widgets", "{8265C1C4-CFEC-4A88-85C1-16CDB7B30692}"
 	ProjectSection(SolutionItems) = preProject
 		src\HornetStudio\docs\widgets\ApplicationExplorer.md = src\HornetStudio\docs\widgets\ApplicationExplorer.md
-		src\HornetStudio\docs\widgets\ItemClient.md = src\HornetStudio\docs\widgets\ItemClient.md
 		src\HornetStudio\docs\widgets\Button.md = src\HornetStudio\docs\widgets\Button.md
 		src\HornetStudio\docs\widgets\CameraControl.md = src\HornetStudio\docs\widgets\CameraControl.md
 		src\HornetStudio\docs\widgets\ChartControl.md = src\HornetStudio\docs\widgets\ChartControl.md
@@ -132,13 +132,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "widgets", "widgets", "{8265
 		src\HornetStudio\docs\widgets\FolderEditor.md = src\HornetStudio\docs\widgets\FolderEditor.md
 		src\HornetStudio\docs\widgets\index.md = src\HornetStudio\docs\widgets\index.md
 		src\HornetStudio\docs\widgets\Item.md = src\HornetStudio\docs\widgets\Item.md
+		src\HornetStudio\docs\widgets\ItemClient.md = src\HornetStudio\docs\widgets\ItemClient.md
 		src\HornetStudio\docs\widgets\LogControl.md = src\HornetStudio\docs\widgets\LogControl.md
 		src\HornetStudio\docs\widgets\Property.md = src\HornetStudio\docs\widgets\Property.md
 		src\HornetStudio\docs\widgets\PythonClient.md = src\HornetStudio\docs\widgets\PythonClient.md
 		src\HornetStudio\docs\widgets\Signal.md = src\HornetStudio\docs\widgets\Signal.md
 		src\HornetStudio\docs\widgets\SqlLoggerControl.md = src\HornetStudio\docs\widgets\SqlLoggerControl.md
 		src\HornetStudio\docs\widgets\TableControl.md = src\HornetStudio\docs\widgets\TableControl.md
-		src\HornetStudio\docs\widgets\UdlClientControl.md = src\HornetStudio\docs\widgets\UdlClientControl.md
 		src\HornetStudio\docs\widgets\ValueInput.md = src\HornetStudio\docs\widgets\ValueInput.md
 		src\HornetStudio\docs\widgets\WidgetList.md = src\HornetStudio\docs\widgets\WidgetList.md
 	EndProjectSection
@@ -146,7 +146,6 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "descriptions", "descriptions", "{BA44C3AD-BB6E-4E83-98CC-FC5B03088AC3}"
 	ProjectSection(SolutionItems) = preProject
 		src\HornetStudio\docs\widgets\descriptions\ApplicationExplorer.md = src\HornetStudio\docs\widgets\descriptions\ApplicationExplorer.md
-		src\HornetStudio\docs\widgets\descriptions\ItemClient.md = src\HornetStudio\docs\widgets\descriptions\ItemClient.md
 		src\HornetStudio\docs\widgets\descriptions\Button.md = src\HornetStudio\docs\widgets\descriptions\Button.md
 		src\HornetStudio\docs\widgets\descriptions\CameraControl.md = src\HornetStudio\docs\widgets\descriptions\CameraControl.md
 		src\HornetStudio\docs\widgets\descriptions\ChartControl.md = src\HornetStudio\docs\widgets\descriptions\ChartControl.md
@@ -154,18 +153,17 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "descriptions", "description
 		src\HornetStudio\docs\widgets\descriptions\CsvLoggerControl.md = src\HornetStudio\docs\widgets\descriptions\CsvLoggerControl.md
 		src\HornetStudio\docs\widgets\descriptions\CustomSignals.md = src\HornetStudio\docs\widgets\descriptions\CustomSignals.md
 		src\HornetStudio\docs\widgets\descriptions\EnhancedSignals.md = src\HornetStudio\docs\widgets\descriptions\EnhancedSignals.md
+		src\HornetStudio\docs\widgets\descriptions\ItemClient.md = src\HornetStudio\docs\widgets\descriptions\ItemClient.md
 		src\HornetStudio\docs\widgets\descriptions\LogControl.md = src\HornetStudio\docs\widgets\descriptions\LogControl.md
 		src\HornetStudio\docs\widgets\descriptions\Signal.md = src\HornetStudio\docs\widgets\descriptions\Signal.md
 		src\HornetStudio\docs\widgets\descriptions\SqlLoggerControl.md = src\HornetStudio\docs\widgets\descriptions\SqlLoggerControl.md
 		src\HornetStudio\docs\widgets\descriptions\TableControl.md = src\HornetStudio\docs\widgets\descriptions\TableControl.md
-		src\HornetStudio\docs\widgets\descriptions\UdlClientControl.md = src\HornetStudio\docs\widgets\descriptions\UdlClientControl.md
 		src\HornetStudio\docs\widgets\descriptions\WidgetList.md = src\HornetStudio\docs\widgets\descriptions\WidgetList.md
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "help", "help", "{76835787-5E69-4946-81AA-583CCDD85DAA}"
 	ProjectSection(SolutionItems) = preProject
 		src\HornetStudio\docs\widgets\help\ApplicationExplorer.help.md = src\HornetStudio\docs\widgets\help\ApplicationExplorer.help.md
-		src\HornetStudio\docs\widgets\help\ItemClient.help.md = src\HornetStudio\docs\widgets\help\ItemClient.help.md
 		src\HornetStudio\docs\widgets\help\Button.help.md = src\HornetStudio\docs\widgets\help\Button.help.md
 		src\HornetStudio\docs\widgets\help\CameraControl.help.md = src\HornetStudio\docs\widgets\help\CameraControl.help.md
 		src\HornetStudio\docs\widgets\help\ChartControl.help.md = src\HornetStudio\docs\widgets\help\ChartControl.help.md
@@ -176,13 +174,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "help", "help", "{76835787-5
 		src\HornetStudio\docs\widgets\help\FolderEditor.help.md = src\HornetStudio\docs\widgets\help\FolderEditor.help.md
 		src\HornetStudio\docs\widgets\help\index.md = src\HornetStudio\docs\widgets\help\index.md
 		src\HornetStudio\docs\widgets\help\Item.help.md = src\HornetStudio\docs\widgets\help\Item.help.md
+		src\HornetStudio\docs\widgets\help\ItemClient.help.md = src\HornetStudio\docs\widgets\help\ItemClient.help.md
 		src\HornetStudio\docs\widgets\help\LogControl.help.md = src\HornetStudio\docs\widgets\help\LogControl.help.md
 		src\HornetStudio\docs\widgets\help\Property.help.md = src\HornetStudio\docs\widgets\help\Property.help.md
 		src\HornetStudio\docs\widgets\help\PythonClient.help.md = src\HornetStudio\docs\widgets\help\PythonClient.help.md
 		src\HornetStudio\docs\widgets\help\Signal.help.md = src\HornetStudio\docs\widgets\help\Signal.help.md
 		src\HornetStudio\docs\widgets\help\SqlLoggerControl.help.md = src\HornetStudio\docs\widgets\help\SqlLoggerControl.help.md
 		src\HornetStudio\docs\widgets\help\TableControl.help.md = src\HornetStudio\docs\widgets\help\TableControl.help.md
-		src\HornetStudio\docs\widgets\help\UdlClientControl.help.md = src\HornetStudio\docs\widgets\help\UdlClientControl.help.md
 		src\HornetStudio\docs\widgets\help\ValueInput.help.md = src\HornetStudio\docs\widgets\help\ValueInput.help.md
 		src\HornetStudio\docs\widgets\help\WidgetList.help.md = src\HornetStudio\docs\widgets\help\WidgetList.help.md
 	EndProjectSection
@@ -206,6 +204,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".github", ".github", "{8B56
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workitems", "workitems", "{9B3F2CEB-AAF3-4D12-B254-61FD87634718}"
+	ProjectSection(SolutionItems) = preProject
+		docs\workitems\active.yaml = docs\workitems\active.yaml
+		docs\workitems\ChatHandoff.md = docs\workitems\ChatHandoff.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -289,6 +291,18 @@ Global
 		{B6A469D0-B1CF-4F04-9807-0592A83EC037}.Release|x64.Build.0 = Release|Any CPU
 		{B6A469D0-B1CF-4F04-9807-0592A83EC037}.Release|x86.ActiveCfg = Release|Any CPU
 		{B6A469D0-B1CF-4F04-9807-0592A83EC037}.Release|x86.Build.0 = Release|Any CPU
+		{ECA74A1C-A271-447A-82C6-FED1C68BDB13}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ECA74A1C-A271-447A-82C6-FED1C68BDB13}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ECA74A1C-A271-447A-82C6-FED1C68BDB13}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{ECA74A1C-A271-447A-82C6-FED1C68BDB13}.Debug|x64.Build.0 = Debug|Any CPU
+		{ECA74A1C-A271-447A-82C6-FED1C68BDB13}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{ECA74A1C-A271-447A-82C6-FED1C68BDB13}.Debug|x86.Build.0 = Debug|Any CPU
+		{ECA74A1C-A271-447A-82C6-FED1C68BDB13}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ECA74A1C-A271-447A-82C6-FED1C68BDB13}.Release|Any CPU.Build.0 = Release|Any CPU
+		{ECA74A1C-A271-447A-82C6-FED1C68BDB13}.Release|x64.ActiveCfg = Release|Any CPU
+		{ECA74A1C-A271-447A-82C6-FED1C68BDB13}.Release|x64.Build.0 = Release|Any CPU
+		{ECA74A1C-A271-447A-82C6-FED1C68BDB13}.Release|x86.ActiveCfg = Release|Any CPU
+		{ECA74A1C-A271-447A-82C6-FED1C68BDB13}.Release|x86.Build.0 = Release|Any CPU
 		{70B6CB1D-44A8-424B-B011-AD7080AEA070}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{70B6CB1D-44A8-424B-B011-AD7080AEA070}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{70B6CB1D-44A8-424B-B011-AD7080AEA070}.Debug|x64.ActiveCfg = Debug|Any CPU

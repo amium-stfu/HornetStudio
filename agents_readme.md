@@ -6,6 +6,7 @@ This repository uses a small modular agent rule system.
 
 - `AGENTS.md` is the entry point. It defines priority rules, mode syntax, loading order, and mode-to-module routing.
 - `agents/*.md` contains reusable workflow modules.
+- `agents/human-first.md` is a shared style module that is loaded by code-changing workflows.
 - `agents/solution.md` contains repository-specific rules and is always applied last.
 
 All modules except `agents/solution.md` should stay solution-neutral so the rule system can be reused as a template in other repositories.
@@ -83,11 +84,11 @@ Mode commands are recognized only when they are the first non-empty token in the
    Continue debugging the failing import pipeline workitem.
    ```
 
-7. Clean up without changing behavior:
+7. Clean up or simplify without changing behavior:
 
    ```text
    #clean
-   Clean up unused import preview code without changing runtime behavior.
+   Clean up and simplify the import preview update path without changing runtime behavior.
    ```
 
 8. Build the solution:
@@ -112,6 +113,6 @@ Mode commands are recognized only when they are the first non-empty token in the
 - Use `IMPLEMENT` only when the requested behavior is clear enough to build.
 - Use `FIX` for small reproducible defects.
 - Use `DEBUG` when the cause is unclear or repeated attempts are likely.
-- Use `CLEAN` for behavior-preserving cleanup.
+- Use `CLEAN` for behavior-preserving cleanup and readability-focused simplification.
 - Use `BUILD` for verification without starting applications.
 - Use `PUBLISH` only for release publishing.

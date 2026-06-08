@@ -12,6 +12,10 @@ using MQTTnet.Server;
 using System.Reflection;
 using System.Net;
 using System.Net.Sockets;
+using HornetStudio.Host.Registries;
+using HornetStudio.Host.Runtimes.Controller;
+using HornetStudio.Host.Runtimes.EnhancedSignal;
+using HornetStudio.Host.Logging.Values;
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -37,6 +41,9 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Metadata capability query returns publishable keys", () => RunSync(MetadataCapabilityQueryReturnsPublishableKeys)),
     ("Remove clears indexed descendants", () => RunSync(RemoveClearsIndexedDescendants)),
     ("Prune clears stale descendants", () => RunSync(PruneClearsStaleDescendants)),
+    ("Host item registry reads and writes memory reference", () => RunSync(HostItemRegistryReadsAndWritesMemoryReference)),
+    ("Host item registry rejects duplicate paths", () => RunSync(HostItemRegistryRejectsDuplicatePaths)),
+    ("Host item registry unregister blocks reads and writes", () => RunSync(HostItemRegistryUnregisterBlocksReadsAndWrites)),
     ("Value reference resolves source property without mutating public snapshot", () => RunSync(ValueReferenceResolvesSourcePropertyWithoutMutatingPublicSnapshot)),
     ("Value reference notification publishes public path", () => RunSync(ValueReferenceNotificationPublishesPublicPath)),
     ("Signal lookup works for descendants", () => RunSync(SignalLookupWorksForDescendants)),
@@ -62,6 +69,14 @@ var tests = new (string Name, Func<Task> Run)[]
     ("PID controller stopped read updates on source change", () => RunSync(PidControllerStoppedReadUpdatesOnSourceChange)),
     ("PID controller run value starts and stops", () => RunSync(PidControllerRunValueStartsAndStops)),
     ("PID controller legacy write property still starts and stops", () => RunSync(PidControllerRunWritePropertyStartsAndStops)),
+    ("Value log manager publishes control items", () => RunSync(ValueLogManagerPublishesControlItems)),
+    ("Value log manager control items update output path", () => RunSync(ValueLogManagerControlItemsUpdateOutputPath)),
+    ("Value log manager run value starts and stops", ValueLogManagerRunValueStartsAndStops),
+    ("Value log manager run false returns immediately", ValueLogManagerRunFalseReturnsImmediately),
+    ("Value log manager does not publish command items", () => RunSync(ValueLogManagerDoesNotPublishCommandItems)),
+    ("CSV logger writes text header without name fallback", CsvLoggerWritesTextHeaderWithoutNameFallback),
+    ("Value log CSV header uses current registry metadata", ValueLogCsvHeaderUsesCurrentRegistryMetadata),
+    ("Value log CSV source parent samples read child", ValueLogCsvSourceParentSamplesReadChild),
     ("PID controller guards invalid numeric input", () => RunSync(PidControllerGuardsInvalidNumericInput)),
     ("PID controller rejects invalid owned setpoint", () => RunSync(PidControllerRejectsInvalidOwnedSetpoint)),
     ("PID controller owned setpoint write changes output", () => RunSync(PidControllerOwnedSetpointWriteChangesOutput)),
@@ -361,6 +376,46 @@ static void PruneClearsStaleDescendants()
     registry.UpsertSnapshot("runtime.device", ItemExtension.CreateWithPath("runtime.device"), pruneMissingMembers: true);
 
     AssertFalse(registry.TryResolve("runtime.device.read", out _));
+}
+
+static void HostItemRegistryReadsAndWritesMemoryReference()
+{
+    var registry = new HostItemRegistry();
+    registry.Register("runtime.device.read", new TestHostItem(1));
+
+    AssertTrue(registry.TryRead("runtime.device.read", out var initialValue));
+    AssertEqual(1, initialValue);
+    AssertTrue(registry.TryWrite("runtime.device.read", 2));
+    AssertTrue(registry.TryRead("runtime.device.read", out var writtenValue));
+    AssertEqual(2, writtenValue);
+}
+
+static void HostItemRegistryRejectsDuplicatePaths()
+{
+    var registry = new HostItemRegistry();
+    registry.Register("runtime.device.read", new TestHostItem(1));
+
+    var failed = false;
+    try
+    {
+        registry.Register("Runtime.Device.Read", new TestHostItem(2));
+    }
+    catch (ArgumentException)
+    {
+        failed = true;
+    }
+
+    AssertTrue(failed);
+}
+
+static void HostItemRegistryUnregisterBlocksReadsAndWrites()
+{
+    var registry = new HostItemRegistry();
+    registry.Register("runtime.device.read", new TestHostItem(1));
+
+    AssertTrue(registry.Remove("runtime.device.read"));
+    AssertFalse(registry.TryRead("runtime.device.read", out _));
+    AssertFalse(registry.TryWrite("runtime.device.read", 2));
 }
 
 static void ValueReferenceResolvesSourcePropertyWithoutMutatingPublicSnapshot()
@@ -1142,6 +1197,317 @@ static void PidControllerRunWritePropertyStartsAndStops()
     AssertFalse(runtime.IsRunning);
 }
 
+static void ValueLogManagerPublishesControlItems()
+{
+    var suffix = $"id_{Guid.NewGuid():N}";
+    var folderName = $"value_log_control_{suffix}";
+    var outputPath = Path.Combine(Path.GetTempPath(), "hornet_studio_value_log_tests", suffix, "initial.csv");
+
+    try
+    {
+        var status = LogManager.SyncDefinitions(folderName, [CreateValueLogDefinition("csv_log", outputPath)]).Single();
+
+        AssertTrue(HostRegistries.Data.TryResolve($"{status.RuntimePath}.run", out var runItem));
+        AssertEqual(false, runItem?.Value);
+        AssertTrue(HostRegistries.Data.TryResolve($"{status.RuntimePath}.output_directory", out var outputDirectoryItem));
+        AssertEqual(Path.GetDirectoryName(outputPath) ?? string.Empty, outputDirectoryItem?.Value?.ToString());
+        AssertTrue(HostRegistries.Data.TryResolve($"{status.RuntimePath}.filename", out var filenameItem));
+        AssertEqual("initial.csv", filenameItem?.Value?.ToString());
+    }
+    finally
+    {
+        LogManager.ReleaseFolder(folderName);
+    }
+}
+
+static void ValueLogManagerControlItemsUpdateOutputPath()
+{
+    var suffix = $"id_{Guid.NewGuid():N}";
+    var folderName = $"value_log_output_{suffix}";
+    var initialDirectory = Path.Combine(Path.GetTempPath(), "hornet_studio_value_log_tests", suffix, "initial");
+    var updatedDirectory = Path.Combine(Path.GetTempPath(), "hornet_studio_value_log_tests", suffix, "updated");
+    var initialOutputPath = Path.Combine(initialDirectory, "initial.csv");
+    var updatedOutputPath = Path.Combine(updatedDirectory, "changed.csv");
+
+    try
+    {
+        var status = LogManager.SyncDefinitions(
+            folderName,
+            [CreateValueLogDefinition("csv_log", initialOutputPath)]).Single();
+
+        AssertTrue(HostRegistries.Data.UpdateValue($"{status.RuntimePath}.output_directory", updatedDirectory));
+        AssertTrue(HostRegistries.Data.UpdateValue($"{status.RuntimePath}.filename", "changed.csv"));
+
+        AssertTrue(LogManager.TryGetStatus(folderName, "csv_log", out var updatedStatus));
+        AssertEqual(updatedOutputPath, updatedStatus.Definition.OutputPath);
+        AssertTrue(HostRegistries.Data.TryResolve(status.RuntimePath, out var outputPathItem));
+        AssertEqual(updatedOutputPath, outputPathItem?.Properties["output_path"].Value?.ToString());
+    }
+    finally
+    {
+        LogManager.ReleaseFolder(folderName);
+    }
+}
+
+static async Task ValueLogManagerRunValueStartsAndStops()
+{
+    var suffix = $"id_{Guid.NewGuid():N}";
+    var folderName = $"value_log_run_{suffix}";
+    var sourcePath = $"runtime.value_log_test.{suffix}.source";
+    var outputPath = Path.Combine(Path.GetTempPath(), "hornet_studio_value_log_tests", suffix, "run.csv");
+    HostRegistries.Data.UpsertSnapshot(sourcePath, ItemExtension.CreateWithPath(sourcePath, 10d), pruneMissingMembers: true);
+
+    try
+    {
+        var status = LogManager.SyncDefinitions(
+            folderName,
+            [CreateValueLogDefinition("csv_log", outputPath, sourcePath)]).Single();
+
+        AssertTrue(HostRegistries.Data.UpdateValue($"{status.RuntimePath}.run", true));
+        await WaitForConditionAsync(
+            () => LogManager.TryGetStatus(folderName, "csv_log", out var currentStatus) && currentStatus.IsRunning,
+            "ValueLog manager did not start after run=true.").ConfigureAwait(false);
+
+        AssertTrue(HostRegistries.Data.TryResolve($"{status.RuntimePath}.run", out var runningItem));
+        AssertEqual(true, runningItem?.Value);
+
+        AssertTrue(HostRegistries.Data.UpdateValue($"{status.RuntimePath}.run", false));
+        await WaitForConditionAsync(
+            () => LogManager.TryGetStatus(folderName, "csv_log", out var currentStatus) && !currentStatus.IsRunning,
+            "ValueLog manager did not stop after run=false.").ConfigureAwait(false);
+
+        AssertTrue(HostRegistries.Data.TryResolve($"{status.RuntimePath}.run", out var stoppedItem));
+        AssertEqual(false, stoppedItem?.Value);
+    }
+    finally
+    {
+        LogManager.ReleaseFolder(folderName);
+    }
+}
+
+static async Task ValueLogManagerRunFalseReturnsImmediately()
+{
+    var suffix = $"id_{Guid.NewGuid():N}";
+    var folderName = $"value_log_stop_queue_{suffix}";
+    var sourcePath = $"runtime.value_log_test.{suffix}.source";
+    var outputPath = Path.Combine(Path.GetTempPath(), "hornet_studio_value_log_tests", suffix, "run_false.csv");
+    HostRegistries.Data.UpsertSnapshot(sourcePath, ItemExtension.CreateWithPath(sourcePath, 10d), pruneMissingMembers: true);
+
+    try
+    {
+        var status = LogManager.SyncDefinitions(
+            folderName,
+            [CreateValueLogDefinition("csv_log", outputPath, sourcePath)]).Single();
+
+        AssertTrue(HostRegistries.Data.UpdateValue($"{status.RuntimePath}.run", true));
+        await WaitForConditionAsync(
+            () => LogManager.TryGetStatus(folderName, "csv_log", out var runningStatus) && runningStatus.IsRunning,
+            "ValueLog manager did not start after queued run=true.").ConfigureAwait(false);
+
+        AssertTrue(LogManager.TryGetStatus(folderName, "csv_log", out var runningStatus) && runningStatus.IsRunning);
+
+        var startedAt = DateTime.UtcNow;
+        AssertTrue(HostRegistries.Data.UpdateValue($"{status.RuntimePath}.run", false));
+        var elapsed = DateTime.UtcNow - startedAt;
+
+        if (elapsed > TimeSpan.FromMilliseconds(100))
+        {
+            throw new InvalidOperationException($"ValueLog run=false update took {elapsed.TotalMilliseconds:0.0} ms and appears to execute stop work synchronously.");
+        }
+
+        await WaitForConditionAsync(
+            () => LogManager.TryGetStatus(folderName, "csv_log", out var currentStatus) && !currentStatus.IsRunning,
+            "ValueLog manager did not stop after queued run=false.").ConfigureAwait(false);
+    }
+    finally
+    {
+        LogManager.ReleaseFolder(folderName);
+    }
+}
+
+static void ValueLogManagerDoesNotPublishCommandItems()
+{
+    var suffix = $"id_{Guid.NewGuid():N}";
+    var folderName = $"value_log_commands_{suffix}";
+    var outputPath = Path.Combine(Path.GetTempPath(), "hornet_studio_value_log_tests", suffix, "initial.csv");
+
+    try
+    {
+        var status = LogManager.SyncDefinitions(
+            folderName,
+            [CreateValueLogDefinition("csv_log", outputPath)]).Single();
+
+        AssertFalse(HostRegistries.Data.TryResolve($"{status.RuntimePath}.commands.start", out _));
+        AssertFalse(HostRegistries.Data.TryResolve($"{status.RuntimePath}.commands.stop", out _));
+    }
+    finally
+    {
+        LogManager.ReleaseFolder(folderName);
+    }
+}
+
+static async Task CsvLoggerWritesTextHeaderWithoutNameFallback()
+{
+    var suffix = $"id_{Guid.NewGuid():N}";
+    var outputPath = Path.Combine(Path.GetTempPath(), "hornet_studio_value_log_tests", suffix, "headers.csv");
+    var logger = new CsvLogger($"csv_header_{suffix}");
+    var firstValue = 10d;
+    var secondValue = 20d;
+
+    logger.Add(
+        name: "signal_m001",
+        unit: "ppm",
+        format: string.Empty,
+        value: () => firstValue,
+        caption: string.Empty);
+    logger.Add(
+        name: "signal_m006",
+        unit: string.Empty,
+        format: string.Empty,
+        value: () => secondValue,
+        caption: "Display text");
+
+    try
+    {
+        logger.Start(outputPath, interval: 10);
+        await WaitForConditionAsync(
+            () => File.Exists(outputPath),
+            "CSV logger did not write header lines.").ConfigureAwait(false);
+    }
+    finally
+    {
+        await logger.Stop().ConfigureAwait(false);
+    }
+
+    var lines = File.ReadAllLines(outputPath);
+    AssertEqual("\"datetime\";\"timeRel\";\"signal_m001\";\"signal_m006\"", lines[0]);
+    AssertEqual("\"DateTime\";\"Time relativ\";\"\";\"Display text\"", lines[1]);
+    AssertEqual("\"\";\"s\";\"ppm\";\"\"", lines[2]);
+}
+static async Task ValueLogCsvHeaderUsesCurrentRegistryMetadata()
+{
+    var suffix = $"id_{Guid.NewGuid():N}";
+    var folderName = $"value_log_header_{suffix}";
+    var sourcePath = $"runtime.value_log_test.{suffix}.signal_m001.read";
+    var metadataPath = $"runtime.value_log_test.{suffix}.signal_m001";
+    var outputPath = Path.Combine(Path.GetTempPath(), "hornet_studio_value_log_tests", suffix, "runtime_headers.csv");
+    string runtimePath = string.Empty;
+    var sourceItem = ItemExtension.CreateWithPath(metadataPath, 0d);
+    sourceItem.Properties["text"].Value = "DummyTest";
+    sourceItem.Properties["unit"].Value = "ppm";
+    sourceItem.Properties["format"].Value = "0.0";
+    sourceItem["read"].Value = 10d;
+    sourceItem["read"].Properties["read"].Value = 10d;
+    sourceItem["read"].Properties["text"].Value = "m001 Read";
+    HostRegistries.Data.UpsertSnapshot(metadataPath, sourceItem, pruneMissingMembers: true);
+
+    try
+    {
+        runtimePath = LogManager.SyncDefinitions(
+            folderName,
+            [
+                new ValueLogDefinition
+                {
+                    Id = "csv_log",
+                    Text = "csv_log",
+                    Kind = ValueLogKind.Csv,
+                    Enabled = true,
+                    OutputPath = outputPath,
+                    IntervalMs = 10,
+                    Sources =
+                    [
+                        new ValueLogSourceDefinition
+                        {
+                            TargetPath = sourcePath
+                        }
+                    ]
+                }
+            ]).Single().RuntimePath;
+
+        AssertTrue(HostRegistries.Data.UpdateValue($"{runtimePath}.run", true));
+        await WaitForConditionAsync(
+            () => File.Exists(outputPath),
+            "ValueLog CSV logger did not write header lines.").ConfigureAwait(false);
+    }
+    finally
+    {
+        if (!string.IsNullOrWhiteSpace(runtimePath) && HostRegistries.Data.UpdateValue($"{runtimePath}.run", false))
+        {
+            await WaitForConditionAsync(
+                () => LogManager.TryGetStatus(folderName, "csv_log", out var currentStatus) && !currentStatus.IsRunning,
+                "ValueLog CSV logger did not stop after queued run=false.").ConfigureAwait(false);
+        }
+
+        LogManager.ReleaseFolder(folderName);
+    }
+
+    var lines = File.ReadAllLines(outputPath);
+    AssertEqual("\"datetime\";\"timeRel\";\"signal_m001\"", lines[0]);
+    AssertEqual("\"DateTime\";\"Time relativ\";\"DummyTest\"", lines[1]);
+    AssertEqual("\"\";\"s\";\"ppm\"", lines[2]);
+}
+static async Task ValueLogCsvSourceParentSamplesReadChild()
+{
+    var suffix = $"id_{Guid.NewGuid():N}";
+    var folderName = $"value_log_parent_source_{suffix}";
+    var metadataPath = $"runtime.value_log_test.{suffix}.signal_m001";
+    var outputPath = Path.Combine(Path.GetTempPath(), "hornet_studio_value_log_tests", suffix, "parent_source.csv");
+    string runtimePath = string.Empty;
+    var sourceItem = ItemExtension.CreateWithPath(metadataPath, 0d);
+    string[] lines = [];
+    sourceItem.Properties["text"].Value = "DummyTest";
+    sourceItem.Properties["unit"].Value = "ppm";
+    sourceItem["read"].Value = 42d;
+    sourceItem["read"].Properties["read"].Value = 42d;
+    HostRegistries.Data.UpsertSnapshot(metadataPath, sourceItem, pruneMissingMembers: true);
+
+    try
+    {
+        runtimePath = LogManager.SyncDefinitions(
+            folderName,
+            [
+                new ValueLogDefinition
+                {
+                    Id = "csv_log",
+                    Text = "csv_log",
+                    Kind = ValueLogKind.Csv,
+                    Enabled = true,
+                    OutputPath = outputPath,
+                    IntervalMs = 10,
+                    Sources =
+                    [
+                        new ValueLogSourceDefinition
+                        {
+                            TargetPath = metadataPath
+                        }
+                    ]
+                }
+            ]).Single().RuntimePath;
+
+        AssertTrue(HostRegistries.Data.UpdateValue($"{runtimePath}.run", true));
+        await WaitForConditionAsync(
+            () => File.Exists(outputPath) && new FileInfo(outputPath).Length > 0,
+            "ValueLog CSV logger did not write sampled parent source values.").ConfigureAwait(false);
+    }
+    finally
+    {
+        if (!string.IsNullOrWhiteSpace(runtimePath) && HostRegistries.Data.UpdateValue($"{runtimePath}.run", false))
+        {
+            await WaitForConditionAsync(
+                () => LogManager.TryGetStatus(folderName, "csv_log", out var currentStatus) && !currentStatus.IsRunning,
+                "ValueLog CSV logger did not stop after queued run=false.").ConfigureAwait(false);
+        }
+
+        LogManager.ReleaseFolder(folderName);
+    }
+
+    await WaitForConditionAsync(
+        () => TryReadAllLines(outputPath, out lines) && lines.Length > 3,
+        "ValueLog CSV logger file was not readable after stop.").ConfigureAwait(false);
+    AssertEqual("\"datetime\";\"timeRel\";\"signal_m001\"", lines[0]);
+    AssertTrue(lines.Skip(3).Any(static line => line.EndsWith(";42", StringComparison.Ordinal)));
+}
+
 static void PidControllerGuardsInvalidNumericInput()
 {
     var suffix = $"id_{Guid.NewGuid():N}";
@@ -1840,6 +2206,66 @@ static ControllerDefinition CreatePidDefinition(string name, string sourcePath, 
     };
 }
 
+static ValueLogDefinition CreateValueLogDefinition(string id, string outputPath, string sourcePath = "")
+{
+    var sources = string.IsNullOrWhiteSpace(sourcePath)
+        ? Array.Empty<ValueLogSourceDefinition>()
+        :
+        [
+            new ValueLogSourceDefinition
+            {
+                Name = "source",
+                TargetPath = sourcePath,
+            }
+        ];
+
+    return new ValueLogDefinition
+    {
+        Id = id,
+        Text = id,
+        Kind = ValueLogKind.Csv,
+        Enabled = true,
+        OutputPath = outputPath,
+        IntervalMs = 100,
+        Sources = sources
+    };
+}
+
+static async Task WaitForConditionAsync(Func<bool> condition, string failureMessage)
+{
+    var deadline = DateTimeOffset.UtcNow.AddSeconds(3);
+    while (DateTimeOffset.UtcNow < deadline)
+    {
+        if (condition())
+        {
+            return;
+        }
+
+        await Task.Delay(TimeSpan.FromMilliseconds(25)).ConfigureAwait(false);
+    }
+
+    throw new InvalidOperationException(failureMessage);
+}
+
+static bool TryReadAllLines(string path, out string[] lines)
+{
+    try
+    {
+        lines = File.ReadAllLines(path);
+        return true;
+    }
+    catch (IOException)
+    {
+        lines = [];
+        return false;
+    }
+    catch (UnauthorizedAccessException)
+    {
+        lines = [];
+        return false;
+    }
+}
+
 static void AddFlatSourceChannel(ItemModel root, string channelName, double initialValue, bool hasWriteChannel)
 {
     root[channelName] = new ItemModel(channelName, hasWriteChannel: hasWriteChannel);
@@ -2031,5 +2457,27 @@ static void AssertEqual(object? expected, object? actual)
     if (!Equals(expected, actual))
     {
         throw new InvalidOperationException($"Expected '{expected}', actual '{actual}'.");
+    }
+}
+
+sealed class TestHostItem : IHostItem
+{
+    private object? _value;
+
+    public TestHostItem(object? value)
+    {
+        _value = value;
+    }
+
+    public bool TryRead(out object? value)
+    {
+        value = _value;
+        return true;
+    }
+
+    public bool TryWrite(object? value)
+    {
+        _value = value;
+        return true;
     }
 }

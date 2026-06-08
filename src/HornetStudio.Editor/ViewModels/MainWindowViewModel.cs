@@ -26,8 +26,18 @@ using HornetStudio.Editor.Helpers;
 using HornetStudio.Editor.Monitoring;
 using HornetStudio.Editor.Models;
 using HornetStudio.Editor.Persistence;
-using HornetStudio.Editor.UdlClients;
+using HornetStudio.Editor.Persistence.CustomControls;
 using HornetStudio.Editor.Widgets;
+using HornetStudio.Host.Registries;
+using UdlClientDefinition = HornetStudio.Host.Runtimes.Udl.UdlClientDefinition;
+using UdlClientRuntime = HornetStudio.Host.Runtimes.Udl.UdlClientRuntime;
+using UdlClientRuntimeManager = HornetStudio.Host.Runtimes.Udl.UdlClientRuntimeManager;
+using HornetStudio.Host.Runtimes.Controller;
+using HornetStudio.Host.Runtimes.EnhancedSignal;
+using HornetStudio.Editor.Persistence.EnhancedSignals;
+using HornetStudio.Editor.Persistence.Udl;
+using HornetStudio.Editor.Persistence.ValueLog;
+using HornetStudio.Host.Logging.Values;
 
 namespace HornetStudio.Editor.ViewModels;
 
@@ -94,18 +104,16 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
     private const string CurrentPythonClientKind = "PythonClient";
 
     private readonly ObservableCollection<FolderItemModel> _selectedItems = [];
-    private readonly Dictionary<string, CsvLogger> _csvLoggers = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, object> _sqlLoggers = new(StringComparer.OrdinalIgnoreCase);
     private readonly EnhancedSignalDefinitionFileCodec _enhancedSignalFileCodec = new();
     private readonly CustomSignalDefinitionFileCodec _customSignalFileCodec = new();
     private readonly ControllerDefinitionFileCodec _controllerFileCodec = new();
     private readonly UdlClientDefinitionFileCodec _udlClientFileCodec = new();
+    private readonly ValueLogDefinitionFileCodec _valueLogFileCodec = new();
     private readonly Dictionary<string, HashSet<string>> _customSignalPublishedPathsByFolder = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, DateTimeOffset> _customSignalLastComputedTimes = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _customSignalTimerFolders = new(StringComparer.OrdinalIgnoreCase);
     private System.Threading.Timer? _customSignalEvaluationTimer;
     private readonly ConcurrentDictionary<string, byte> _pendingCustomSignalSourceChanges = new(StringComparer.OrdinalIgnoreCase);
-    private readonly bool _supportsUdlClientControl;
     private bool _isEditMode;
     private bool _showGrid = true;
     private bool _snapToEdges = true;
@@ -148,9 +156,8 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
     private long _projectRuntimeGeneration;
     protected bool AutoSaveOnEditModeExit { get; set; } = true;
 
-    public MainWindowViewModel(bool supportsUdlClientControl = false)
+    public MainWindowViewModel()
     {
-        _supportsUdlClientControl = supportsUdlClientControl;
         Folders = [];
         GridLines = [];
         SelectionState = new SelectionState();
@@ -185,8 +192,6 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
         SetFolders(CreateDefaultPages());
         RefreshDataRegistryDiagnostics();
     }
-
-    public bool SupportsUdlClientControl => _supportsUdlClientControl;
 
     public ObservableCollection<FolderModel> Folders { get; }
 
@@ -830,7 +835,7 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
         }
 
         // Keine verschachtelten Container-Controls im Table zulassen.
-        if (kind == ControlKind.TableControl || kind == ControlKind.CircleDisplay || kind == ControlKind.WidgetList || kind == ControlKind.UdlClientControl || kind == ControlKind.DialogWidget)
+        if (kind == ControlKind.TableControl || kind == ControlKind.CircleDisplay || kind == ControlKind.WidgetList || kind == ControlKind.DialogWidget)
         {
             return;
         }
@@ -2102,24 +2107,6 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
                 control["CameraResolution"] = item.CameraResolution;
                 control["CameraOverlayText"] = item.CameraOverlayText;
                 break;
-            case ControlKind.UdlClientControl:
-                control["UdlClientHost"] = item.UdlClientHost;
-                control["UdlClientPort"] = item.UdlClientPort;
-                control["UdlClientAutoConnect"] = item.UdlClientAutoConnect;
-                control["UdlClientDebugLogging"] = item.UdlClientDebugLogging;
-                control["UdlClientDemoEnabled"] = item.UdlClientDemoEnabled;
-                control["UdlAttachedItemPaths"] = item.UdlAttachedItemPaths;
-                if (!string.IsNullOrWhiteSpace(item.UdlDemoModuleDefinitions))
-                {
-                    control["UdlDemoModules"] = UdlDemoModuleDefinitionCodec.ToJsonArray(item.UdlDemoModuleDefinitions);
-                }
-
-                if (!string.IsNullOrWhiteSpace(item.UdlModuleExposureDefinitions))
-                {
-                    control["UdlModuleExposures"] = UdlModuleExposureDefinitionCodec.ToJsonArray(item.UdlModuleExposureDefinitions);
-                }
-
-                break;
             case ControlKind.ItemClient:
                 control["BrokerHost"] = item.BrokerHost;
                 control["BrokerPort"] = item.BrokerPort;
@@ -2144,9 +2131,6 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
                 break;
             case ControlKind.CustomSignals:
                 control["CustomSignals"] = CustomSignalDefinitionCodec.ToJsonArray(item.CustomSignalDefinitions, item.FolderName);
-                break;
-            case ControlKind.EnhancedSignals:
-                control["EnhancedSignals"] = ExtendedSignalDefinitionCodec.ToJsonArray(item.EnhancedSignalDefinitions, item.FolderName);
                 break;
             case ControlKind.ControllerWidget:
                 control["ControllerDefinitions"] = ControllerDefinitionCodec.ToJsonArray(item.ControllerDefinitions);
@@ -2210,7 +2194,6 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
             ControlKind.CircleDisplay => "CircleDisplay",
             ControlKind.LogControl => "LogControl",
             ControlKind.ChartControl => "ChartControl",
-            ControlKind.UdlClientControl => "UdlClient",
             ControlKind.ItemClient => "ItemClient",
             ControlKind.CsvLoggerControl => "CsvLoggerControl",
             ControlKind.SqlLoggerControl => "SqlLoggerControl",
@@ -2218,7 +2201,6 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
             ControlKind.PythonClient => "PythonClient",
             ControlKind.ApplicationExplorer => "ApplicationExplorer",
             ControlKind.CustomSignals => "CustomSignals",
-            ControlKind.EnhancedSignals => "EnhancedSignals",
             ControlKind.ControllerWidget => "ControllerWidget",
             ControlKind.Monitor => "Monitor",
             ControlKind.MonitorView => "MonitorView",
@@ -2298,15 +2280,10 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
             ?? GetStringProperty(properties, "PythonEnvironments")
             ?? item.ApplicationDefinitions;
         item.CustomSignalDefinitions = CustomSignalDefinitionCodec.FromJsonNode(properties["CustomSignals"], pageName);
-        item.EnhancedSignalDefinitions = ExtendedSignalDefinitionCodec.FromJsonNode(properties["EnhancedSignals"], pageName);
         item.ControllerDefinitions = ControllerDefinitionCodec.FromJsonNode(properties["ControllerDefinitions"]);
         item.MonitorDefinitions = MonitorDefinitionCodec.FromJsonNode(properties["MonitorDefinitions"], pageName);
         item.SelectedMonitorIds = MonitorRegistry.FromJsonNode(properties["SelectedMonitorIds"]);
         item.OnActiveColor = GetStringProperty(properties, "OnActiveColor") ?? item.OnActiveColor;
-        if (item.IsEnhancedSignals)
-        {
-            Core.LogInfo($"[EnhancedSignalsSet] origin=from-json-node item={item.Path} page={pageName} summary={SummarizeEnhancedSignalDefinitions(item.EnhancedSignalDefinitions)} raw={item.EnhancedSignalDefinitions}");
-        }
 
         item.ApplicationAutoStart = GetBoolProperty(properties, "ApplicationAutoStart")
             ?? GetBoolProperty(properties, "PythonEnvAutoStart")
@@ -2678,7 +2655,6 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
             ControlKind.CircleDisplay => "CircleDisplay",
             ControlKind.LogControl => "LogControl",
             ControlKind.ChartControl => "ChartControl",
-            ControlKind.UdlClientControl => "UdlClientControl",
             ControlKind.ItemClient => "ItemClient",
             ControlKind.CsvLoggerControl => "CsvLoggerControl",
             ControlKind.SqlLoggerControl => "SqlLoggerControl",
@@ -2686,7 +2662,6 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
             ControlKind.PythonClient => "PythonClient",
             ControlKind.ApplicationExplorer => "ApplicationExplorer",
             ControlKind.CustomSignals => "CustomSignals",
-            ControlKind.EnhancedSignals => "EnhancedSignals",
             ControlKind.ControllerWidget => "ControllerWidget",
             ControlKind.Monitor => "Monitor",
             ControlKind.MonitorView => "MonitorView",
@@ -3323,26 +3298,6 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
                 ViewSeconds = 30,
                 RefreshRateMs = 100
             },
-            ControlKind.UdlClientControl => new FolderItemModel
-            {
-                Kind = ControlKind.UdlClientControl,
-                Name = "UdlClientControl",
-                ControlCaption = string.Empty,
-                BodyCaption = string.Empty,
-                BodyCaptionVisible = false,
-                ShowFooter = false,
-                Footer = "Disconnected",
-                UdlClientHost = "192.168.178.151",
-                UdlClientPort = 9001,
-                UdlClientAutoConnect = false,
-                UdlClientDebugLogging = false,
-                UdlClientDemoEnabled = false,
-                X = x,
-                Y = y,
-                Width = Math.Max(width, 420),
-                Height = Math.Max(height, 170),
-                ContainerBorderWidth = 0
-            },
             ControlKind.ItemClient => new FolderItemModel
             {
                 Kind = ControlKind.ItemClient,
@@ -3403,21 +3358,6 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
                 BodyCaptionVisible = false,
                 ShowFooter = true,
                 Footer = "No custom signals configured",
-                X = x,
-                Y = y,
-                Width = Math.Max(width, 420),
-                Height = Math.Max(height, 220),
-                ContainerBorderWidth = 0
-            },
-            ControlKind.EnhancedSignals => new FolderItemModel
-            {
-                Kind = ControlKind.EnhancedSignals,
-                Name = "EnhancedSignals",
-                ControlCaption = "EnhancedSignals",
-                BodyCaption = string.Empty,
-                BodyCaptionVisible = false,
-                ShowFooter = true,
-                Footer = "No enhanced signals configured",
                 X = x,
                 Y = y,
                 Width = Math.Max(width, 420),
@@ -3673,6 +3613,7 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
             MonitorRuntimeManager.ReleaseFolder(existingPage.Name);
             ControllerRuntimeManager.ReleaseFolder(existingPage.Name);
             UdlClientRuntimeManager.ReleaseFolder(existingPage.Name);
+            LogManager.ReleaseFolder(existingPage.Name);
             RealtimeChartRuntimeManager.ReleaseFolder(existingPage.Name);
         }
 
@@ -3688,6 +3629,7 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
             SyncEnhancedSignals(page, forceRecreate: false);
             SyncMonitors(page, forceRecreate: false);
             SyncControllers(page, forceRecreate: false);
+            SyncValueLogs(page);
             Folders.Add(page);
         }
 
@@ -5271,16 +5213,6 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
                     BindAttachItemList("CsvSignalPaths", "SelectSignals", current => current.CsvSignalPaths, (current, value) => { current.CsvSignalPaths = value; return null; }, GetCsvSignalOptions)
                 }));
                 break;
-            case ControlKind.UdlClientControl:
-                sections.Add(("Properties", new List<EditorDialogBindingDefinition>
-                {
-                    BindText("UdlClientHost", "Host", current => current.UdlClientHost, (current, value) => { current.UdlClientHost = value; return null; }),
-                    BindInt("UdlClientPort", "Port", current => current.UdlClientPort, (current, value) => current.UdlClientPort = value),
-                    BindChoice("UdlClientAutoConnect", "AutoConnect", current => current.UdlClientAutoConnect ? "True" : "False", (current, value) => { current.UdlClientAutoConnect = string.Equals(value, "True", StringComparison.OrdinalIgnoreCase); return null; }, _ => new[] { "False", "True" }),
-                    BindChoice("UdlClientDebugLogging", "DebugLogging", current => current.UdlClientDebugLogging ? "True" : "False", (current, value) => { current.UdlClientDebugLogging = string.Equals(value, "True", StringComparison.OrdinalIgnoreCase); return null; }, _ => new[] { "False", "True" }),
-                    BindChoice("UdlClientDemoEnabled", "Demo", current => current.UdlClientDemoEnabled ? "True" : "False", (current, value) => { current.UdlClientDemoEnabled = string.Equals(value, "True", StringComparison.OrdinalIgnoreCase); return null; }, _ => new[] { "False", "True" })
-                }));
-                break;
             case ControlKind.ItemClient:
                 sections.Add(("Properties", new List<EditorDialogBindingDefinition>
                 {
@@ -5331,7 +5263,6 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
             case ControlKind.CustomSignals:
                 sections.Add(("Properties", new List<EditorDialogBindingDefinition>()));
                 break;
-            case ControlKind.EnhancedSignals:
             case ControlKind.ControllerWidget:
                 sections.Add(("Properties", new List<EditorDialogBindingDefinition>()));
                 break;
@@ -5401,418 +5332,6 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
             .ToArray();
 
         return options;
-    }
-
-    public void StartCsvLogging(FolderItemModel item)
-    {
-        if (item is null)
-        {
-            return;
-        }
-
-        var key = string.IsNullOrWhiteSpace(item.Id) ? Guid.NewGuid().ToString("N") : item.Id;
-        if (string.IsNullOrWhiteSpace(item.Id))
-        {
-            item.Id = key;
-        }
-
-        if (_csvLoggers.TryGetValue(key, out var existingLogger))
-        {
-            try
-            {
-                _ = existingLogger.Stop();
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Failed to stop existing CsvLogger before restart: {ex}");
-            }
-        }
-
-        var directory = string.IsNullOrWhiteSpace(item.CsvDirectory)
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "HornetStudioLogs")
-            : item.CsvDirectory.Trim();
-
-        var baseName = string.IsNullOrWhiteSpace(item.CsvFilename)
-            ? (!string.IsNullOrWhiteSpace(item.Name) ? item.Name.Trim() : "CsvLogger")
-            : item.CsvFilename.Trim();
-
-        if (!baseName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
-        {
-            baseName += ".csv";
-        }
-
-        var fileName = baseName;
-        if (item.CsvAddTimestamp)
-        {
-            var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            fileName = $"{timestamp}_{baseName}";
-        }
-
-        var interval = item.CsvIntervalMs > 0 ? item.CsvIntervalMs : 1000;
-
-        var loggerName = !string.IsNullOrWhiteSpace(item.Name) ? item.Name.Trim() : key;
-        var logger = new CsvLogger(loggerName)
-        {
-            Directory = directory,
-            Interval = interval,
-            SplitDaily = item.CsvSplitDaily,
-            SplitDailyTime = item.CsvSplitDailyTime,
-            SplitMaxFileSizeMb = item.CsvSplitMaxFileSizeMb,
-            PersistenceMode = item.CsvPersistenceMode,
-            FlushIntervalMs = item.CsvFlushIntervalMs,
-            FlushBatchSize = item.CsvFlushBatchSize
-        };
-
-        foreach (var (displayName, targetPath, unit, _) in ParseCsvSignalSelection(item))
-        {
-            if (string.IsNullOrWhiteSpace(targetPath))
-            {
-                continue;
-            }
-
-            var owningPage = FindOwningPage(item) ?? SelectedFolder;
-            var pageName = owningPage?.Name;
-
-            if (!TryResolveDataItem(targetPath, pageName, out var dataItem) || dataItem is null)
-            {
-                Debug.WriteLine($"CsvLogger: failed to resolve data item for '{displayName}' path='{targetPath}' page='{pageName}'");
-                continue;
-            }
-
-            try
-            {
-                // Erst versuchen, ein Signal mit Metadaten (Unit, Format, SourcePath) zu verwenden.
-                var sourcePath = dataItem.Path ?? targetPath;
-                if (!string.IsNullOrWhiteSpace(sourcePath)
-                    && HostRegistries.Signals.TryGetBySourcePath(sourcePath, out var signal)
-                    && signal is not null)
-                {
-                    logger.AddSignal(signal, string.Empty, displayName, unit);
-                }
-                else
-                {
-                    // Fallback auf das bestehende ItemModel-basierten Logging, falls kein Signal gefunden werden kann.
-                    logger.AddItem(dataItem, string.Empty, displayName, unit);
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"CsvLogger: failed to add item '{displayName}' from '{targetPath}': {ex}");
-            }
-        }
-
-        var fullPath = Path.Combine(directory, fileName);
-        try
-        {
-            logger.Start(fullPath, interval);
-            _csvLoggers[key] = logger;
-            item.BodyCaption = fileName;
-            Debug.WriteLine($"CsvLogger started for item '{item.Name}' file='{fullPath}' interval={interval}ms");
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"CsvLogger: failed to start for item '{item.Name}' file='{fullPath}': {ex}");
-        }
-    }
-
-    public void StopCsvLogging(FolderItemModel item)
-    {
-        if (item is null)
-        {
-            return;
-        }
-
-        var key = item.Id;
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            return;
-        }
-
-        if (!_csvLoggers.TryGetValue(key, out var logger))
-        {
-            return;
-        }
-
-        _csvLoggers.Remove(key);
-
-        try
-        {
-            _ = logger.Stop();
-            Debug.WriteLine($"CsvLogger stopped for item '{item.Name}'");
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"CsvLogger: failed to stop for item '{item.Name}': {ex}");
-        }
-    }
-
-    public void StartSqlLogging(FolderItemModel item)
-    {
-        if (item is null)
-        {
-            return;
-        }
-
-        var key = string.IsNullOrWhiteSpace(item.Id) ? Guid.NewGuid().ToString("N") : item.Id;
-        if (string.IsNullOrWhiteSpace(item.Id))
-        {
-            item.Id = key;
-        }
-
-        if (_sqlLoggers.TryGetValue(key, out var existingLogger))
-        {
-            try
-            {
-                var existingLoggerType = existingLogger.GetType();
-                var stopMethod = existingLoggerType.GetMethod("Stop", Type.EmptyTypes);
-                if (stopMethod is not null)
-                {
-                    var result = stopMethod.Invoke(existingLogger, Array.Empty<object>());
-                    if (result is Task task)
-                    {
-                        _ = task;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Failed to stop existing SqlLogger before restart: {ex}");
-            }
-        }
-
-        var directory = string.IsNullOrWhiteSpace(item.CsvDirectory)
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "HornetStudioLogs")
-            : item.CsvDirectory.Trim();
-
-        var baseName = string.IsNullOrWhiteSpace(item.CsvFilename)
-            ? (!string.IsNullOrWhiteSpace(item.Name) ? item.Name.Trim() : "SqlLogger")
-            : item.CsvFilename.Trim();
-
-        if (!baseName.EndsWith(".db", StringComparison.OrdinalIgnoreCase))
-        {
-            baseName += ".db";
-        }
-
-        var fileName = baseName;
-        if (item.CsvAddTimestamp)
-        {
-            var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            fileName = $"{timestamp}_{baseName}";
-        }
-
-        var defaultInterval = item.CsvIntervalMs > 0 ? item.CsvIntervalMs : 1000;
-
-        var loggerName = !string.IsNullOrWhiteSpace(item.Name) ? item.Name.Trim() : key;
-        var fullPath = Path.Combine(directory, fileName);
-
-        var loggerAssembly = typeof(CsvLogger).Assembly;
-        var loggerType = loggerAssembly.GetType("HornetStudio.Logging.SqlLogger");
-        if (loggerType is null)
-        {
-            Debug.WriteLine("SqlLogger type not found in HornetStudio.Logging; SQL logging is not available.");
-            return;
-        }
-
-        object? logger = null;
-        try
-        {
-            logger = Activator.CreateInstance(loggerType, loggerName);
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"SqlLogger: failed to create instance: {ex}");
-            return;
-        }
-
-        if (logger is null)
-        {
-            Debug.WriteLine("SqlLogger: Activator.CreateInstance returned null.");
-            return;
-        }
-
-        try
-        {
-            var directoryField = loggerType.GetField("Directory");
-            if (directoryField is not null)
-            {
-                directoryField.SetValue(logger, directory);
-            }
-
-            var fileField = loggerType.GetField("File");
-            if (fileField is not null)
-            {
-                fileField.SetValue(logger, fullPath);
-            }
-
-            var splitDailyField = loggerType.GetField("SplitDaily");
-            splitDailyField?.SetValue(logger, item.CsvSplitDaily);
-
-            var splitDailyTimeField = loggerType.GetField("SplitDailyTime");
-            splitDailyTimeField?.SetValue(logger, item.CsvSplitDailyTime);
-
-            var splitMaxFileSizeField = loggerType.GetField("SplitMaxFileSizeMb");
-            splitMaxFileSizeField?.SetValue(logger, item.CsvSplitMaxFileSizeMb);
-
-            var persistenceModeField = loggerType.GetField("PersistenceMode");
-            persistenceModeField?.SetValue(logger, item.CsvPersistenceMode);
-
-            var flushIntervalField = loggerType.GetField("FlushIntervalMs");
-            flushIntervalField?.SetValue(logger, item.CsvFlushIntervalMs);
-
-            var flushBatchSizeField = loggerType.GetField("FlushBatchSize");
-            flushBatchSizeField?.SetValue(logger, item.CsvFlushBatchSize);
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"SqlLogger: failed to set fields: {ex}");
-        }
-
-        foreach (var (displayName, targetPath, unit, signalIntervalMs) in ParseCsvSignalSelection(item))
-        {
-            if (string.IsNullOrWhiteSpace(targetPath))
-            {
-                continue;
-            }
-
-            var owningPage = FindOwningPage(item) ?? SelectedFolder;
-            var pageName = owningPage?.Name;
-
-            if (!TryResolveDataItem(targetPath, pageName, out var dataItem) || dataItem is null)
-            {
-                Debug.WriteLine($"SqlLogger: failed to resolve data item for '{displayName}' path='{targetPath}' page='{pageName}'");
-                continue;
-            }
-
-            try
-            {
-                var columnName = !string.IsNullOrWhiteSpace(displayName)
-                    ? displayName
-                    : (dataItem.Name ?? targetPath);
-
-                var addMethod = loggerType.GetMethod("Add", new[] { typeof(string), typeof(string), typeof(string), typeof(string), typeof(int), typeof(Func<object>) });
-                if (addMethod is null)
-                {
-                    Debug.WriteLine("SqlLogger: Add method with expected signature not found.");
-                    break;
-                }
-
-                var intervalForSignal = signalIntervalMs > 0 ? signalIntervalMs : defaultInterval;
-
-                Func<object> valueFactory = () => dataItem.Value;
-                addMethod.Invoke(logger, new object[] { columnName, displayName, unit, string.Empty, intervalForSignal, valueFactory });
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"SqlLogger: failed to add item '{displayName}' from '{targetPath}': {ex}");
-            }
-        }
-
-        try
-        {
-            var startMethod = loggerType.GetMethod("Start", Type.EmptyTypes);
-            startMethod?.Invoke(logger, Array.Empty<object>());
-
-            _sqlLoggers[key] = logger;
-            item.BodyCaption = fileName;
-            Debug.WriteLine($"SqlLogger started for item '{item.Name}' file='{fullPath}' interval={defaultInterval}ms");
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"SqlLogger: failed to start for item '{item.Name}' file='{fullPath}': {ex}");
-        }
-    }
-
-    public void StopSqlLogging(FolderItemModel item)
-    {
-        if (item is null)
-        {
-            return;
-        }
-
-        var key = item.Id;
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            return;
-        }
-
-        if (!_sqlLoggers.TryGetValue(key, out var logger))
-        {
-            return;
-        }
-
-        _sqlLoggers.Remove(key);
-
-        try
-        {
-            var loggerType = logger.GetType();
-            var stopMethod = loggerType.GetMethod("Stop", Type.EmptyTypes);
-            if (stopMethod is not null)
-            {
-                var result = stopMethod.Invoke(logger, Array.Empty<object>());
-                if (result is Task task)
-                {
-                    _ = task;
-                }
-            }
-            Debug.WriteLine($"SqlLogger stopped for item '{item.Name}'");
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"SqlLogger: failed to stop for item '{item.Name}': {ex}");
-        }
-    }
-
-    private static IEnumerable<(string DisplayName, string TargetPath, string Unit, int IntervalMs)> ParseCsvSignalSelection(FolderItemModel item)
-    {
-        var raw = item.CsvSignalPaths;
-        var result = new List<(string, string, string, int)>();
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            return result;
-        }
-        var lines = raw
-            .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-        foreach (var line in lines)
-        {
-            if (string.IsNullOrWhiteSpace(line))
-            {
-                continue;
-            }
-
-            var parts = line.Split('|', StringSplitOptions.TrimEntries);
-            if (parts.Length == 0)
-            {
-                continue;
-            }
-
-            if (parts.Length == 1)
-            {
-                var path = parts[0].Trim();
-                if (!string.IsNullOrWhiteSpace(path))
-                {
-                    result.Add((path, path, string.Empty, 0));
-                }
-                continue;
-            }
-
-            var name = parts[0].Trim();
-            var pathPart = parts[1].Trim();
-            var unit = parts.Length > 2 ? parts[2].Trim() : string.Empty;
-
-            int intervalMs = 0;
-            if (parts.Length > 3 && int.TryParse(parts[3].Trim(), out var parsedInterval) && parsedInterval > 0)
-            {
-                intervalMs = parsedInterval;
-            }
-
-            if (!string.IsNullOrWhiteSpace(pathPart))
-            {
-                result.Add((name, pathPart, unit, intervalMs));
-            }
-        }
-
-        return result;
     }
 
     private static EditorDialogBindingDefinition BindReadOnly(string key, string label, Func<FolderItemModel, string> read, Func<FolderItemModel, string>? toolTipFactory = null)
@@ -6209,10 +5728,6 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
 
     private IReadOnlyList<EnhancedSignalRuntime> SyncEnhancedSignals(FolderModel page, bool forceRecreate = false)
     {
-        var enhancedSignalItems = EnumeratePageItems(page.Items)
-            .Where(static item => item.IsEnhancedSignals)
-            .ToArray();
-
         var folderDirectory = ResolveFolderWorkspaceDirectory(page);
         var fileEntries = LoadEnhancedSignalFileEntries(page, folderDirectory);
         var fileEntriesByName = new Dictionary<string, EnhancedSignalFileEntry>(StringComparer.OrdinalIgnoreCase);
@@ -6224,43 +5739,16 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
             }
         }
 
-        var legacyOwnerByDefinitionName = new Dictionary<string, FolderItemModel>(StringComparer.OrdinalIgnoreCase);
-        foreach (var item in enhancedSignalItems)
-        {
-            foreach (var definition in ExtendedSignalDefinitionCodec.ParseDefinitions(item.EnhancedSignalDefinitions))
-            {
-                if (string.IsNullOrWhiteSpace(definition.Name))
-                {
-                    continue;
-                }
-
-                if (fileEntriesByName.ContainsKey(definition.Name))
-                {
-                    ReportEnhancedSignalWarning($"Enhanced signal '{definition.Name}' is defined in both file and legacy widget data. The file definition is preferred.", item.FolderLayoutPath);
-                    continue;
-                }
-
-                if (!legacyOwnerByDefinitionName.TryAdd(definition.Name, item))
-                {
-                    ReportEnhancedSignalWarning($"Duplicate legacy enhanced signal definition '{definition.Name}' was ignored.", item.FolderLayoutPath);
-                }
-            }
-        }
-
-        if (enhancedSignalItems.Length == 0 && fileEntriesByName.Count == 0)
+        if (fileEntriesByName.Count == 0)
         {
             EnhancedSignalRuntimeManager.ReleaseFolder(page.Name);
             return Array.Empty<EnhancedSignalRuntime>();
         }
 
-        string BuildCombinedRawDefinitions()
+        string BuildRawDefinitions()
         {
             var definitions = fileEntriesByName.Values
                 .Select(entry => entry.Definition.Clone())
-                .Concat(enhancedSignalItems
-                    .SelectMany(item => ExtendedSignalDefinitionCodec.ParseDefinitions(item.EnhancedSignalDefinitions))
-                    .Where(definition => !string.IsNullOrWhiteSpace(definition.Name) && !fileEntriesByName.ContainsKey(definition.Name))
-                    .Select(static definition => definition.Clone()))
                 .GroupBy(definition => definition.Name, StringComparer.OrdinalIgnoreCase)
                 .Select(group => group.First())
                 .ToArray();
@@ -6268,13 +5756,9 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
             return ExtendedSignalDefinitionCodec.SerializeDefinitions(definitions);
         }
 
-        void ApplyCombinedRawDefinitions(string rawDefinitions)
+        void ApplyRawDefinitions(string rawDefinitions)
         {
             var updatedDefinitions = ExtendedSignalDefinitionCodec.ParseDefinitions(rawDefinitions);
-            var updatedRawByItem = enhancedSignalItems.ToDictionary(
-                item => item,
-                _ => new List<ExtendedSignalDefinition>());
-
             foreach (var definition in updatedDefinitions)
             {
                 if (string.IsNullOrWhiteSpace(definition.Name))
@@ -6288,36 +5772,24 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
                     {
                         _enhancedSignalFileCodec.SaveDefinition(folderDirectory, page.Name, definition, fileEntry.FilePath);
                     }
-
-                    continue;
                 }
-
-                if (legacyOwnerByDefinitionName.TryGetValue(definition.Name, out var ownerItem))
-                {
-                    updatedRawByItem[ownerItem].Add(definition);
-                }
-            }
-
-            foreach (var item in enhancedSignalItems)
-            {
-                item.EnhancedSignalDefinitions = ExtendedSignalDefinitionCodec.SerializeDefinitions(updatedRawByItem[item]);
             }
         }
 
         return EnhancedSignalRuntimeManager.SyncDefinitions(
             page.Name,
-            BuildCombinedRawDefinitions(),
+            BuildRawDefinitions(),
             forceRecreate,
-            rawDefinitionsGetter: BuildCombinedRawDefinitions,
+            rawDefinitionsGetter: BuildRawDefinitions,
             rawDefinitionsSetter: rawDefinitions =>
             {
                 if (Dispatcher.UIThread.CheckAccess())
                 {
-                    ApplyCombinedRawDefinitions(rawDefinitions);
+                    ApplyRawDefinitions(rawDefinitions);
                     return;
                 }
 
-                Dispatcher.UIThread.Post(() => ApplyCombinedRawDefinitions(rawDefinitions));
+                Dispatcher.UIThread.Post(() => ApplyRawDefinitions(rawDefinitions));
             });
     }
 
@@ -6338,41 +5810,6 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
             return Array.Empty<EnhancedSignalFileEntry>();
         }
     }
-
-    public IReadOnlyList<EnhancedSignalRuntime> GetEnhancedSignalRuntimes(FolderItemModel ownerItem, bool forceRecreate = false)
-    {
-        ArgumentNullException.ThrowIfNull(ownerItem);
-
-        var page = FindOwningPage(ownerItem) ?? Folders.FirstOrDefault(candidate => string.Equals(candidate.Name, ownerItem.FolderName, StringComparison.Ordinal));
-        if (page is null)
-        {
-            return Array.Empty<EnhancedSignalRuntime>();
-        }
-
-        var ownerDefinitionNames = ExtendedSignalDefinitionCodec.ParseDefinitions(ownerItem.EnhancedSignalDefinitions)
-            .Select(definition => definition.Name)
-            .Where(static name => !string.IsNullOrWhiteSpace(name))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        if (IsEnhancedSignalsBrowserOwner(ownerItem))
-        {
-            return SyncEnhancedSignals(page, forceRecreate);
-        }
-
-        if (ownerDefinitionNames.Count == 0)
-        {
-            SyncEnhancedSignals(page, forceRecreate);
-            return Array.Empty<EnhancedSignalRuntime>();
-        }
-
-        return SyncEnhancedSignals(page, forceRecreate)
-            .Where(runtime => ownerDefinitionNames.Contains(runtime.Definition.Name))
-            .ToArray();
-    }
-
-    private static bool IsEnhancedSignalsBrowserOwner(FolderItemModel ownerItem)
-        => ownerItem.IsEnhancedSignals
-            && string.Equals(ownerItem.Name, "EnhancedSignalsBrowser", StringComparison.OrdinalIgnoreCase);
 
     private void SyncMonitors(FolderModel page, bool forceRecreate = false)
     {
@@ -6412,11 +5849,11 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
 
         foreach (var definition in definitions)
         {
-            var registryPath = CustomSignalsControl.BuildRegistryPath(page.Name, definition);
+            var registryPath = CustomSignalRuntimeHelper.BuildRegistryPath(page.Name, definition);
             nextPaths.Add(registryPath);
             if (definition.Mode == CustomSignalMode.Computed && definition.Trigger == CustomSignalComputationTrigger.Manual)
             {
-                nextPaths.Add(CustomSignalsControl.BuildManualTriggerPath(registryPath));
+                nextPaths.Add(CustomSignalRuntimeHelper.BuildManualTriggerPath(registryPath));
             }
         }
 
@@ -6434,7 +5871,7 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
         {
             foreach (var definition in definitions)
             {
-                var registryPath = CustomSignalsControl.BuildRegistryPath(page.Name, definition);
+                var registryPath = CustomSignalRuntimeHelper.BuildRegistryPath(page.Name, definition);
                 var value = EvaluateCustomSignalValue(page.Name, definition, registryPath, preserveComputedSchedule);
                 PublishCustomSignalSnapshot(page.Name, definition, registryPath, value);
                 PublishCustomSignalManualTriggerSnapshot(definition, registryPath);
@@ -6559,12 +5996,12 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
         {
             if (HostRegistries.Data.TryGet(registryPath, out var existing) && existing is not null)
             {
-                return CustomSignalsControl.ConvertToDataType(
+                return CustomSignalRuntimeHelper.ConvertToDataType(
                     GetCustomSignalRegistryValue(existing),
                     definition.DataType);
             }
 
-            return CustomSignalsControl.ParseLiteral(definition.ValueText, definition.DataType);
+            return CustomSignalRuntimeHelper.ParseLiteral(definition.ValueText, definition.DataType);
         }
 
         if (preserveComputedSchedule && !ShouldEvaluateCustomSignal(definition, registryPath))
@@ -6611,7 +6048,7 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
     {
         if (HostRegistries.Data.TryGet(registryPath, out var existing) && existing is not null)
         {
-            return CustomSignalsControl.ConvertToDataType(
+            return CustomSignalRuntimeHelper.ConvertToDataType(
                 GetCustomSignalRegistryValue(existing),
                 definition.DataType);
         }
@@ -6698,7 +6135,7 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
             return;
         }
 
-        var triggerPath = CustomSignalsControl.BuildManualTriggerPath(registryPath);
+        var triggerPath = CustomSignalRuntimeHelper.BuildManualTriggerPath(registryPath);
         var item = new ItemModel("trigger", false, registryPath);
         item.Properties["kind"].Value = "CustomSignalManualTrigger";
         item.Properties["title"].Value = $"{definition.Name} Trigger";
@@ -6775,10 +6212,6 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
 
     private IReadOnlyList<UdlClientRuntime> SyncUdlClients(FolderModel page, bool forceRecreate = false)
     {
-        var udlClientItems = EnumeratePageItems(page.Items)
-            .Where(static item => item.IsUdlClientControl)
-            .ToArray();
-
         var folderDirectory = ResolveFolderWorkspaceDirectory(page);
         var fileEntries = LoadUdlClientFileEntries(folderDirectory);
         var fileEntriesByClientId = new Dictionary<string, UdlClientFileEntry>(StringComparer.OrdinalIgnoreCase);
@@ -6790,28 +6223,14 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
             }
         }
 
-        foreach (var item in udlClientItems)
-        {
-            var clientId = UdlPathHelper.NormalizeClientName(item.Name);
-            if (fileEntriesByClientId.TryGetValue(clientId, out var fileEntry))
-            {
-                ApplyFileBackedUdlClientDefinition(item, fileEntry.Definition);
-            }
-        }
-
-        if (udlClientItems.Length == 0 && fileEntriesByClientId.Count == 0)
+        if (fileEntriesByClientId.Count == 0)
         {
             UdlClientRuntimeManager.ReleaseFolder(page.Name);
             return Array.Empty<UdlClientRuntime>();
         }
 
-        var legacyDefinitions = udlClientItems
-            .Where(item => !string.IsNullOrWhiteSpace(item.Name) && !fileEntriesByClientId.ContainsKey(UdlPathHelper.NormalizeClientName(item.Name)))
-            .Select(CreateLegacyUdlClientDefinition);
-
         var mergedDefinitions = fileEntriesByClientId.Values
             .Select(entry => entry.Definition)
-            .Concat(legacyDefinitions)
             .GroupBy(definition => definition.ClientId, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
             .ToArray();
@@ -6839,64 +6258,36 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
         }
     }
 
-    private static UdlClientDefinition CreateLegacyUdlClientDefinition(FolderItemModel item)
+    private IReadOnlyList<ValueLogDefinition> SyncValueLogs(FolderModel page)
     {
-        return new UdlClientDefinition
-        {
-            ClientId = UdlPathHelper.NormalizeClientName(item.Name),
-            Text = item.ControlCaption,
-            Host = item.UdlClientHost,
-            Port = item.UdlClientPort,
-            AutoConnect = item.UdlClientAutoConnect,
-            DebugLogging = item.UdlClientDebugLogging,
-            Enabled = item.Enabled,
-            DemoEnabled = item.UdlClientDemoEnabled,
-            AttachedItemPaths = ParseLegacyUdlAttachedItemPaths(item.UdlAttachedItemPaths),
-            DemoModuleDefinitions = item.UdlDemoModuleDefinitions
-        };
-    }
-
-    private static void ApplyFileBackedUdlClientDefinition(FolderItemModel item, UdlClientDefinition definition)
-    {
-        item.UdlClientHost = definition.Host;
-        item.UdlClientPort = definition.Port;
-        item.UdlClientAutoConnect = definition.AutoConnect;
-        item.UdlClientDebugLogging = definition.DebugLogging;
-        item.Enabled = definition.Enabled;
-        item.UdlClientDemoEnabled = definition.DemoEnabled;
-        item.UdlAttachedItemPaths = SerializeLegacyUdlAttachedItemPaths(definition.AttachedItemPaths);
-        item.UdlDemoModuleDefinitions = definition.DemoModuleDefinitions;
-    }
-
-    private static IReadOnlyList<string> ParseLegacyUdlAttachedItemPaths(string? serialized)
-    {
-        if (string.IsNullOrWhiteSpace(serialized))
-        {
-            return Array.Empty<string>();
-        }
-
-        return serialized
-            .Split(['\r', '\n', ';', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(TargetPathHelper.NormalizeConfiguredTargetPath)
-            .Where(static path => !string.IsNullOrWhiteSpace(path))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
+        var folderDirectory = ResolveFolderWorkspaceDirectory(page);
+        var fileEntries = LoadValueLogFileEntries(folderDirectory);
+        var definitions = fileEntries
+            .Select(static entry => entry.Definition)
+            .GroupBy(static definition => definition.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(static group => group.First())
             .ToArray();
+
+        LogManager.SyncDefinitions(page.Name, definitions);
+        return definitions;
     }
 
-    private static string SerializeLegacyUdlAttachedItemPaths(IEnumerable<string>? attachedItemPaths)
+    private IReadOnlyList<ValueLogFileEntry> LoadValueLogFileEntries(string? folderDirectory)
     {
-        if (attachedItemPaths is null)
+        if (string.IsNullOrWhiteSpace(folderDirectory) || !Directory.Exists(folderDirectory))
         {
-            return string.Empty;
+            return Array.Empty<ValueLogFileEntry>();
         }
 
-        return string.Join(
-            Environment.NewLine,
-            attachedItemPaths
-                .Where(static path => !string.IsNullOrWhiteSpace(path))
-                .Select(TargetPathHelper.NormalizeConfiguredTargetPath)
-                .Where(static path => !string.IsNullOrWhiteSpace(path))
-                .Distinct(StringComparer.OrdinalIgnoreCase));
+        try
+        {
+            return _valueLogFileCodec.LoadFolder(folderDirectory);
+        }
+        catch (Exception ex)
+        {
+            ReportEnhancedSignalWarning($"Could not load value log files: {ex.Message}", folderDirectory);
+            return Array.Empty<ValueLogFileEntry>();
+        }
     }
 
     private IReadOnlyList<ControllerFileEntry> LoadControllerFileEntries(FolderModel page, string? folderDirectory)
@@ -7086,7 +6477,6 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
             TargetPropertyFormat = item.TargetPropertyFormat,
             Applications = item.ApplicationDefinitions,
             CustomSignals = CustomSignalDefinitionCodec.ToDocuments(item.CustomSignalDefinitions, item.FolderName),
-            EnhancedSignals = ExtendedSignalDefinitionCodec.ToDocuments(item.EnhancedSignalDefinitions, item.FolderName),
             ControllerDefinitions = ControllerDefinitionCodec.ToDocuments(item.ControllerDefinitions),
             MonitorDefinitions = MonitorDefinitionCodec.ToDocuments(item.MonitorDefinitions, item.FolderName),
             SelectedMonitorIds = MonitorRegistry.ParseSelectedIds(item.SelectedMonitorIds).ToList(),
@@ -7177,7 +6567,6 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
 
     private static FolderItemModel ToModel(FolderItemDocument item, bool resolveLegacyKind = true)
     {
-        var enhancedSignalDefinitions = ExtendedSignalDefinitionCodec.FromDocuments(item.EnhancedSignals, null);
         var controllerDefinitions = ControllerDefinitionCodec.FromDocuments(item.ControllerDefinitions);
         var effectiveKind = resolveLegacyKind ? ResolveDocumentKind(item) : item.Kind;
 
@@ -7239,7 +6628,6 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
             TargetPropertyFormat = item.TargetPropertyFormat,
             ApplicationDefinitions = string.IsNullOrWhiteSpace(item.Applications) ? item.LegacyPythonEnvironments ?? string.Empty : item.Applications,
             CustomSignalDefinitions = CustomSignalDefinitionCodec.FromDocuments(item.CustomSignals, null),
-            EnhancedSignalDefinitions = enhancedSignalDefinitions,
             ControllerDefinitions = controllerDefinitions,
             MonitorDefinitions = MonitorDefinitionCodec.FromDocuments(item.MonitorDefinitions, null),
             SelectedMonitorIds = MonitorRegistry.SerializeSelectedIds(item.SelectedMonitorIds),
@@ -7320,7 +6708,6 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
                 ControlKind.CameraControl => 260,
                 ControlKind.PythonClient => 220,
                 ControlKind.CustomSignals => 420,
-                ControlKind.EnhancedSignals => 420,
                 ControlKind.ControllerWidget => 420,
                 ControlKind.Monitor => 420,
                 ControlKind.MonitorView => 420,
@@ -7343,7 +6730,6 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
                 ControlKind.CameraControl => 160,
                 ControlKind.PythonClient => 80,
                 ControlKind.CustomSignals => 180,
-                ControlKind.EnhancedSignals => 180,
                 ControlKind.ControllerWidget => 180,
                 ControlKind.Monitor => 180,
                 ControlKind.MonitorView => 180,
@@ -7352,11 +6738,6 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
                 _ => 72
             })
         };
-
-        if (model.IsEnhancedSignals)
-        {
-            Core.LogInfo($"[EnhancedSignalsSet] origin=from-documents item={model.Path} summary={SummarizeEnhancedSignalDefinitions(enhancedSignalDefinitions)} raw={enhancedSignalDefinitions}");
-        }
 
         if (string.IsNullOrWhiteSpace(model.Name))
         {
@@ -7368,14 +6749,12 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
                 ControlKind.CircleDisplay => "CircleDisplay",
                 ControlKind.LogControl => "LogControl",
                 ControlKind.ChartControl => "ChartControl",
-                ControlKind.UdlClientControl => "UdlClientControl",
                 ControlKind.CsvLoggerControl => "CsvLoggerControl",
                 ControlKind.SqlLoggerControl => "SqlLoggerControl",
                 ControlKind.CameraControl => "CameraControl",
                 ControlKind.PythonClient => "PythonClient",
                 ControlKind.ApplicationExplorer => "ApplicationExplorer",
                 ControlKind.CustomSignals => "CustomSignals",
-                ControlKind.EnhancedSignals => "EnhancedSignals",
                 ControlKind.ControllerWidget => "ControllerWidget",
                 ControlKind.Monitor => "Monitor",
                 ControlKind.MonitorView => "MonitorView",
@@ -7779,7 +7158,6 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
             ControlKind.CircleDisplay => "circle_display",
             ControlKind.LogControl => "log_control",
             ControlKind.ChartControl => "chart_control",
-            ControlKind.UdlClientControl => "udl_client_control",
             ControlKind.ItemClient => "item_client",
             ControlKind.CsvLoggerControl => "csv_logger_control",
             ControlKind.SqlLoggerControl => "sql_logger_control",
@@ -7787,7 +7165,6 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
             ControlKind.PythonClient => "python_client",
             ControlKind.ApplicationExplorer => "application_explorer",
             ControlKind.CustomSignals => "custom_signals",
-            ControlKind.EnhancedSignals => "enhanced_signals",
             ControlKind.ControllerWidget => "controller_widget",
             ControlKind.Monitor => "monitor",
             ControlKind.MonitorView => "monitor_view",
@@ -8342,9 +7719,8 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
             return [];
         }
 
-        var clientPrefixes = EnumeratePageItems(owningPage.Items)
-            .Where(static pageItem => pageItem.Kind == ControlKind.UdlClientControl)
-            .Select(pageItem => BuildAttachedUdlPrefix(pageName, pageItem))
+        var clientPrefixes = LoadUdlClientFileEntries(ResolveFolderWorkspaceDirectory(owningPage))
+            .Select(entry => BuildAttachedUdlPrefix(pageName, entry.Definition.ClientId))
             .Where(static prefix => !string.IsNullOrWhiteSpace(prefix))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -8434,9 +7810,9 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
             || path.StartsWith(prefix + ".", StringComparison.OrdinalIgnoreCase));
     }
 
-    private static string BuildAttachedUdlPrefix(string pageName, FolderItemModel clientItem)
+    private static string BuildAttachedUdlPrefix(string pageName, string clientId)
     {
-        var clientName = string.IsNullOrWhiteSpace(clientItem.Name) ? "UdlClientControl" : clientItem.Name.Trim();
+        var clientName = UdlPathHelper.NormalizeClientName(clientId);
         return $"studio.{pageName}.{clientName}";
     }
 
@@ -8454,7 +7830,7 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
 
             foreach (var pageItem in EnumeratePageItems(page.Items))
             {
-                if (pageItem.Kind != ControlKind.UdlClientControl && pageItem.Kind != ControlKind.ItemClient)
+                if (pageItem.Kind != ControlKind.ItemClient)
                 {
                     continue;
                 }
@@ -8663,18 +8039,6 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
         return null;
     }
 
-    private static string SummarizeEnhancedSignalDefinitions(string? rawDefinitions)
-    {
-        var definitions = ExtendedSignalDefinitionCodec.ParseDefinitions(rawDefinitions);
-        if (definitions.Count == 0)
-        {
-            return "count=0";
-        }
-
-        return string.Join("; ", definitions.Select(definition =>
-            $"name={definition.Name},mode={definition.Adjustment.MappingMode},enabled={definition.Adjustment.Enabled},offset={definition.Adjustment.Offset.ToString(System.Globalization.CultureInfo.InvariantCulture)},gain={definition.Adjustment.Gain.ToString(System.Globalization.CultureInfo.InvariantCulture)},spline={definition.Adjustment.SplinePoints.Count},inverse={definition.Adjustment.SupportsInverseMapping}"));
-    }
-
     protected static List<FolderModel> CreateDefaultPages()
     {
         return
@@ -8729,6 +8093,7 @@ public partial class MainWindowViewModel : ObservableObject, IEditorUiHost, IPro
             SyncEnhancedSignals(page, forceRecreate: false);
             SyncMonitors(page, forceRecreate: false);
             SyncControllers(page, forceRecreate: false);
+            SyncValueLogs(page);
 
             if (IsEditorDialogOpen && _editorDialogItem is not null && string.Equals(_editorDialogItem.FolderName, pageName, StringComparison.Ordinal))
             {

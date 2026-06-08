@@ -42,7 +42,7 @@ The component can synchronize with the property dialog window.
 
 ## Supported Add Actions
 
-The editor exposes add actions for persisted widget types such as Button, Signal, ListControl, TableControl, CircleDisplay, LogControl, CsvLoggerControl, SqlLoggerControl, ChartControl, CameraControl, UdlClientControl, ApplicationExplorer, CustomSignals, and EnhancedSignals.
+The editor exposes add actions for persisted widget types such as Button, Signal, ListControl, TableControl, CircleDisplay, LogControl, ChartControl, CameraControl, and ApplicationExplorer. Folder-local custom signals and value logs are managed through dedicated browser dialogs instead of placeable canvas widgets.
 
 ## Suggested Help Window Metadata
 

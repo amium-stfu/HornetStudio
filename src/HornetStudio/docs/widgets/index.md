@@ -17,20 +17,13 @@ This folder contains one Markdown document per widget type.
 - `CameraControl.md`
 - `ChartControl.md`
 - `CircleDisplay.md`
-- `CsvLoggerControl.md`
-- `ControllerWidget.md`
-- `CustomSignals.md`
 - `DialogWidget.md`
-- `EnhancedSignals.md`
 - `Item.md`
 - `WidgetList.md`
 - `LogControl.md`
-- `Monitor.md`
 - `PythonClient.md`
 - `Signal.md`
-- `SqlLoggerControl.md`
 - `TableControl.md`
-- `UdlClientControl.md`
 - `Functions.md`
 
 This naming scheme is intended to make later in-app document lookup straightforward.

@@ -6,10 +6,10 @@ using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
-using HornetStudio.Host;
 using HornetStudio.Editor.Helpers;
 using HornetStudio.Editor.Models;
 using HornetStudio.Editor.ViewModels;
+using HornetStudio.Host.Registries;
 
 namespace HornetStudio.Editor.Widgets;
 
@@ -73,7 +73,7 @@ public partial class AttachItemsEditorDialogWindow : Window, INotifyPropertyChan
     }
 
     public bool ShowAddDemoModuleButton
-        => _field?.OwnerItem is { IsUdlClientControl: true, UdlClientDemoEnabled: true }
+        => _field?.OwnerItem is { UdlClientDemoEnabled: true }
            && string.Equals(_field.Key, "UdlAttachedItemPaths", StringComparison.Ordinal);
 
     public bool ShowEmptyRowsMessage => Rows.Count == 0;
@@ -176,7 +176,7 @@ public partial class AttachItemsEditorDialogWindow : Window, INotifyPropertyChan
 
     private async void OnAddDemoModuleClicked(object? sender, RoutedEventArgs e)
     {
-        if (_field?.OwnerItem is not { IsUdlClientControl: true, UdlClientDemoEnabled: true } ownerItem
+        if (_field?.OwnerItem is not { UdlClientDemoEnabled: true } ownerItem
             || TopLevel.GetTopLevel(this) is not Window owner
             || !CanOpenDemoModules)
         {
@@ -264,7 +264,7 @@ public partial class AttachItemsEditorDialogWindow : Window, INotifyPropertyChan
             return;
         }
 
-        if (_field.OwnerItem is { IsUdlClientControl: true } ownerItem)
+        if (_field.OwnerItem is { UdlClientDemoEnabled: true } ownerItem)
         {
             _field.RefreshAttachItemOptions(GetUdlAttachItemOptions(ownerItem));
         }

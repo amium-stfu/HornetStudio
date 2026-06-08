@@ -1,0 +1,318 @@
+<Window
+    x:Class="HornetStudio.Editor.Widgets.ValueLogsBrowserDialogWindow"
+    x:Name="Root"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:viewModels="using:HornetStudio.Editor.ViewModels"
+    Width="1180"
+    Height="780"
+    MinWidth="1040"
+    MinHeight="720"
+    CanResize="True"
+    WindowStartupLocation="CenterOwner"
+    Background="{Binding DialogBackground}">
+  <Window.Styles>
+    <Style Selector="TextBox.dialog-field">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="MinHeight" Value="30" />
+      <Setter Property="Margin" Value="0,3,14,3" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Background" Value="{Binding EditorBackground}" />
+      <Setter Property="BorderBrush" Value="{Binding BorderColor}" />
+      <Setter Property="Foreground" Value="{Binding EditorForeground}" />
+      <Setter Property="CaretBrush" Value="{Binding EditorForeground}" />
+    </Style>
+    <Style Selector="ComboBox.dialog-field">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="MinHeight" Value="30" />
+      <Setter Property="Margin" Value="0,3,14,3" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Background" Value="{Binding EditorBackground}" />
+      <Setter Property="BorderBrush" Value="{Binding BorderColor}" />
+      <Setter Property="Foreground" Value="{Binding EditorForeground}" />
+    </Style>
+    <Style Selector="Button.dialog-button">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Padding" Value="12,7" />
+      <Setter Property="Margin" Value="0,3,0,3" />
+      <Setter Property="Background" Value="{Binding ButtonBackground}" />
+      <Setter Property="BorderBrush" Value="{Binding ButtonBorderBrush}" />
+      <Setter Property="Foreground" Value="{Binding ButtonForeground}" />
+    </Style>
+    <Style Selector="TextBlock.field-label">
+      <Setter Property="MinWidth" Value="140" />
+      <Setter Property="Margin" Value="0,0,8,0" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Foreground" Value="{Binding SecondaryTextBrush}" />
+    </Style>
+    <Style Selector="CheckBox.field-check">
+      <Setter Property="Foreground" Value="{Binding PrimaryTextBrush}" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+  </Window.Styles>
+
+  <Grid Margin="16" ColumnDefinitions="340,*" RowDefinitions="Auto,*,Auto">
+    <StackPanel Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8">
+      <Button Classes="dialog-button" Content="Add CSV" Click="OnAddCsvClicked" IsEnabled="{Binding CanChangeSelection}" />
+      <Button Classes="dialog-button" Content="Add SQL" Click="OnAddSqlClicked" IsEnabled="{Binding CanChangeSelection}" />
+      <Button Classes="dialog-button" Content="Refresh" Click="OnRefreshClicked" IsEnabled="{Binding CanChangeSelection}" />
+      <Button Classes="dialog-button" Content="Save" Click="OnSaveClicked" IsEnabled="{Binding CanPersistValueLog}" />
+      <Button Classes="dialog-button" Content="Delete" Click="OnDeleteClicked" IsEnabled="{Binding CanDeleteSelected}" />
+      <Button Classes="dialog-button" Content="Start" Click="OnStartClicked" IsEnabled="{Binding CanPersistValueLog}" />
+      <Button Classes="dialog-button" Content="Stop" Click="OnStopClicked" IsEnabled="{Binding CanStopSelected}" />
+    </StackPanel>
+
+    <Border Grid.Row="1"
+            Margin="0,12,12,12"
+            Padding="12"
+            Background="{Binding PanelBackground}"
+            BorderBrush="{Binding BorderColor}"
+            BorderThickness="1"
+            CornerRadius="10">
+      <Grid RowDefinitions="Auto,*">
+        <TextBlock FontSize="16"
+                   FontWeight="SemiBold"
+                   Foreground="{Binding PrimaryTextBrush}"
+                   Text="{Binding ValueLogsSummaryText}" />
+        <ListBox Grid.Row="1"
+                 Margin="0,12,0,0"
+                 ItemsSource="{Binding ValueLogs}"
+                 SelectedItem="{Binding SelectedValueLog, Mode=TwoWay}">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <Border Margin="0,0,0,8"
+                      Padding="10"
+                      Background="{Binding RowBackground}"
+                      BorderBrush="{Binding RowBorderBrush}"
+                      BorderThickness="1"
+                      CornerRadius="8">
+                <StackPanel>
+                  <TextBlock FontWeight="SemiBold" Text="{Binding DisplayName}" />
+                  <TextBlock Opacity="0.8" Text="{Binding SummaryText}" />
+                  <TextBlock Opacity="0.7" Text="{Binding StatusText}" />
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="1"
+            Grid.Column="1"
+            Margin="0,12,0,12"
+            Padding="12"
+            Background="{Binding PanelBackground}"
+            BorderBrush="{Binding BorderColor}"
+            BorderThickness="1"
+            CornerRadius="10">
+      <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="14">
+          <TextBlock FontSize="20"
+                     FontWeight="SemiBold"
+                     Foreground="{Binding PrimaryTextBrush}"
+                     Text="{Binding SelectedHeaderText}" />
+
+          <Border Padding="12"
+                  Background="{Binding SectionBackground}"
+                  BorderBrush="{Binding BorderColor}"
+                  BorderThickness="1"
+                  CornerRadius="10">
+            <Grid ColumnDefinitions="Auto,*,Auto,*" RowDefinitions="Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Classes="field-label" Text="Id" />
+              <TextBox Grid.Row="0" Grid.Column="1" Classes="dialog-field" Text="{Binding EditableId, Mode=TwoWay}" />
+
+              <TextBlock Grid.Row="0" Grid.Column="2" Classes="field-label" Text="Kind" />
+              <ComboBox Grid.Row="0" Grid.Column="3" Classes="dialog-field" ItemsSource="{Binding KindOptions}" SelectedItem="{Binding EditableKind, Mode=TwoWay}" />
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Classes="field-label" Text="Text" />
+              <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Classes="dialog-field" Text="{Binding EditableText, Mode=TwoWay}" />
+
+              <TextBlock Grid.Row="2" Grid.Column="0" Classes="field-label" Text="OutputDirectory" />
+              <TextBox Grid.Row="2" Grid.Column="1" Classes="dialog-field" Text="{Binding EditableOutputDirectory, Mode=TwoWay}" />
+              <Button Grid.Row="2" Grid.Column="2" Classes="dialog-button" Content="Pick" Click="OnPickOutputDirectoryClicked" />
+            </Grid>
+          </Border>
+
+          <Border Padding="12"
+                  Background="{Binding SectionBackground}"
+                  BorderBrush="{Binding BorderColor}"
+                  BorderThickness="1"
+                  CornerRadius="10">
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Classes="field-label" Text="Filename" />
+              <TextBox Grid.Row="0" Grid.Column="1" Classes="dialog-field" Text="{Binding EditableOutputFileName, Mode=TwoWay}" />
+            </Grid>
+          </Border>
+
+          <Border Padding="12"
+                  Background="{Binding SectionBackground}"
+                  BorderBrush="{Binding BorderColor}"
+                  BorderThickness="1"
+                  CornerRadius="10">
+            <Grid ColumnDefinitions="Auto,*,Auto,*" RowDefinitions="Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Classes="field-label" Text="IntervalMs" IsVisible="{Binding ShowDefinitionInterval}" />
+              <TextBox Grid.Row="0" Grid.Column="1" Classes="dialog-field" Text="{Binding EditableIntervalMs, Mode=TwoWay}" IsVisible="{Binding ShowDefinitionInterval}" />
+
+              <TextBlock Grid.Row="0" Grid.Column="2" Classes="field-label" Text="Enabled" />
+              <CheckBox Grid.Row="0" Grid.Column="3" Classes="field-check" IsChecked="{Binding EditableEnabled, Mode=TwoWay}" />
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Classes="field-label" Text="AutoStart" />
+              <CheckBox Grid.Row="1" Grid.Column="1" Classes="field-check" IsChecked="{Binding EditableAutoStart, Mode=TwoWay}" />
+
+              <TextBlock Grid.Row="2" Grid.Column="0" Classes="field-label" Text="SplitDaily" />
+              <CheckBox Grid.Row="2" Grid.Column="1" Classes="field-check" IsChecked="{Binding EditableSplitDaily, Mode=TwoWay}" />
+
+              <TextBlock Grid.Row="2" Grid.Column="2" Classes="field-label" Text="SplitDailyTime" />
+              <TextBox Grid.Row="2" Grid.Column="3" Classes="dialog-field" Text="{Binding EditableSplitDailyTime, Mode=TwoWay}" />
+            </Grid>
+          </Border>
+
+          <Border Padding="12"
+                  Background="{Binding SectionBackground}"
+                  BorderBrush="{Binding BorderColor}"
+                  BorderThickness="1"
+                  CornerRadius="10">
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Classes="field-label" Text="SplitMaxFileSizeMb" />
+              <TextBox Grid.Row="0" Grid.Column="1" Classes="dialog-field" Text="{Binding EditableSplitMaxFileSizeMb, Mode=TwoWay}" />
+            </Grid>
+          </Border>
+
+          <Border Padding="12"
+                  Background="{Binding SectionBackground}"
+                  BorderBrush="{Binding BorderColor}"
+                  BorderThickness="1"
+                  CornerRadius="10">
+            <StackPanel Spacing="10">
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel>
+                  <TextBlock FontSize="15"
+                             FontWeight="SemiBold"
+                             Foreground="{Binding PrimaryTextBrush}"
+                             Text="Sources" />
+                  <TextBlock Margin="0,4,0,0"
+                             Foreground="{Binding SecondaryTextBrush}"
+                             Text="{Binding SourcesSummaryText}"
+                             TextWrapping="Wrap" />
+                </StackPanel>
+                <Button Grid.Column="1"
+                        Classes="dialog-button"
+                        Content="Refresh Sources"
+                        Click="OnRefreshSourcesClicked" />
+              </Grid>
+
+              <Border Background="{Binding EditorDialogSectionContentBackground}"
+                      BorderBrush="{Binding BorderColor}"
+                      BorderThickness="1"
+                      CornerRadius="8"
+                      Padding="10">
+                <Grid RowDefinitions="Auto,*">
+                  <Grid ColumnDefinitions="28,220,*,90,72"
+                        Margin="0,0,0,8">
+                    <TextBlock Grid.Column="1"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               Foreground="{Binding SecondaryTextBrush}"
+                               Text="Name" />
+                    <TextBlock Grid.Column="2"
+                               Margin="8,0,0,0"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               Foreground="{Binding SecondaryTextBrush}"
+                               Text="Source" />
+                    <TextBlock Grid.Column="3"
+                               HorizontalAlignment="Right"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               Foreground="{Binding SecondaryTextBrush}"
+                               Text="Interval"
+                               IsVisible="{Binding ShowSourceIntervalColumn}" />
+                  </Grid>
+
+                  <TextBlock Grid.Row="1"
+                             Margin="0,12,0,12"
+                             FontSize="12"
+                             Foreground="{Binding SecondaryTextBrush}"
+                             Text="No signal sources available in this folder."
+                             TextWrapping="Wrap"
+                             IsVisible="{Binding ShowEmptySourcesMessage}" />
+
+                  <ScrollViewer Grid.Row="1"
+                                MaxHeight="320"
+                                HorizontalScrollBarVisibility="Auto"
+                                VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding SourceRows}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="viewModels:AttachItemEditorRow">
+                          <Grid Margin="0,0,0,6" ColumnDefinitions="28,220,*,90,72">
+                            <CheckBox Grid.Column="0"
+                                      HorizontalAlignment="Left"
+                                      VerticalAlignment="Center"
+                                      IsChecked="{Binding IsAttached, Mode=TwoWay}"
+                                      IsEnabled="{Binding CanAttach}"
+                                      IsVisible="{Binding CanAttach}" />
+
+                            <TextBlock Grid.Column="1"
+                                       VerticalAlignment="Center"
+                                       FontSize="12"
+                                       Text="{Binding Name}"
+                                       TextTrimming="CharacterEllipsis"
+                                       TextWrapping="NoWrap" />
+
+                            <TextBlock Grid.Column="2"
+                                       Margin="8,0,0,0"
+                                       VerticalAlignment="Center"
+                                       FontSize="12"
+                                       Text="{Binding Source}"
+                                       TextTrimming="CharacterEllipsis"
+                                       TextWrapping="NoWrap" />
+
+                            <StackPanel Grid.Column="3"
+                                        Orientation="Horizontal"
+                                        Spacing="4"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Center"
+                                        IsVisible="{Binding DataContext.ShowSourceIntervalColumn, RelativeSource={RelativeSource AncestorType=Window}}">
+                              <TextBlock Text="ms"
+                                         VerticalAlignment="Center"
+                                         FontSize="11" />
+                              <TextBox Width="60"
+                                       Text="{Binding IntervalMs, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                       HorizontalContentAlignment="Right"
+                                       VerticalAlignment="Center"
+                                       FontSize="11" />
+                            </StackPanel>
+
+                            <Button Grid.Column="4"
+                                    Classes="dialog-button"
+                                    Margin="8,0,0,0"
+                                    Padding="8,4"
+                                    HorizontalAlignment="Right"
+                                    Content="Remove"
+                                    Click="OnRemoveMissingSourceClicked"
+                                    IsVisible="{Binding CanRemoveMissing}" />
+                          </Grid>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </ScrollViewer>
+                </Grid>
+              </Border>
+
+              <TextBlock Foreground="{Binding SecondaryTextBrush}"
+                         Text="{Binding RuntimeDetailsText}"
+                         TextWrapping="Wrap" />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </ScrollViewer>
+    </Border>
+
+    <TextBlock Grid.Row="2"
+               Grid.ColumnSpan="2"
+               Foreground="{Binding SecondaryTextBrush}"
+               Text="{Binding FooterText}"
+               TextWrapping="Wrap" />
+  </Grid>
+</Window>

@@ -1,0 +1,25 @@
+Text: CSV Logger
+Enabled: true
+OutputPath: T:\Log\value_log.csv
+IntervalMs: 1000
+SplitDailyTime: 00:00:00
+PersistenceMode: Balanced
+Sources:
+- Path: udl1.m001.read
+  Name: ''
+  TargetPath: ''
+  Caption: ''
+  Unit: ''
+  Format: ''
+- Path: udl1.m002.read
+  Name: ''
+  TargetPath: ''
+  Caption: ''
+  Unit: ''
+  Format: ''
+- Path: udl1.m003.read
+  Name: ''
+  TargetPath: ''
+  Caption: ''
+  Unit: ''
+  Format: ''

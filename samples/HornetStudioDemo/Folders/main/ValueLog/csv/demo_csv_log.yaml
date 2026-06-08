@@ -1,0 +1,54 @@
+Text: 'Demo CSV Log'
+Enabled: true
+AutoStart: false
+OutputPath: 'Logs/main/csv/demo_csv_log.csv'
+IntervalMs: 1000
+SplitDaily: false
+SplitDailyTime: '00:00:00'
+SplitMaxFileSizeMb: 0
+PersistenceMode: 'Balanced'
+FlushIntervalMs: 0
+FlushBatchSize: 0
+Sources:
+  - Name: 'signal_1_set'
+    TargetPath: 'udl1.m001.set'
+    Caption: 'signal_1_set'
+    Unit: 'ppm'
+    Format: ''
+    IntervalMs: 1000
+  - Name: 'signal_1'
+    TargetPath: 'udl1.m001.read'
+    Caption: 'signal_1'
+    Unit: 'ppm'
+    Format: ''
+    IntervalMs: 1000
+  - Name: 'signal_2_set'
+    TargetPath: 'enhanced_signals.filtered_1.set'
+    Caption: 'signal_2_set'
+    Unit: ''
+    Format: ''
+    IntervalMs: 1000
+  - Name: 'signal_2'
+    TargetPath: 'enhanced_signals.filtered_1'
+    Caption: 'signal_2'
+    Unit: ''
+    Format: ''
+    IntervalMs: 1000
+  - Name: 'signal_3'
+    TargetPath: 'item_client_1.edm1.pressure'
+    Caption: 'signal_3'
+    Unit: 'hPa'
+    Format: ''
+    IntervalMs: 1000
+  - Name: 'signal_4'
+    TargetPath: 'custom_signals.demo_number'
+    Caption: 'signal_4'
+    Unit: ''
+    Format: ''
+    IntervalMs: 1000
+  - Name: 'signal_5'
+    TargetPath: 'applications.python.raw.raw_a'
+    Caption: 'signal_5'
+    Unit: 'V'
+    Format: ''
+    IntervalMs: 1000

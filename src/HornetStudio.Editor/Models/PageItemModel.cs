@@ -19,10 +19,11 @@ using HornetStudio.Logging;
 using HornetStudio.Host.Python.Client;
 using HornetStudio.Editor.Helpers;
 using HornetStudio.Editor.Monitoring;
-using HornetStudio.Editor.UdlClients;
 using HornetStudio.Editor.ViewModels;
 using HornetStudio.Editor.Widgets.Workflow;
 using Serilog.Events;
+using HornetStudio.Editor.Signals;
+using HornetStudio.Host.Registries;
 
 namespace HornetStudio.Editor.Models;
 
@@ -36,7 +37,6 @@ public enum ControlKind
     CircleDisplay,
     LogControl,
     ChartControl,
-    UdlClientControl,
     ItemClient,
     CsvLoggerControl,
     SqlLoggerControl,
@@ -44,7 +44,6 @@ public enum ControlKind
     PythonClient,
     ApplicationExplorer,
     CustomSignals,
-    EnhancedSignals,
     ControllerWidget,
     Monitor,
     MonitorView,
@@ -172,7 +171,6 @@ public sealed class FolderItemModel : ObservableObject
     private string _pythonScriptPath = string.Empty;
     private string _applicationDefinitions = string.Empty;
     private string _customSignalDefinitions = string.Empty;
-    private string _enhancedSignalDefinitions = string.Empty;
     private string _controllerDefinitions = string.Empty;
     private string _monitorDefinitions = string.Empty;
     private string _selectedMonitorIds = string.Empty;
@@ -1176,15 +1174,11 @@ public sealed class FolderItemModel : ObservableObject
 
     public bool IsChartControl => Kind == ControlKind.ChartControl;
 
-    public bool IsUdlClientControl => Kind == ControlKind.UdlClientControl;
-
     public bool IsItemClient => Kind == ControlKind.ItemClient;
 
     public bool IsApplicationExplorer => Kind == ControlKind.ApplicationExplorer;
 
     public bool IsCustomSignals => Kind == ControlKind.CustomSignals;
-
-    public bool IsEnhancedSignals => Kind == ControlKind.EnhancedSignals;
 
     public bool IsControllerWidget => Kind == ControlKind.ControllerWidget;
 
@@ -1200,14 +1194,12 @@ public sealed class FolderItemModel : ObservableObject
         or ControlKind.Button
         or ControlKind.LogControl
         or ControlKind.ChartControl
-        or ControlKind.UdlClientControl
         or ControlKind.ItemClient
         or ControlKind.CsvLoggerControl
         or ControlKind.SqlLoggerControl
         or ControlKind.CameraControl
         or ControlKind.ApplicationExplorer
         or ControlKind.CustomSignals
-        or ControlKind.EnhancedSignals
         or ControlKind.ControllerWidget
         or ControlKind.MonitorView
         or ControlKind.Functions;
@@ -1783,12 +1775,6 @@ public sealed class FolderItemModel : ObservableObject
     {
         get => _customSignalDefinitions;
         set => SetProperty(ref _customSignalDefinitions, value ?? string.Empty);
-    }
-
-    public string EnhancedSignalDefinitions
-    {
-        get => _enhancedSignalDefinitions;
-        set => SetProperty(ref _enhancedSignalDefinitions, value ?? string.Empty);
     }
 
     public string ControllerDefinitions
@@ -3082,7 +3068,7 @@ public sealed class FolderItemModel : ObservableObject
     internal bool ApplyScheduledSignalValueRefresh(DateTimeOffset tickUtc)
     {
         if (!TryGetResolvedSignalLiveValueBinding(out var binding)
-            || !UdlClientLiveValueStore.TryGetSnapshot(binding, out var snapshot)
+            || !SignalLiveValueStore.TryGetSnapshot(binding, out var snapshot)
             || snapshot.Version == _lastAppliedSignalLiveValueVersion)
         {
             return false;
@@ -6743,7 +6729,6 @@ public sealed class FolderItemModel : ObservableObject
             ControlKind.WidgetList => "WidgetList",
             ControlKind.LogControl => "LogControl",
             ControlKind.ChartControl => "ChartControl",
-            ControlKind.UdlClientControl => "UdlClientControl",
             ControlKind.ItemClient => "ItemClient",
             ControlKind.CsvLoggerControl => "CsvLoggerControl",
             ControlKind.SqlLoggerControl => "SqlLoggerControl",
@@ -6830,7 +6815,7 @@ public sealed class FolderItemModel : ObservableObject
     {
         property = null;
         if (!TryGetResolvedSignalLiveValueBinding(out var binding)
-            || !UdlClientLiveValueStore.TryGetSnapshot(binding, out var snapshot))
+            || !SignalLiveValueStore.TryGetSnapshot(binding, out var snapshot))
         {
             return false;
         }
@@ -6910,7 +6895,7 @@ public sealed class FolderItemModel : ObservableObject
         if (TryGetResolvedSignalLiveValueBinding(out var binding)
             && TargetPathHelper.PathsEqual(binding.RuntimeItemPath, valueRefPath)
             && string.Equals(binding.RuntimeParameterName, valueRefParameter, StringComparison.OrdinalIgnoreCase)
-            && UdlClientLiveValueStore.TryGetSnapshot(binding, out var snapshot))
+            && SignalLiveValueStore.TryGetSnapshot(binding, out var snapshot))
         {
             property = new ItemProperty(
                 valueRefParameter,

@@ -1,4 +1,4 @@
-Caption: 'main'
+﻿Caption: 'main'
 Screens:
   1: 'HomeScreen'
   9: 'Assets'
@@ -261,98 +261,6 @@ Controls:
       IsReadOnly: false
       RefreshRateMs: '1000'
   -
-    Type: 'UdlClientControl'
-    Screen: '1'
-    Enabled: true
-    Identity:
-      Name: 'udl_client_control_1'
-      Text: 'udl_client_control_1'
-      Path: 'udl_client_control_1'
-      Id: 'cbff213ece2b402d845df8cd68a361a2'
-    Bounds:
-      X: 397
-      Y: 124
-      Width: 492
-      Height: 341
-    Design:
-      CornerRadius: 12
-      BorderWidth: 1
-      BorderColor: null
-      BackColor: null
-      ToolTip: ''
-    Header:
-      ControlCaption: ''
-      SyncText: true
-      HeaderForeColor: null
-      CaptionVisible: true
-      HeaderCornerRadius: 6
-      HeaderBorderWidth: 0
-      HeaderBorderColor: null
-      HeaderBackColor: null
-    Body:
-      BodyCaption: ''
-      BodyCaptionPosition: 'Top'
-      BodyForeColor: null
-      BodyCaptionVisible: false
-      BodyCornerRadius: 0
-      BodyBorderWidth: 0
-      BodyBorderColor: null
-      BodyBackColor: null
-    Footer:
-      ShowFooter: false
-      FooterCornerRadius: 6
-      FooterBorderWidth: 0
-      FooterBorderColor: null
-      FooterBackColor: null
-    Properties:
-      UdlClientHost: '127.0.0.1'
-      UdlClientPort: '9001'
-      UdlClientAutoConnect: true
-      UdlClientDebugLogging: false
-      UdlClientDemoEnabled: true
-      UdlAttachedItemPaths: 'm001'
-      UdlDemoModules:
-        -
-          name: 'm001'
-          kind: 'SetDriven'
-          generator: 'Sine'
-          unit: ''
-          format: ''
-          baseValue: 0
-          amplitude: 1
-          periodSeconds: 5
-          initialValue: 0
-          setScale: 1
-          setOffset: 0
-          setTauSeconds: 0
-          faults:
-            -
-              kind: 'Noise'
-              enabled: true
-              amount: 2
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-            -
-              kind: 'Freeze'
-              enabled: false
-              amount: 0
-              peakAmount: 0
-              useJitter: true
-              useSine: false
-              usePeak: false
-              noiseMode: 'Jitter'
-              periodSeconds: 2
-              updateIntervalMs: 250
-              intervalSeconds: 5
-              durationMs: 1000
-  -
     Type: 'Signal'
     Screen: '1'
     Enabled: true
@@ -561,57 +469,6 @@ Controls:
     Screen: '1'
     Enabled: true
     Identity:
-      Name: 'signal_udl1_m100'
-      Text: 'signal_udl1_m100'
-      Path: 'signal_udl1_m100'
-      Id: 'c2d525dc9e3648378dd0d54f0ecba35b'
-    Bounds:
-      X: 1204
-      Y: 124
-      Width: 288
-      Height: 63
-    Design:
-      CornerRadius: 12
-      BorderWidth: 1
-      BorderColor: null
-      BackColor: null
-      ToolTip: ''
-    Header:
-      ControlCaption: 'Signal'
-      SyncText: true
-      HeaderForeColor: null
-      CaptionVisible: true
-      HeaderCornerRadius: 6
-      HeaderBorderWidth: 0
-      HeaderBorderColor: null
-      HeaderBackColor: null
-    Body:
-      BodyCaption: 'read'
-      BodyCaptionPosition: 'Top'
-      BodyForeColor: null
-      BodyCaptionVisible: false
-      BodyCornerRadius: 8
-      BodyBorderWidth: 0
-      BodyBorderColor: null
-      BodyBackColor: null
-    Footer:
-      ShowFooter: false
-      FooterCornerRadius: 6
-      FooterBorderWidth: 0
-      FooterBorderColor: null
-      FooterBackColor: null
-    Properties:
-      Unit: ''
-      Uri: 'udl_client_control_1.m001.read'
-      Parameter: 'read'
-      Format: 'numeric'
-      IsReadOnly: false
-      RefreshRateMs: '1000'
-  -
-    Type: 'Signal'
-    Screen: '1'
-    Enabled: true
-    Identity:
       Name: 'signal_pid_out'
       Text: 'signal_pid_out'
       Path: 'signal_pid_out'
@@ -654,57 +511,6 @@ Controls:
     Properties:
       Unit: ''
       Uri: 'controller.pid_1.out'
-      Parameter: 'read'
-      Format: 'numeric'
-      IsReadOnly: false
-      RefreshRateMs: '1000'
-  -
-    Type: 'Signal'
-    Screen: '1'
-    Enabled: true
-    Identity:
-      Name: 'signal_udl1_m100_set'
-      Text: 'signal_udl1_m100_set'
-      Path: 'signal_udl1_m100_set'
-      Id: 'd80e1621bf6a495a96c477d04326986a'
-    Bounds:
-      X: 1204
-      Y: 187
-      Width: 288
-      Height: 63
-    Design:
-      CornerRadius: 12
-      BorderWidth: 1
-      BorderColor: null
-      BackColor: null
-      ToolTip: ''
-    Header:
-      ControlCaption: 'Signal'
-      SyncText: true
-      HeaderForeColor: null
-      CaptionVisible: true
-      HeaderCornerRadius: 6
-      HeaderBorderWidth: 0
-      HeaderBorderColor: null
-      HeaderBackColor: null
-    Body:
-      BodyCaption: 'read'
-      BodyCaptionPosition: 'Top'
-      BodyForeColor: null
-      BodyCaptionVisible: false
-      BodyCornerRadius: 8
-      BodyBorderWidth: 0
-      BodyBorderColor: null
-      BodyBackColor: null
-    Footer:
-      ShowFooter: false
-      FooterCornerRadius: 6
-      FooterBorderWidth: 0
-      FooterBorderColor: null
-      FooterBackColor: null
-    Properties:
-      Unit: ''
-      Uri: 'udl_client_control_1.m001.set'
       Parameter: 'read'
       Format: 'numeric'
       IsReadOnly: false

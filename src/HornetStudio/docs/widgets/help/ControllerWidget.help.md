@@ -4,9 +4,14 @@
 
 `ControllerWidget`
 
+## Status
+
+This legacy widget type is no longer available for placement in the editor.
+Use the Admin `Controllers` browser to manage folder-local controller YAML files.
+
 ## Overview
 
-The ControllerWidget stores PID controller definitions on the folder item and synchronizes them with host runtimes. Each PID controller reads a source value from the configured source path, reads its setpoint from an owned runtime `set` item value, computes a PID output, and writes the scaled result to the configured output target while running.
+Before removal, the ControllerWidget stored PID controller definitions on the folder item and synchronized them with host runtimes. The current path is folder-local `Controllers/*.yaml` files managed through the Admin `Controllers` browser. Each PID controller reads a source value from the configured source path, reads its setpoint from an owned runtime `set` item value, computes a PID output, and writes the scaled result to the configured output target while running.
 
 In the editor, the controller list uses compact single-line rows that show the controller type, controller name, and row actions. Detailed path, parameter, state, and alert text is no longer rendered as permanently expanded multiline content in every row.
 
@@ -14,7 +19,7 @@ In the editor, the controller list uses compact single-line rows that show the c
 
 ### ControllerDefinitions
 
-Stores controller definitions as the widget persistence payload. Definitions can also be stored as `Controllers/*.yaml` files in the folder directory. File-backed definitions take precedence over widget-embedded ones when both share the same controller name. The Admin Controllers browser allows managing file-backed definitions without placing a widget on the canvas.
+Stores controller definitions as the legacy widget persistence payload. Definitions are now expected in `Controllers/*.yaml` files in the folder directory. File-backed definitions take precedence over widget-embedded ones when both share the same controller name.
 
 ### Name / Path / FolderName
 
@@ -96,6 +101,6 @@ While running, the runtime writes the scaled controller output to the configured
 
 ## Source
 
-- `src/HornetStudio.Editor/Widgets/Controller/ControllerControl.axaml.cs`
-- `src/HornetStudio.Editor/Widgets/Controller/ControllerEditorDialogWindow.axaml.cs`
+- `src/HornetStudio.Editor/Persistence/Controller/ControllerControl.axaml.cs`
+- `src/HornetStudio.Editor/Persistence/Controller/ControllerEditorDialogWindow.axaml.cs`
 - `src/HornetStudio.Host/PidControllerRuntime.cs`

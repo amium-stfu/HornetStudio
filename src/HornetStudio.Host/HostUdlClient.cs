@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using ItemModel = Amium.Items.Item;
 using Amium.Items;
+using HornetStudio.Host.Registries;
 
 namespace HornetStudio.Host;
 

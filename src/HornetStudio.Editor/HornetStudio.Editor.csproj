@@ -37,7 +37,7 @@
     <Compile Include="IEditorUiHost.cs" />
     <Compile Include="Functions\**\*.cs" />
     <Compile Include="Monitoring\**\*.cs" />
-    <Compile Include="UdlClients\**\*.cs" />
+    <Compile Include="Signals\**\*.cs" />
     <Compile Include="Widgets\**\*.cs" />
     <Compile Include="Helpers\**\*.cs" />
     <Compile Include="Converters\**\*.cs" />
@@ -57,5 +57,25 @@
     <Content Include="Templates\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaXaml Include="Persistence\Controller\ControllerControl.axaml" />
+    <AvaloniaXaml Include="Persistence\Controller\ControllerEditorDialogWindow.axaml" />
+    <AvaloniaXaml Include="Persistence\Controller\ControllersBrowserDialogWindow.axaml" />
+    <AvaloniaXaml Include="Persistence\CustomControls\CustomSignalEditorDialogWindow.axaml" />
+    <AvaloniaXaml Include="Persistence\CustomControls\CustomSignalsBrowserControl.axaml" />
+    <AvaloniaXaml Include="Persistence\CustomControls\CustomSignalsBrowserDialogWindow.axaml" />
+    <AvaloniaXaml Include="Persistence\Monitor\MonitorBrowserDialogWindow.axaml" />
+    <AvaloniaXaml Include="Persistence\Monitor\MonitorControl.axaml" />
+    <AvaloniaXaml Include="Persistence\Monitor\MonitorEditorDialogWindow.axaml" />
+    <AvaloniaXaml Include="Persistence\Udl\ClientsBrowserDialogWindow.axaml" />
+    <AvaloniaXaml Include="Persistence\Udl\UdlDemoModulesDialogWindow.axaml" />
+    <AvaloniaXaml Include="Persistence\Udl\UdlModuleExposureDialogWindow.axaml" />
+    <AvaloniaXaml Include="Persistence\ValueLog\ValueLogsBrowserDialogWindow.axaml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Registries\" />
   </ItemGroup>
 </Project>
