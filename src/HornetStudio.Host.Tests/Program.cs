@@ -16,6 +16,7 @@ using HornetStudio.Host.Registries;
 using HornetStudio.Host.Runtimes.Controller;
 using HornetStudio.Host.Runtimes.EnhancedSignal;
 using HornetStudio.Host.Logging.Values;
+using LegacyUdlClient = Amium.UdlClient.UdlClient;
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -55,6 +56,9 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Host UDL client creates flat channels", () => RunSync(HostUdlClientCreatesFlatChannels)),
     ("Host UDL client queues non-state writeback", () => RunSync(HostUdlClientQueuesNonStateWriteback)),
     ("Host UDL client acknowledges matching writeback channel", () => RunSync(HostUdlClientAcknowledgesMatchingWritebackChannel)),
+    ("Legacy UDL client creates flat channels", () => RunSync(LegacyUdlClientCreatesFlatChannels)),
+    ("Legacy UDL client queues non-state writeback", () => RunSync(LegacyUdlClientQueuesNonStateWriteback)),
+    ("Legacy UDL client acknowledges matching writeback channel", () => RunSync(LegacyUdlClientAcknowledgesMatchingWritebackChannel)),
     ("Python client registry paths normalize to snake_case", PythonClientRegistryPathsNormalizeToSnakeCase),
     ("Enhanced signal runtime publishes snake_case write paths", () => RunSync(EnhancedSignalRuntimePublishesSnakeCaseWritePaths)),
     ("Enhanced signal runtime publishes type metadata", () => RunSync(EnhancedSignalRuntimePublishesTypeMetadata)),
@@ -381,7 +385,7 @@ static void PruneClearsStaleDescendants()
 static void HostItemRegistryReadsAndWritesMemoryReference()
 {
     var registry = new HostItemRegistry();
-    registry.Register("runtime.device.read", new TestHostItem(1));
+    registry.Register(ItemExtension.CreateWithPath("runtime.device.read", 1));
 
     AssertTrue(registry.TryRead("runtime.device.read", out var initialValue));
     AssertEqual(1, initialValue);
@@ -393,12 +397,12 @@ static void HostItemRegistryReadsAndWritesMemoryReference()
 static void HostItemRegistryRejectsDuplicatePaths()
 {
     var registry = new HostItemRegistry();
-    registry.Register("runtime.device.read", new TestHostItem(1));
+    registry.Register(ItemExtension.CreateWithPath("runtime.device.read", 1));
 
     var failed = false;
     try
     {
-        registry.Register("Runtime.Device.Read", new TestHostItem(2));
+        registry.Register(ItemExtension.CreateWithPath("Runtime.Device.Read", 2));
     }
     catch (ArgumentException)
     {
@@ -411,7 +415,7 @@ static void HostItemRegistryRejectsDuplicatePaths()
 static void HostItemRegistryUnregisterBlocksReadsAndWrites()
 {
     var registry = new HostItemRegistry();
-    registry.Register("runtime.device.read", new TestHostItem(1));
+    registry.Register(ItemExtension.CreateWithPath("runtime.device.read", 1));
 
     AssertTrue(registry.Remove("runtime.device.read"));
     AssertFalse(registry.TryRead("runtime.device.read", out _));
@@ -672,7 +676,7 @@ static void HostUdlClientAcknowledgesMatchingWritebackChannel()
     ProcessHostUdlFrame(client, moduleId: 1u, function: 4, value: 42f);
 
     AssertEqual(0, GetHostUdlPendingWriteCount(client));
-    AssertEqual("ok", module.Properties["SendStatus"].Value);
+    AssertEqual("ok", module.Properties["send_status"].Value);
     AssertEqual(42f, module["set"].Properties["read"].Value);
 }
 
@@ -707,6 +711,92 @@ static void ProcessHostUdlFrame(HostUdlClient client, uint moduleId, int functio
 static int GetHostUdlPendingWriteCount(HostUdlClient client)
 {
     var pendingWritesField = typeof(HostUdlClient).GetField("_pendingWrites", BindingFlags.Instance | BindingFlags.NonPublic);
+    AssertTrue(pendingWritesField is not null);
+    var pendingWrites = pendingWritesField!.GetValue(client);
+    var countProperty = pendingWrites?.GetType().GetProperty("Count");
+    AssertTrue(countProperty is not null);
+    return (int)countProperty!.GetValue(pendingWrites)!;
+}
+
+static void LegacyUdlClientCreatesFlatChannels()
+{
+    using var client = new LegacyUdlClient("test");
+    var module = CreateLegacyUdlModule(client, moduleId: 1u);
+    AssertFalse(module.Has("Command"));
+
+    AssertTrue(module.Has("read"));
+    AssertTrue(module["read"].Properties.Has("read"));
+    AssertTrue(module["read"].Properties.Has("write"));
+    AssertFalse(module["read"].Has("request"));
+
+    AssertTrue(module.Has("state"));
+    AssertTrue(module["state"].Properties.Has("read"));
+    AssertTrue(module["state"].Properties.Has("write"));
+
+    AssertTrue(module.Has("alert"));
+    AssertTrue(module["alert"].Properties.Has("read"));
+    AssertFalse(module["alert"].Properties.Has("write"));
+}
+
+static void LegacyUdlClientQueuesNonStateWriteback()
+{
+    using var client = new LegacyUdlClient("test");
+    var module = CreateLegacyUdlModule(client, moduleId: 1u);
+    module["set"].Properties["read"].Value = 10f;
+    module["set"].Properties["write"].Value = 42f;
+
+    QueueLegacyUdlWrite(client, moduleId: 1u, module, module["set"]);
+
+    AssertEqual(1, GetLegacyUdlPendingWriteCount(client));
+
+    ProcessLegacyUdlFrame(client, moduleId: 1u, function: 3, value: 42f);
+
+    AssertEqual(1, GetLegacyUdlPendingWriteCount(client));
+}
+
+static void LegacyUdlClientAcknowledgesMatchingWritebackChannel()
+{
+    using var client = new LegacyUdlClient("test");
+    var module = CreateLegacyUdlModule(client, moduleId: 1u);
+    module["set"].Properties["read"].Value = 10f;
+    module["set"].Properties["write"].Value = 42f;
+
+    QueueLegacyUdlWrite(client, moduleId: 1u, module, module["set"]);
+    ProcessLegacyUdlFrame(client, moduleId: 1u, function: 4, value: 42f);
+
+    AssertEqual(0, GetLegacyUdlPendingWriteCount(client));
+    AssertEqual("ok", module.Properties["send_status"].Value);
+    AssertEqual(42f, module["set"].Properties["read"].Value);
+}
+
+static ItemModel CreateLegacyUdlModule(LegacyUdlClient client, uint moduleId)
+{
+    var createModuleMethod = typeof(LegacyUdlClient).GetMethod("GetOrCreateModule", BindingFlags.Instance | BindingFlags.NonPublic);
+    AssertTrue(createModuleMethod is not null);
+    return (ItemModel)createModuleMethod!.Invoke(client, [moduleId])!;
+}
+
+static void QueueLegacyUdlWrite(LegacyUdlClient client, uint moduleId, ItemModel module, ItemModel item)
+{
+    var processRequestWriteMethod = typeof(LegacyUdlClient).GetMethod("ProcessRequestWrite", BindingFlags.Instance | BindingFlags.NonPublic);
+    AssertTrue(processRequestWriteMethod is not null);
+    processRequestWriteMethod!.Invoke(client, [moduleId, module, item]);
+}
+
+static void ProcessLegacyUdlFrame(LegacyUdlClient client, uint moduleId, int function, float value)
+{
+    var data = new byte[8];
+    Array.Copy(BitConverter.GetBytes(value), sourceIndex: 0, data, destinationIndex: 0, length: 4);
+    data[6] = (byte)function;
+    data[7] = (byte)(moduleId & 0x0F);
+    var id = 0x480u | ((moduleId >> 4) & 0x7Fu);
+
+    client.OnCanMessageReceived(id, (byte)data.Length, data);
+}
+
+static int GetLegacyUdlPendingWriteCount(LegacyUdlClient client)
+{
+    var pendingWritesField = typeof(LegacyUdlClient).GetField("_pendingWrites", BindingFlags.Instance | BindingFlags.NonPublic);
     AssertTrue(pendingWritesField is not null);
     var pendingWrites = pendingWritesField!.GetValue(client);
     var countProperty = pendingWrites?.GetType().GetProperty("Count");
@@ -2460,24 +2550,3 @@ static void AssertEqual(object? expected, object? actual)
     }
 }
 
-sealed class TestHostItem : IHostItem
-{
-    private object? _value;
-
-    public TestHostItem(object? value)
-    {
-        _value = value;
-    }
-
-    public bool TryRead(out object? value)
-    {
-        value = _value;
-        return true;
-    }
-
-    public bool TryWrite(object? value)
-    {
-        _value = value;
-        return true;
-    }
-}

@@ -1,0 +1,19 @@
+
+
+
+name: signal_1
+text: 'DemoComputed'
+mode: Computed
+unit: ''
+format: ''
+formula: '{A} / {B} * 1.23'
+triggerIntervalSeconds: 1
+variables:
+- name: A
+  sourcePath: udl1.m001.read
+- name: B
+  sourcePath: udl1.m002.read
+  
+  
+  
+

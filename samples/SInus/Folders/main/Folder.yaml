@@ -1,9 +1,159 @@
-Caption: main
+Caption: 'main'
 Screens:
   1: 'HomeScreen'
   9: 'Assets'
   30: 'ResourcesScreen'
 Controls:
-- 
-Folder: main
-...
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_1'
+      Text: 'signal_1'
+      Path: 'signal_1'
+      Id: 'facfa19788cd4435b2ebfd84d55e3b83'
+    Bounds:
+      X: 502
+      Y: 146
+      Width: 392
+      Height: 110
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'signal_1'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'signals.custom.signal_1'
+      Parameter: 'read'
+      Format: 'numeric'
+      IsReadOnly: false
+      RefreshRateMs: '1000'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_2'
+      Text: 'signal_2'
+      Path: 'signal_2'
+      Id: 'c3867c2b97e74c9894f0cfc6c30fce69'
+    Bounds:
+      X: 508
+      Y: 271
+      Width: 381
+      Height: 122
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'signal_2'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'signals.custom.signal_2'
+      Parameter: 'read'
+      Format: ''
+      IsReadOnly: false
+      RefreshRateMs: '1000'
+  -
+    Type: 'Signal'
+    Screen: '1'
+    Enabled: true
+    Identity:
+      Name: 'signal_3'
+      Text: 'signal_3'
+      Path: 'signal_3'
+      Id: 'abbfebe5d01b44c59ada58b4022bc694'
+    Bounds:
+      X: 511
+      Y: 406
+      Width: 374
+      Height: 144
+    Design:
+      CornerRadius: 12
+      BorderWidth: 1
+      BorderColor: null
+      BackColor: null
+      ToolTip: ''
+    Header:
+      ControlCaption: 'signal_3'
+      SyncText: true
+      HeaderForeColor: null
+      CaptionVisible: true
+      HeaderCornerRadius: 6
+      HeaderBorderWidth: 0
+      HeaderBorderColor: null
+      HeaderBackColor: null
+    Body:
+      BodyCaption: 'read'
+      BodyCaptionPosition: 'Top'
+      BodyForeColor: null
+      BodyCaptionVisible: false
+      BodyCornerRadius: 8
+      BodyBorderWidth: 0
+      BodyBorderColor: null
+      BodyBackColor: null
+    Footer:
+      ShowFooter: false
+      FooterCornerRadius: 6
+      FooterBorderWidth: 0
+      FooterBorderColor: null
+      FooterBackColor: null
+    Properties:
+      Unit: ''
+      Uri: 'signals.custom.signal_3'
+      Parameter: 'read'
+      Format: 'bool'
+      IsReadOnly: false
+      RefreshRateMs: '1000'

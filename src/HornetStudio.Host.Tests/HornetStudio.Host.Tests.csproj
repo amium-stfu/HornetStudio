@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\HornetStudio.Host\HornetStudio.Host.csproj" />
+    <ProjectReference Include="..\Amium.UdlClient\Amium.UdlClient.csproj" />
   </ItemGroup>
 
 </Project>

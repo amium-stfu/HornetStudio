@@ -299,7 +299,7 @@ public sealed class HostUdlClient : IHostUdlClient
         module.Properties["module_id"].Value = moduleId;
         module.Properties["text"].Value = key;
         module.Properties["kind"].Value = "UdlModule";
-        module.Properties["SendStatus"].Value = "idle";
+        module.Properties["send_status"].Value = "idle";
 
         module.Read.Properties["text"].Value = $"{key} Read";
         module.Set.Properties["text"].Value = $"{key} Set";
@@ -318,7 +318,7 @@ public sealed class HostUdlClient : IHostUdlClient
     }
 
     private static string FormatModuleName(uint moduleId)
-        => $"m{moduleId:X3}";
+        => $"m{moduleId:x3}";
 
     private static IPEndPoint ResolveRemoteEndpoint(string host, int port)
     {
@@ -494,7 +494,7 @@ public sealed class HostUdlClient : IHostUdlClient
             }
         }
 
-        module.Properties["SendStatus"].Value = "pending";
+        module.Properties["send_status"].Value = "pending";
         RaiseDiagnostic($"[HostUdlClient:{Name}] write queued moduleId=0x{moduleId:X3} function={function} desired={desiredValue:0.###} source={item.Path}");
     }
 
@@ -535,7 +535,7 @@ public sealed class HostUdlClient : IHostUdlClient
                 ClearRequestedValue(item);
             }
 
-            module.Properties["SendStatus"].Value = "timeout";
+            module.Properties["send_status"].Value = "timeout";
             RaiseDiagnostic($"[HostUdlClient:{Name}] write timeout moduleId=0x{key.ModuleId:X3} function={key.Function} desired={desiredValue:0.###}");
             return;
         }
@@ -547,7 +547,7 @@ public sealed class HostUdlClient : IHostUdlClient
         }
 
         RaiseDiagnostic($"[HostUdlClient:{Name}] write request moduleId=0x{key.ModuleId:X3} function={key.Function} desired={desiredValue:0.###}");
-        module.Properties["SendStatus"].Value = "sending";
+        module.Properties["send_status"].Value = "sending";
         var queued = SendWritePdo(key.ModuleId, desiredValue, key.Function);
         RaiseDiagnostic($"[HostUdlClient:{Name}] write send result moduleId=0x{key.ModuleId:X3} function={key.Function} desired={desiredValue:0.###} queued={queued}");
 
@@ -597,7 +597,7 @@ public sealed class HostUdlClient : IHostUdlClient
         }
 
         ClearRequestedValue(item);
-        module.Properties["SendStatus"].Value = "ok";
+        module.Properties["send_status"].Value = "ok";
         RaiseDiagnostic($"[HostUdlClient:{Name}] write acknowledged moduleId=0x{moduleId:X3} function={function} value={receivedValue:0.###}");
     }
 

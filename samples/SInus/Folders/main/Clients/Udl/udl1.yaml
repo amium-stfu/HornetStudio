@@ -1,0 +1,40 @@
+Text: Udl1
+Host: 192.168.87.151
+Port: 9001
+AutoConnect: true
+DebugLogging: true
+Enabled: true
+DemoEnabled: true
+AttachedItemPaths:
+- m0a0
+- m310
+- m610
+- m620
+- m630
+- m640
+- m650
+UdlModuleExposures: []
+DemoModules:
+- Name: m001
+  Kind: SetDriven
+  Unit: ''
+  Format: ''
+  Amplitude: 1
+  PeriodSeconds: 5
+  SetScale: 1
+  SetTauSeconds: 10
+  Faults:
+  - Kind: Noise
+    Enabled: true
+    Amount: 0.5
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000
+  - Kind: Noise
+    UseJitter: true
+    PeriodSeconds: 2
+    UpdateIntervalMs: 250
+    IntervalSeconds: 5
+    DurationMs: 1000

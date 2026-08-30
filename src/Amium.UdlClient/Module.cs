@@ -1,16 +1,11 @@
 using HornetStudio.Editor.Models;
-using ItemModel = Amium.Items.Item;
+using Amium.Items;
+
 
 namespace Amium.UdlClient;
 
-public sealed class Module : ItemModel
+public sealed class Module : Item
 {
-    private const string ReadItemName = "read";
-    private const string SetItemName = "set";
-    private const string OutItemName = "out";
-    private const string StateItemName = "state";
-    private const string AlertItemName = "alert";
-
     public Module(string name, string? path = null)
         : base(name, path: path)
     {
@@ -18,57 +13,17 @@ public sealed class Module : ItemModel
         Properties["text"].Value = name;
         Properties["unit"].Value = string.Empty;
 
-        AddChannel(ReadItemName, hasWriteChannel: true);
-        AddChannel(SetItemName, hasWriteChannel: true);
-        AddChannel(OutItemName, hasWriteChannel: true);
-        AddChannel(StateItemName, hasWriteChannel: true);
-        AddChannel(AlertItemName);
+        this["read"] = new Item(name: "read",path: Path, hasWriteChannel: true);
+        this["set"] = new Item(name: "set",path: Path, hasWriteChannel: true);
+        this["out"] = new Item(name: "out",path: Path, hasWriteChannel: true);
+        this["state"] = new Item(name: "state",path: Path, hasWriteChannel: true);
+        this["alert"] = new Item(name: "alert",path: Path, hasWriteChannel: false);
     }
 
-    public ItemModel Read => this[ReadItemName];
-    public ItemModel Set => this[SetItemName];
-    public ItemModel Out => this[OutItemName];
-    public ItemModel State => this[StateItemName];
-    public ItemModel Alert => this[AlertItemName];
+    public Item Read => this["read"];
+    public Item Set => this["set"];
+    public Item Out => this["out"];
+    public Item State => this["state"];
+    public Item Alert => this["alert"];
 
-    public void EnsureWriteMetadata()
-    {
-        EnsureWriteChannel(Read);
-        EnsureWriteChannel(Set);
-        EnsureWriteChannel(Out);
-        EnsureWriteChannel(State);
-        EnsureNoWriteChannel(Alert);
-        RemoveLegacyCommand();
-    }
-
-    private void AddChannel(string name, bool hasWriteChannel = false)
-    {
-        this[name] = new ItemModel(
-            name,
-            path: Path,
-            hasWriteChannel: hasWriteChannel);
-    }
-
-    private static void EnsureWriteChannel(ItemModel channel)
-    {
-        if (!channel.Properties.Has("write"))
-        {
-            channel.Properties["write"].Value = channel.Properties.Has("read")
-                ? channel.Properties["read"].Value
-                : null!;
-        }
-    }
-
-    private static void EnsureNoWriteChannel(ItemModel channel)
-    {
-        channel.Properties.Remove("write");
-    }
-
-    private void RemoveLegacyCommand()
-    {
-        if (Has("Command"))
-        {
-            Remove("Command");
-        }
-    }
 }

@@ -5,7 +5,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using ItemModel = Amium.Items.Item;
+using Amium.Items;
 using ItemChangedEventArgs = Amium.Items.ItemChangedEventArgs;
 using ItemDictionary = Amium.Items.ItemDictionary;
 
@@ -17,14 +17,14 @@ public sealed class UdlClient : IDisposable
 
     private sealed class PendingWrite
     {
-        public PendingWrite(double desiredValue, DateTime firstAttemptUtc)
+        public PendingWrite(float desiredValue, DateTime firstAttemptUtc)
         {
             DesiredValue = desiredValue;
             FirstAttemptUtc = firstAttemptUtc;
             LastSendUtc = DateTime.MinValue;
         }
 
-        public double DesiredValue { get; set; }
+        public float DesiredValue { get; set; }
         public DateTime FirstAttemptUtc { get; set; }
         public DateTime LastSendUtc { get; set; }
     }
@@ -70,7 +70,7 @@ public sealed class UdlClient : IDisposable
 
         WriteDiagnostic($"open requested endpoint={ip}:{port}");
 
-        var can = new Can(ip, port, OnCanDiagnostic);
+        var can = new Can(ip, port, WriteDiagnostic);
         var lifetime = new CancellationTokenSource();
 
         can.MessageReceived += OnCanMessageReceived;
@@ -111,7 +111,6 @@ public sealed class UdlClient : IDisposable
         if (can is not null)
         {
             can.MessageReceived -= OnCanMessageReceived;
-            can.Diagnostic -= OnCanDiagnostic;
         }
 
         if (lifetime is not null)
@@ -171,7 +170,7 @@ public sealed class UdlClient : IDisposable
             WriteDiagnostic("idle loop started");
             while (!token.IsCancellationRequested)
             {
-                HbIdle();
+                SendHeartbeatIfDue();
                 await Task.Delay(100, token).ConfigureAwait(false);
             }
         }
@@ -183,7 +182,6 @@ public sealed class UdlClient : IDisposable
             WriteDiagnostic($"idle loop error={exception.GetType().Name}: {exception.Message}");
         }
     }
-
     private async Task WritebackLoopAsync(CancellationToken token)
     {
         try
@@ -223,65 +221,58 @@ public sealed class UdlClient : IDisposable
 
         var moduleId = ((id & 0x7Fu) << 4) | ((uint)data[7] & 0x0Fu);
         var module = GetOrCreateModule(moduleId);
-
-        var type = data[6];
-        switch (type)
+        var function = data[6];
+        var rawValue = BitConverter.ToSingle(data, 0);
+        switch (function)
         {
             case 1:
             {
-                var stateValue = Convert.ToInt32(Math.Round(BitConverter.ToSingle(data, 0), MidpointRounding.AwayFromZero));
-                SetChannelReadValue(module.State, stateValue);
-                AcknowledgePendingWrite(moduleId, function: 1, stateValue, module, module.State);
-                break;
+                var stateValue = Convert.ToInt32(Math.Round(rawValue, MidpointRounding.AwayFromZero));
+                module.State.Properties["read"].Value = stateValue;
+                AcknowledgePendingWrite(moduleId, function: function, stateValue, module, module.State);
+                return;
             }
 
             case 2:
-                SetChannelReadValue(module.Alert, BitConverter.ToSingle(data, 0));
-                break;
+                module.Alert.Properties["read"].Value = rawValue;
+                return;
 
             case 3:
             {
-                var value = BitConverter.ToSingle(data, 0);
-                SetChannelReadValue(module.Read, value);
+                module.Read.Properties["read"].Value = rawValue;
                 var metadata = (ushort)(data[4] | (data[5] << 8));
                 module.Read.Properties["MetaData"].Value = metadata;
                 module.Properties["MetaData"].Value = metadata;
-                AcknowledgePendingWrite(moduleId, function: 3, value, module, module.Read);
-                break;
+                AcknowledgePendingWrite(moduleId, function: function, rawValue, module, module.Read);
+                return;
             }
 
             case 4:
-            {
-                var value = BitConverter.ToSingle(data, 0);
-                SetChannelReadValue(module.Set, value);
-                AcknowledgePendingWrite(moduleId, function: 4, value, module, module.Set);
-                break;
-            }
+                module.Set.Properties["read"].Value = rawValue;
+                AcknowledgePendingWrite(moduleId, function: function, rawValue, module, module.Set);
+                return;
 
             case 5:
-            {
-                var value = BitConverter.ToSingle(data, 0);
-                SetChannelReadValue(module.Out, value);
-                AcknowledgePendingWrite(moduleId, function: 5, value, module, module.Out);
-                break;
-            }
+                module.Out.Properties["read"].Value = rawValue;
+                AcknowledgePendingWrite(moduleId, function: function, rawValue, module, module.Out);
+                return;
 
             default:
-                module.Properties["LastType"].Value = type;
+                module.Properties["LastType"].Value = function;
                 module.Properties["LastRaw"].Value = FormatBytes(data, dlc);
                 if (ShouldSample(ref _unknownTypeLogCount, 8, 100))
                 {
-                    WriteDiagnostic($"subchannel unknown type={type} module={module.Name}");
+                    WriteDiagnostic($"subchannel unknown type={function} module={module.Name}");
                 }
-                break;
+
+                return;
         }
     }
-
     private void HandleHeartbeat(uint id, byte dlc, byte[] data)
     {
     }
 
-    private void HbIdle()
+    private void SendHeartbeatIfDue()
     {
         var can = _can;
         if (can is null)
@@ -323,7 +314,6 @@ public sealed class UdlClient : IDisposable
         var key = FormatModuleName(moduleId);
         if (Items.Has(key) && Items[key] is Module existingModule)
         {
-            existingModule.EnsureWriteMetadata();
             return existingModule;
         }
 
@@ -332,7 +322,7 @@ public sealed class UdlClient : IDisposable
         module.Properties["module_id"].Value = moduleId;
         module.Properties["text"].Value = key;
         module.Properties["kind"].Value = "UdlModule";
-        module.Properties["SendStatus"].Value = "idle";
+        module.Properties["send_status"].Value = "idle";
 
         module.Read.Properties["text"].Value = $"{key} Read";
         module.Set.Properties["text"].Value = $"{key} Set";
@@ -344,7 +334,7 @@ public sealed class UdlClient : IDisposable
         module.Set.Changed += (_, e) => OnWriteItemChanged(moduleId, module, e);
         module.Out.Changed += (_, e) => OnWriteItemChanged(moduleId, module, e);
         module.State.Changed += (_, e) => OnWriteItemChanged(moduleId, module, e);
-        module.EnsureWriteMetadata();
+      
 
         Items[key] = module;
         return module;
@@ -357,58 +347,43 @@ public sealed class UdlClient : IDisposable
             return;
         }
 
-        WriteDiagnostic($"request changed moduleId=0x{moduleId:X3} item={e.Item.Path} parameter={e.PropertyName} value={FormatObject(TryGetWritePropertyValue(e.Item) ?? e.Item.Value)}");
-        ProcessRequestWrite(moduleId, module, e.Item);
-    }
+        var requestItem = e.Item;
+        var function = 0;
+        var channelName = string.Empty;
 
-    private void ProcessRequestWrite(uint moduleId, Module module, ItemModel requestItem)
-    {
-        if (!TryGetWriteChannel(module, requestItem, out var function, out var channelName))
-        {
-            WriteDiagnostic($"process request write moduleId=0x{moduleId:X3} channel=unknown requestPath={requestItem.Path}");
-            return;
-        }
-
-        WriteDiagnostic($"process request write moduleId=0x{moduleId:X3} channel={channelName} write={FormatObject(TryGetWritePropertyValue(requestItem))} read={FormatObject(TryGetReadPropertyValue(requestItem))}");
-        QueuePendingWrite(moduleId, function, requestItem, module);
-    }
-
-    private static bool TryGetWriteChannel(Module module, ItemModel item, out int function, out string channelName)
-    {
-        if (ReferenceEquals(item, module.State))
+        if (ReferenceEquals(requestItem, module.State))
         {
             function = 1;
             channelName = "state";
-            return true;
         }
-
-        if (ReferenceEquals(item, module.Read))
+        else if (ReferenceEquals(requestItem, module.Read))
         {
             function = 3;
             channelName = "read";
-            return true;
         }
-
-        if (ReferenceEquals(item, module.Set))
+        else if (ReferenceEquals(requestItem, module.Set))
         {
             function = 4;
             channelName = "set";
-            return true;
         }
-
-        if (ReferenceEquals(item, module.Out))
+        else if (ReferenceEquals(requestItem, module.Out))
         {
             function = 5;
             channelName = "out";
-            return true;
         }
 
-        function = 0;
-        channelName = string.Empty;
-        return false;
-    }
+        WriteDiagnostic($"request changed moduleId=0x{moduleId:X3} item={requestItem.Path} parameter={e.PropertyName} value={FormatObject(TryGetWritePropertyValue(requestItem) ?? requestItem.Value)}");
 
-    private void QueuePendingWrite(uint moduleId, int function, ItemModel item, Module module)
+        if (function == 0)
+        {
+            WriteDiagnostic($"write request ignored moduleId=0x{moduleId:X3} channel=unknown requestPath={requestItem.Path}");
+            return;
+        }
+
+        WriteDiagnostic($"write request moduleId=0x{moduleId:X3} channel={channelName} write={FormatObject(TryGetWritePropertyValue(requestItem))} read={FormatObject(TryGetReadPropertyValue(requestItem))}");
+        QueuePendingWrite(moduleId, function, requestItem, module);
+    }
+    private void QueuePendingWrite(uint moduleId, int function, Item item, Module module)
     {
         if (!TryGetWriteValue(item, out var desiredValue))
         {
@@ -418,7 +393,7 @@ public sealed class UdlClient : IDisposable
 
         var key = new PendingWriteKey(moduleId, function);
 
-        if (TryGetReadValue(item, out var currentValue) && Math.Abs(desiredValue - currentValue) <= 0.0001)
+        if (TryGetReadValue(item, out var currentValue) && MathF.Abs(desiredValue - currentValue) <= 0.0001f)
         {
             lock (_sync)
             {
@@ -432,13 +407,13 @@ public sealed class UdlClient : IDisposable
         lock (_sync)
         {
             if (!_pendingWrites.TryGetValue(key, out var pending)
-                || Math.Abs(pending.DesiredValue - desiredValue) > 0.0001)
+                || MathF.Abs(pending.DesiredValue - desiredValue) > 0.0001f)
             {
                 _pendingWrites[key] = new PendingWrite(desiredValue, DateTime.UtcNow);
             }
         }
 
-        module.Properties["SendStatus"].Value = "pending";
+        module.Properties["send_status"].Value = "pending";
         WriteDiagnostic($"write queued moduleId=0x{moduleId:X3} function={function} desired={desiredValue:0.###} source={item.Path}");
     }
 
@@ -449,7 +424,7 @@ public sealed class UdlClient : IDisposable
 
     private void TrySendPendingWrite(PendingWriteKey key, Module module)
     {
-        double desiredValue;
+        float desiredValue;
         bool timedOut;
         bool shouldSend;
 
@@ -478,7 +453,7 @@ public sealed class UdlClient : IDisposable
                 ClearRequestedValue(item);
             }
 
-            module.Properties["SendStatus"].Value = "timeout";
+            module.Properties["send_status"].Value = "timeout";
             WriteDiagnostic($"write timeout moduleId=0x{key.ModuleId:X3} function={key.Function} desired={desiredValue:0.###}");
             return;
         }
@@ -490,7 +465,7 @@ public sealed class UdlClient : IDisposable
         }
 
         WriteDiagnostic($"write request moduleId=0x{key.ModuleId:X3} function={key.Function} desired={desiredValue:0.###}");
-        module.Properties["SendStatus"].Value = "sending";
+        module.Properties["send_status"].Value = "sending";
         var queued = SendWritePdo(key.ModuleId, desiredValue, key.Function);
         WriteDiagnostic($"write send result moduleId=0x{key.ModuleId:X3} function={key.Function} desired={desiredValue:0.###} queued={queued}");
 
@@ -507,8 +482,7 @@ public sealed class UdlClient : IDisposable
             }
         }
     }
-
-    private void AcknowledgePendingWrite(uint moduleId, int function, double receivedValue, Module module, ItemModel item)
+    private void AcknowledgePendingWrite(uint moduleId, int function, float receivedValue, Module module, Item item)
     {
         var key = new PendingWriteKey(moduleId, function);
         var acknowledged = false;
@@ -525,7 +499,7 @@ public sealed class UdlClient : IDisposable
                 return;
             }
 
-            if (Math.Abs(pending.DesiredValue - receivedValue) > 0.0001)
+            if (MathF.Abs(pending.DesiredValue - receivedValue) > 0.0001f)
             {
                 return;
             }
@@ -540,11 +514,10 @@ public sealed class UdlClient : IDisposable
         }
 
         ClearRequestedValue(item);
-        module.Properties["SendStatus"].Value = "ok";
+        module.Properties["send_status"].Value = "ok";
         WriteDiagnostic($"write acknowledged moduleId=0x{moduleId:X3} function={function} value={receivedValue:0.###}");
     }
-
-    private bool SendWritePdo(uint moduleId, double value, int function)
+    private bool SendWritePdo(uint moduleId, float value, int function)
     {
         var can = _can;
         if (can is null)
@@ -556,7 +529,7 @@ public sealed class UdlClient : IDisposable
         var writeId = GetWriteIdFromModule(moduleId);
         var data = new byte[8];
 
-        Array.Copy(BitConverter.GetBytes((float)value), 0, data, 0, 4);
+        Array.Copy(BitConverter.GetBytes(value), 0, data, 0, 4);
         data[4] = 0;
         data[5] = 0;
         data[6] = (byte)function;
@@ -593,7 +566,7 @@ public sealed class UdlClient : IDisposable
         return false;
     }
 
-    private static bool TryGetChannelByFunction(Module module, int function, out ItemModel item, out string channelName)
+    private static bool TryGetChannelByFunction(Module module, int function, out Item item, out string channelName)
     {
         switch (function)
         {
@@ -620,23 +593,23 @@ public sealed class UdlClient : IDisposable
         }
     }
 
-    private static bool TryGetWriteValue(ItemModel item, out double value)
+    private static bool TryGetWriteValue(Item item, out float value)
     {
         value = 0;
         return item.Properties.Has("write")
-            && TryConvertToDouble(item.Properties["write"].Value, out value)
-            && !double.IsNaN(value);
+            && TryConvertToFloat(item.Properties["write"].Value, out value)
+            && !float.IsNaN(value);
     }
 
-    private static bool TryGetReadValue(ItemModel item, out double value)
+    private static bool TryGetReadValue(Item item, out float value)
     {
         value = 0;
         return item.Properties.Has("read")
-            && TryConvertToDouble(item.Properties["read"].Value, out value)
-            && !double.IsNaN(value);
+            && TryConvertToFloat(item.Properties["read"].Value, out value)
+            && !float.IsNaN(value);
     }
 
-    private static void ClearRequestedValue(ItemModel item)
+    private static void ClearRequestedValue(Item item)
     {
         if (item.Properties.Has("write"))
         {
@@ -644,7 +617,6 @@ public sealed class UdlClient : IDisposable
                 ? item.Properties["read"].Value
                 : null!;
         }
-
         item.Properties.Remove("Set");
         item.Properties.Remove("Write");
         item.Properties.Remove("set");
@@ -653,41 +625,16 @@ public sealed class UdlClient : IDisposable
     private static bool IsWriteTriggerProperty(string propertyName)
         => string.Equals(propertyName, "write", StringComparison.OrdinalIgnoreCase);
 
-    private static object? TryGetWritePropertyValue(ItemModel item)
+    private static object? TryGetWritePropertyValue(Item item)
         => item.Properties.Has("write")
             ? item.Properties["write"].Value
             : null;
 
-    private static object? TryGetReadPropertyValue(ItemModel item)
+    private static object? TryGetReadPropertyValue(Item item)
         => item.Properties.Has("read")
             ? item.Properties["read"].Value
             : null;
-
-    private static void SetChannelReadValue(ItemModel item, object? value)
-    {
-        item.Properties["read"].Value = value!;
-    }
-
-    private static bool TryConvertToUInt32(object? value, out uint converted)
-    {
-        converted = 0;
-        if (value is null)
-        {
-            return false;
-        }
-
-        try
-        {
-            converted = Convert.ToUInt32(value, CultureInfo.InvariantCulture);
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private static bool TryConvertToDouble(object? value, out double converted)
+    private static bool TryConvertToFloat(object? value, out float converted)
     {
         converted = 0;
         if (value is null)
@@ -697,20 +644,20 @@ public sealed class UdlClient : IDisposable
 
         switch (value)
         {
-            case double doubleValue:
-                converted = doubleValue;
-                return true;
             case float floatValue:
                 converted = floatValue;
                 return true;
-            case string text when double.TryParse(text, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var parsed):
+            case double doubleValue:
+                converted = (float)doubleValue;
+                return !float.IsNaN(converted) && !float.IsInfinity(converted);
+            case string text when float.TryParse(text, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var parsed):
                 converted = parsed;
                 return true;
             default:
                 try
                 {
-                    converted = Convert.ToDouble(value, CultureInfo.InvariantCulture);
-                    return true;
+                    converted = Convert.ToSingle(value, CultureInfo.InvariantCulture);
+                    return !float.IsNaN(converted) && !float.IsInfinity(converted);
                 }
                 catch
                 {
@@ -737,7 +684,7 @@ public sealed class UdlClient : IDisposable
     }
 
     private static string FormatModuleName(uint moduleId)
-        => $"m{moduleId:X3}";
+        => $"m{moduleId:x3}";
 
     private static string FormatObject(object? value)
         => value is null ? "<null>" : Convert.ToString(value, CultureInfo.InvariantCulture) ?? "<null>";
@@ -746,11 +693,6 @@ public sealed class UdlClient : IDisposable
     {
         var current = Interlocked.Increment(ref counter);
         return current <= initialBurst || current % every == 0;
-    }
-
-    private void OnCanDiagnostic(string message)
-    {
-        WriteDiagnostic(message);
     }
 
     private void WriteDiagnostic(string message)

@@ -1,0 +1,19 @@
+name: demo
+steps:
+- type: Log
+  targetLog: logs.host
+  level: Info
+  text: Start
+- type: IfThenElse
+  condition: '{A} > 10'
+  then:
+  - type: SetValue
+    target: signals.custom.signal_2
+    value: sv1:{"op":"SetLiteral","value":"High"}
+  variables:
+  - name: A
+    sourcePath: signals.custom.signal_1
+  else:
+  - type: SetValue
+    target: signals.custom.signal_2
+    value: sv1:{"op":"SetLiteral","value":"Low"}

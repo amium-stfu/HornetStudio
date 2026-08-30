@@ -1,0 +1,47 @@
+name: all_functions_example
+steps:
+- type: Log
+  targetLog: logs.host
+  level: Info
+  text: Function started
+- type: SetValue
+  target: signals.custom.signal_2
+  value: sv1:{"op":"SetLiteral","value":"Init"}
+- type: IfThenElse
+  condition: '{InputValue} > 10'
+  then:
+  - type: Log
+    targetLog: logs.host
+    level: Info
+    text: Input value is greater than 10
+  - type: SetValue
+    target: signals.custom.signal_2
+    value: sv1:{"op":"SetLiteral","value":"High"}
+  variables:
+  - name: InputValue
+    sourcePath: signals.custom.signal_1
+  else:
+  - type: Log
+    targetLog: logs.host
+    level: Warning
+    text: Input value is 10 or lower
+  - type: SetValue
+    target: signals.custom.signal_2
+    value: sv1:{"op":"SetLiteral","value":"Low"}
+- type: While
+  condition: '{LoopEnabled} == true'
+  steps:
+  - type: Delay
+    milliseconds: 100
+  - type: Log
+    targetLog: logs.host
+    level: Debug
+    text: Loop iteration
+  - type: Delay
+    milliseconds: 250
+  - type: SetValue
+    target: signals.custom.signal_1
+    value: sv1:{"op":"DecrementBy","value":"1"}
+  variables:
+  - name: LoopEnabled
+    sourcePath: signals.custom.signal_3

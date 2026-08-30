@@ -2469,8 +2469,8 @@ public sealed class FolderItemModel : ObservableObject
     public PropertyDisplayModel ItemBodyPresentation => BuildTargetParameterView(string.Empty, DisplayValue);
 
     public string RequestStatusText
-        => Target?.Properties.Has("SendStatus") == true
-            ? Target.Properties["SendStatus"].Value?.ToString() ?? string.Empty
+        => Target?.Properties.Has("send_status") == true
+            ? Target.Properties["send_status"].Value?.ToString() ?? string.Empty
             : string.Empty;
 
     public string DisplayFooter => string.Empty;
@@ -5320,7 +5320,7 @@ public sealed class FolderItemModel : ObservableObject
         return string.Equals(normalizedParameterName, TargetPropertyPath, StringComparison.OrdinalIgnoreCase)
             || (string.IsNullOrWhiteSpace(TargetPropertyPath) && string.Equals(normalizedParameterName, "read", StringComparison.OrdinalIgnoreCase))
             || string.Equals(normalizedParameterName, "unit", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(normalizedParameterName, "SendStatus", StringComparison.OrdinalIgnoreCase);
+            || string.Equals(normalizedParameterName, "send_status", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsValueOnlySignalValueReferenceParameter(string? parameterName, string valueRefParameter)
@@ -5333,7 +5333,7 @@ public sealed class FolderItemModel : ObservableObject
 
         return string.Equals(normalizedParameterName, valueRefParameter, StringComparison.OrdinalIgnoreCase)
             || string.Equals(normalizedParameterName, "unit", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(normalizedParameterName, "SendStatus", StringComparison.OrdinalIgnoreCase);
+            || string.Equals(normalizedParameterName, "send_status", StringComparison.OrdinalIgnoreCase);
     }
 
     private void QueueTargetValueRefresh(DataChangedEventArgs e, string matchedTargetPath)

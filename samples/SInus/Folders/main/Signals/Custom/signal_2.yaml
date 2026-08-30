@@ -1,0 +1,13 @@
+name: signal_2
+dataType: Text
+isWritable: true
+writePath: ''
+unit: ''
+format: ''
+valueText: ''
+formula: ''
+triggerIntervalSeconds: 1
+variables: []
+sourcePath: ''
+sourcePath2: ''
+sourcePath3: ''

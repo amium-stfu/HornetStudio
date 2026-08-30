@@ -1,3 +1,3 @@
 queue:
-  - workitem: docs/workitems/2026.06.07.1553-host_item_registry_probe/
-    handoff: docs/workitems/2026.06.07.1553-host_item_registry_probe/handoffs/2026.06.07.1553-implementation-handoff.md
+  - workitem: docs/workitems/2026.06.15.1427-udlclient_readability_cleanup/
+    handoff: docs/workitems/2026.06.15.1427-udlclient_readability_cleanup/handoffs/2026.06.15.1427-implementation-handoff.md
